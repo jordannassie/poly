@@ -63,7 +63,9 @@ export function CodeGate({ children }: CodeGateProps) {
 
   // Show gate
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center px-4">
+    <div className="min-h-screen bg-[#0a0a0a] relative flex flex-col items-center justify-center px-4">
+      {/* Background image */}
+      <div className="absolute inset-0 bg-[url('https://phhczohqidgrvcmszets.supabase.co/storage/v1/object/public/Sports%20Bet/image/alluring_swan_07128_Seahawks_vs_patriots_football_--ar_169_--_71ef6a5c-e7d7-4a27-9f1a-cd6de9f2772d_0.png')] bg-cover bg-center opacity-30" />
       {/* Background gradient effects */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl" />
