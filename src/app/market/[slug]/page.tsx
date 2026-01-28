@@ -27,14 +27,16 @@ export default function MarketPage({ params }: MarketPageProps) {
     notFound();
   }
 
-  // Generate chart data for each outcome
+  // Generate smooth chart data for each outcome
   const chartLines = market.outcomes.map((outcome, index) => ({
     name: outcome.name,
     color: outcomeColors[index % outcomeColors.length],
     data: Array.from({ length: 20 }, (_, i) => {
       const base = outcome.prob;
-      const variation = Math.sin(i * 0.5 + index) * 15 + Math.random() * 10;
-      return Math.max(0, Math.min(100, base + variation - 10 + (i / 20) * 10));
+      // Smooth sine wave without random noise
+      const wave = Math.sin(i * 0.3 + index * 2) * 12;
+      const trend = (i / 19) * 8 - 4; // Slight trend over time
+      return Math.max(5, Math.min(95, base + wave + trend));
     }),
     currentValue: outcome.prob,
   }));
