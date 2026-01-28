@@ -153,6 +153,7 @@ export function TradePanel({ market }: TradePanelProps) {
               : selectedOutcome.noPrice;
           addDemoBet({
             id: `${market.slug}-${Date.now()}`,
+            marketSlug: market.slug,
             marketTitle: market.title,
             outcomeName: selectedOutcome.name,
             side: side === "sell" ? "sell" : "buy",

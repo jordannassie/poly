@@ -169,8 +169,8 @@ export default function PortfolioPage() {
                 {bets.map((bet) => (
                   <Link
                     key={bet.id}
-                    href={`/market/${bet.id.split("-")[0]}`}
-                    className="grid grid-cols-5 gap-4 items-center p-4 rounded-xl bg-[color:var(--surface-2)] hover:bg-[color:var(--surface-3)] transition"
+                    href={`/market/${bet.marketSlug || "seahawks-vs-patriots"}`}
+                    className="grid grid-cols-5 gap-4 items-center p-4 rounded-xl bg-[color:var(--surface-2)] hover:bg-[color:var(--surface-3)] transition cursor-pointer"
                   >
                     <div>
                       <div className="font-medium text-sm">{bet.marketTitle}</div>

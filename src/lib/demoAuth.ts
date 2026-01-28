@@ -6,6 +6,7 @@ export type DemoUser = {
 
 export type DemoBet = {
   id: string;
+  marketSlug: string;
   marketTitle: string;
   outcomeName: string;
   side: "buy" | "sell";
