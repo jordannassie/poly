@@ -89,21 +89,21 @@ export function TradePanel({ market }: TradePanelProps) {
 
       <div className="grid grid-cols-2 gap-2">
         <Button
-          className={`h-12 ${
+          className={`h-12 font-semibold ${
             position === "yes"
-              ? "bg-[color:var(--yes)] hover:bg-[color:var(--yes-strong)]"
-              : "bg-[color:var(--surface-2)] hover:bg-[color:var(--surface-3)]"
-          } text-white`}
+              ? "bg-green-600 hover:bg-green-700 text-white"
+              : "bg-green-100 hover:bg-green-200 text-green-700 dark:bg-green-900/30 dark:hover:bg-green-900/50 dark:text-green-400"
+          }`}
           onClick={() => setPosition("yes")}
         >
           YES {selectedOutcome?.yesPrice ?? "--"}¢
         </Button>
         <Button
-          className={`h-12 ${
+          className={`h-12 font-semibold ${
             position === "no"
-              ? "bg-[color:var(--accent)] hover:bg-[color:var(--accent-strong)]"
-              : "bg-[color:var(--surface-2)] hover:bg-[color:var(--surface-3)]"
-          } text-white`}
+              ? "bg-red-600 hover:bg-red-700 text-white"
+              : "bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-400"
+          }`}
           onClick={() => setPosition("no")}
         >
           NO {selectedOutcome?.noPrice ?? "--"}¢

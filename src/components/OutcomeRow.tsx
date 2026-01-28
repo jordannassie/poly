@@ -32,13 +32,10 @@ export function OutcomeRow({ outcome }: OutcomeRowProps) {
         {outcome.prob}%
       </div>
       <div className="flex items-center gap-2">
-        <Button className="bg-[color:var(--yes)] hover:bg-[color:var(--yes-strong)] text-white h-9 text-xs">
+        <Button className="bg-green-600 hover:bg-green-700 text-white h-9 text-xs font-semibold">
           Buy Yes {outcome.yesPrice}¢
         </Button>
-        <Button
-          variant="secondary"
-          className="bg-[color:var(--surface-2)] hover:bg-[color:var(--surface-3)] text-[color:var(--text-strong)] h-9 text-xs"
-        >
+        <Button className="bg-red-600 hover:bg-red-700 text-white h-9 text-xs font-semibold">
           Buy No {outcome.noPrice}¢
         </Button>
       </div>
