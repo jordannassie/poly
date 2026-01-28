@@ -5,11 +5,14 @@ import { OutcomeRow } from "@/components/OutcomeRow";
 import { TopNav } from "@/components/TopNav";
 import { TradePanel } from "@/components/TradePanel";
 import { MainFooter } from "@/components/MainFooter";
-import { PriceChart } from "@/components/PriceChart";
+import { MultiLineChart } from "@/components/MultiLineChart";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { demoComments, getMarketBySlug, markets } from "@/lib/mockData";
+import { Eye, Bookmark, TrendingUp, TrendingDown } from "lucide-react";
+
+const outcomeColors = ["#3b82f6", "#f97316", "#ef4444", "#22c55e", "#a855f7"];
 
 type MarketPageProps = {
   params: { slug: string };
@@ -24,6 +27,18 @@ export default function MarketPage({ params }: MarketPageProps) {
     notFound();
   }
 
+  // Generate chart data for each outcome
+  const chartLines = market.outcomes.map((outcome, index) => ({
+    name: outcome.name,
+    color: outcomeColors[index % outcomeColors.length],
+    data: Array.from({ length: 20 }, (_, i) => {
+      const base = outcome.prob;
+      const variation = Math.sin(i * 0.5 + index) * 15 + Math.random() * 10;
+      return Math.max(0, Math.min(100, base + variation - 10 + (i / 20) * 10));
+    }),
+    currentValue: outcome.prob,
+  }));
+
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
       <TopNav />
@@ -37,28 +52,90 @@ export default function MarketPage({ params }: MarketPageProps) {
             >
               ← Back to Movers
             </Link>
-            <div className="space-y-3">
-              <div className="text-2xl font-semibold">{market.title}</div>
-              <div className="flex flex-wrap gap-2">
-                <span className="rounded-full bg-[color:var(--surface-2)] px-3 py-1 text-xs text-[color:var(--text-muted)]">
-                  {market.endDate}
-                </span>
-                <span className="rounded-full bg-[color:var(--surface-2)] px-3 py-1 text-xs text-[color:var(--text-muted)]">
-                  Feb 28
-                </span>
+            {/* Header with title and actions */}
+            <div className="flex items-start gap-4">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">
+                {market.title.charAt(0)}
               </div>
-              <div className="text-sm text-[color:var(--text-subtle)]">
-                {market.volume}
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <h1 className="text-2xl font-bold">{market.title}</h1>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Bookmark className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <span className="rounded-full bg-[color:var(--surface-2)] px-3 py-1 text-xs text-[color:var(--text-muted)]">
+                    {market.endDate}
+                  </span>
+                  <span className="rounded-full bg-[color:var(--surface-2)] px-3 py-1 text-xs text-[color:var(--text-muted)]">
+                    Feb 28
+                  </span>
+                </div>
               </div>
             </div>
+
+            {/* Multi-line chart */}
+            <MultiLineChart lines={chartLines} />
+
+            {/* Volume stats */}
+            <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-1">
+                <TrendingUp className="h-4 w-4 text-green-500" />
+                <span className="text-[color:var(--text-muted)]">{market.volume}</span>
+              </div>
+            </div>
+
+            {/* Outcomes list */}
             <div className="space-y-3">
-              {market.outcomes.map((outcome) => (
-                <OutcomeRow key={outcome.id} outcome={outcome} />
+              {market.outcomes.map((outcome, index) => (
+                <div
+                  key={outcome.id}
+                  className="flex items-center justify-between gap-4 rounded-xl bg-[color:var(--surface)] border border-[color:var(--border-soft)] p-4 hover:border-[color:var(--border-strong)] transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-1 h-10 rounded-full"
+                      style={{ backgroundColor: outcomeColors[index % outcomeColors.length] }}
+                    />
+                    <div>
+                      <div className="font-semibold">{outcome.name}</div>
+                      <div className="text-xs text-[color:var(--text-subtle)]">
+                        {outcome.volume}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="text-2xl font-bold">{outcome.prob}%</div>
+                      <div className="flex items-center gap-1 text-xs">
+                        {outcome.prob > 50 ? (
+                          <TrendingUp className="h-3 w-3 text-green-500" />
+                        ) : (
+                          <TrendingDown className="h-3 w-3 text-red-500" />
+                        )}
+                        <span className={outcome.prob > 50 ? "text-green-500" : "text-red-500"}>
+                          {outcome.prob > 50 ? "+" : ""}{(outcome.prob - 50).toFixed(0)}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button className="bg-green-600 hover:bg-green-700 text-white h-9 px-4">
+                        Buy Yes {outcome.yesPrice}¢
+                      </Button>
+                      <Button className="bg-red-600 hover:bg-red-700 text-white h-9 px-4">
+                        Buy No {outcome.noPrice}¢
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
-            <div className="rounded-2xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-6 space-y-4">
-              <div className="text-sm font-semibold">Live odds</div>
-              <PriceChart data={market.sparkline ? [...market.sparkline, ...market.sparkline.map(v => v + 10), ...market.sparkline.map(v => v + 20)] : undefined} />
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface-2)] p-4">
                   <div className="text-xs text-[color:var(--text-subtle)]">Volume</div>
