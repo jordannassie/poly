@@ -37,6 +37,157 @@ export const categories: Category[] = [
   { label: "Culture", href: "/" },
   { label: "World", href: "/" },
   { label: "Economy", href: "/" },
+  { label: "Climate & Science", href: "/" },
+  { label: "Elections", href: "/" },
+];
+
+// Sports-specific data
+export type SportsGame = {
+  id: string;
+  sport: string;
+  league: string;
+  team1: {
+    abbr: string;
+    name: string;
+    record: string;
+    odds: number;
+    color: string;
+  };
+  team2: {
+    abbr: string;
+    name: string;
+    record: string;
+    odds: number;
+    color: string;
+  };
+  gameTime: string;
+  date: string;
+  volume: string;
+  spread?: { team1: string; team2: string; odds1: number; odds2: number };
+  total?: { over: number; under: number; odds1: number; odds2: number };
+};
+
+export const sportsGames: SportsGame[] = [
+  {
+    id: "seahawks-patriots",
+    sport: "football",
+    league: "NFL",
+    team1: {
+      abbr: "SEA",
+      name: "Seahawks",
+      record: "14-3",
+      odds: 69,
+      color: "#002244",
+    },
+    team2: {
+      abbr: "NE",
+      name: "Patriots",
+      record: "14-3",
+      odds: 32,
+      color: "#002244",
+    },
+    gameTime: "3:30 PM",
+    date: "Feb 8",
+    volume: "$4.02m Vol.",
+    spread: { team1: "-4.5", team2: "+4.5", odds1: 51, odds2: 50 },
+    total: { over: 46.5, under: 46.5, odds1: 47, odds2: 54 },
+  },
+  {
+    id: "chiefs-eagles",
+    sport: "football",
+    league: "NFL",
+    team1: {
+      abbr: "KC",
+      name: "Chiefs",
+      record: "15-2",
+      odds: 58,
+      color: "#E31837",
+    },
+    team2: {
+      abbr: "PHI",
+      name: "Eagles",
+      record: "14-3",
+      odds: 42,
+      color: "#004C54",
+    },
+    gameTime: "6:30 PM",
+    date: "Feb 9",
+    volume: "$8.5m Vol.",
+    spread: { team1: "-2.5", team2: "+2.5", odds1: 52, odds2: 48 },
+    total: { over: 51.5, under: 51.5, odds1: 50, odds2: 50 },
+  },
+  {
+    id: "lakers-celtics",
+    sport: "basketball",
+    league: "NBA",
+    team1: {
+      abbr: "LAL",
+      name: "Lakers",
+      record: "32-18",
+      odds: 45,
+      color: "#552583",
+    },
+    team2: {
+      abbr: "BOS",
+      name: "Celtics",
+      record: "38-12",
+      odds: 55,
+      color: "#007A33",
+    },
+    gameTime: "8:00 PM",
+    date: "Feb 10",
+    volume: "$2.1m Vol.",
+    spread: { team1: "+5.5", team2: "-5.5", odds1: 48, odds2: 52 },
+    total: { over: 228.5, under: 228.5, odds1: 51, odds2: 49 },
+  },
+  {
+    id: "warriors-nuggets",
+    sport: "basketball",
+    league: "NBA",
+    team1: {
+      abbr: "GSW",
+      name: "Warriors",
+      record: "28-22",
+      odds: 42,
+      color: "#1D428A",
+    },
+    team2: {
+      abbr: "DEN",
+      name: "Nuggets",
+      record: "35-15",
+      odds: 58,
+      color: "#0E2240",
+    },
+    gameTime: "9:30 PM",
+    date: "Feb 10",
+    volume: "$1.8m Vol.",
+    spread: { team1: "+6.5", team2: "-6.5", odds1: 47, odds2: 53 },
+    total: { over: 232.5, under: 232.5, odds1: 52, odds2: 48 },
+  },
+  {
+    id: "bruins-rangers",
+    sport: "hockey",
+    league: "NHL",
+    team1: {
+      abbr: "BOS",
+      name: "Bruins",
+      record: "35-10-5",
+      odds: 62,
+      color: "#FFB81C",
+    },
+    team2: {
+      abbr: "NYR",
+      name: "Rangers",
+      record: "30-15-5",
+      odds: 38,
+      color: "#0038A8",
+    },
+    gameTime: "7:00 PM",
+    date: "Feb 11",
+    volume: "$890k Vol.",
+    spread: { team1: "-1.5", team2: "+1.5", odds1: 45, odds2: 55 },
+    total: { over: 5.5, under: 5.5, odds1: 48, odds2: 52 },
+  },
 ];
 
 export const markets: Market[] = [
