@@ -89,7 +89,7 @@ export function CodeGate({ children }: CodeGateProps) {
 
         {/* Tagline */}
         <h1 className="text-2xl md:text-3xl font-bold text-white mb-3">
-          The Future of Sports Betting
+          The Future of Sports Prediction
         </h1>
         <p className="text-gray-400 mb-8">
           Be among the first to experience the next generation of sports prediction markets.
