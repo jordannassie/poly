@@ -91,7 +91,7 @@ export function TopNav() {
               {demoUser ? (
                 <>
                   {/* Portfolio & Cash */}
-                  <div className="flex items-center gap-4 mr-2">
+                  <Link href="/portfolio" className="flex items-center gap-4 mr-2 hover:opacity-80 transition">
                     <div className="text-center">
                       <div className="text-xs text-[color:var(--text-subtle)]">Portfolio</div>
                       <div className="text-sm font-semibold text-green-500">$0.00</div>
@@ -100,7 +100,7 @@ export function TopNav() {
                       <div className="text-xs text-[color:var(--text-subtle)]">Cash</div>
                       <div className="text-sm font-semibold text-green-500">$0.00</div>
                     </div>
-                  </div>
+                  </Link>
                   {/* Notifications */}
                   <Button
                     variant="ghost"
@@ -120,14 +120,16 @@ export function TopNav() {
                     </DropdownMenuTrigger>
                   <DropdownMenuContent className="bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] w-48">
                     <DropdownMenuItem asChild>
-                      <Link href="/account">Account</Link>
+                      <Link href="/portfolio">Portfolio</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/settings">Settings</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link href="/leaderboard">Leaderboard</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem>Rewards</DropdownMenuItem>
                     <DropdownMenuItem>APIs</DropdownMenuItem>
-                    <DropdownMenuItem>Builders</DropdownMenuItem>
                     <DropdownMenuSeparator className="bg-[color:var(--border-soft)]" />
                     <DropdownMenuItem
                       className="flex items-center justify-between"
