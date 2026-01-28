@@ -10,6 +10,7 @@ import { MainFooter } from "@/components/MainFooter";
 import { TradePanel } from "@/components/TradePanel";
 import { MobileBetBar } from "@/components/MobileBetBar";
 import { TodayGames } from "@/components/sports/TodayGames";
+import { UpcomingGames } from "@/components/sports/UpcomingGames";
 import { TeamLogoGrid } from "@/components/sports/TeamLogoGrid";
 import { sportsGames } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
@@ -103,6 +104,13 @@ export default function SportsPage() {
             <div className="mb-8">
               <h2 className="text-lg font-semibold mb-4 text-[color:var(--text-strong)]">Today&apos;s Games</h2>
               <TodayGames league="nfl" />
+            </div>
+
+            {/* Upcoming Games */}
+            <div className="mb-8">
+              <h2 className="text-lg font-semibold mb-4 text-[color:var(--text-strong)]">Upcoming Matchups</h2>
+              <p className="text-sm text-[color:var(--text-muted)] mb-4">Make your picks for upcoming NFL games</p>
+              <UpcomingGames league="nfl" days={7} />
             </div>
 
             {/* NFL Teams Grid */}
