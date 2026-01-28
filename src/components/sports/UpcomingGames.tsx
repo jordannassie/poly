@@ -255,7 +255,7 @@ function GameCard({ game }: { game: Game }) {
       {/* Action Button */}
       {game.status === "scheduled" && (
         <div className="mt-4">
-          <Link href={`/market/${game.gameId}`}>
+          <Link href={`/nfl/game/${game.gameId}`}>
             <Button 
               variant="outline" 
               className="w-full border-[color:var(--border-soft)] hover:bg-[color:var(--surface-2)] group"

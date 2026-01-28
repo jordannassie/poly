@@ -169,7 +169,7 @@ function GameCard({ game }: { game: Game }) {
   const homeTeam = game.HomeTeamData;
 
   return (
-    <Link href={`/market/${game.GameKey}`}>
+    <Link href={`/nfl/game/${game.GameKey}`}>
       <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4 hover:border-[color:var(--border-strong)] transition cursor-pointer">
         {/* Status Row */}
         <div className="flex items-center justify-between mb-3">

@@ -183,15 +183,10 @@ export default function SportsPage() {
                         </span>
                         <span className="text-xs md:text-sm text-[color:var(--text-muted)]">{game.volume}</span>
                       </div>
-                      <Link
-                        href={`/market/${game.id}`}
-                        className="text-xs md:text-sm text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)] flex items-center gap-1"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <span className="hidden sm:inline">Game View</span>
-                        <span className="sm:hidden">View</span>
-                        <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
-                      </Link>
+                      <span className="text-xs md:text-sm text-[color:var(--text-subtle)] flex items-center gap-1">
+                        <span className="hidden sm:inline">Demo Only</span>
+                        <span className="sm:hidden">Demo</span>
+                      </span>
                     </div>
 
                     {/* Mobile Layout - Compact */}
