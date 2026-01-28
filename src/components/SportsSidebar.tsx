@@ -7,15 +7,24 @@ import {
   BarChart3,
   ChevronDown,
   ChevronRight,
-  Trophy,
+  ChevronLeft,
   Swords,
   Target,
-  Bike,
   Flag,
   Crown,
   Dumbbell,
   Circle,
+  PanelLeftClose,
+  PanelLeft,
 } from "lucide-react";
+import { Button } from "./ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "./ui/sheet";
 
 type SportItem = {
   id: string;
@@ -103,29 +112,27 @@ const allSports: SportItem[] = [
   { id: "pickleball", label: "Pickleball", icon: <Circle className="h-4 w-4 text-green-500" /> },
 ];
 
-export function SportsSidebar({ activeSport = "nfl" }: { activeSport?: string }) {
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-
-  const toggleExpand = (id: string) => {
-    setExpandedItems((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      return newSet;
-    });
-  };
-
+// Sidebar content component (shared between desktop and mobile)
+function SidebarContent({ 
+  activeSport, 
+  expandedItems, 
+  toggleExpand,
+  onNavigate 
+}: { 
+  activeSport: string;
+  expandedItems: Set<string>;
+  toggleExpand: (id: string) => void;
+  onNavigate?: () => void;
+}) {
   return (
-    <aside className="hidden lg:block w-56 flex-shrink-0 border-r border-[color:var(--border-soft)] bg-[color:var(--surface)] min-h-screen">
+    <>
       <div className="p-4 space-y-1">
         {/* Top Menu - Live & Futures */}
         {topMenu.map((item) => (
           <Link
             key={item.id}
             href={item.href}
+            onClick={onNavigate}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[color:var(--text-muted)] hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-strong)] transition"
           >
             {item.icon}
@@ -173,6 +180,7 @@ export function SportsSidebar({ activeSport = "nfl" }: { activeSport?: string })
                   <Link
                     key={sub.id}
                     href={`/sports/${sub.id}`}
+                    onClick={onNavigate}
                     className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-[color:var(--text-muted)] hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-strong)] transition"
                   >
                     <span className="flex-1">{sub.label}</span>
@@ -186,6 +194,118 @@ export function SportsSidebar({ activeSport = "nfl" }: { activeSport?: string })
           </div>
         ))}
       </div>
-    </aside>
+    </>
+  );
+}
+
+export function SportsSidebar({ activeSport = "nfl" }: { activeSport?: string }) {
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const toggleExpand = (id: string) => {
+    setExpandedItems((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  return (
+    <>
+      {/* Mobile: Floating button to open sidebar sheet */}
+      <div className="lg:hidden fixed bottom-4 left-4 z-40">
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetTrigger asChild>
+            <Button
+              size="lg"
+              className="rounded-full h-12 w-12 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 shadow-lg"
+            >
+              <PanelLeft className="h-5 w-5 text-white" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-[280px] p-0">
+            <SheetHeader className="p-4 border-b border-[color:var(--border-soft)]">
+              <SheetTitle className="text-[color:var(--text-strong)]">Sports</SheetTitle>
+            </SheetHeader>
+            <SidebarContent 
+              activeSport={activeSport}
+              expandedItems={expandedItems}
+              toggleExpand={toggleExpand}
+              onNavigate={() => setMobileOpen(false)}
+            />
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      {/* Desktop: Collapsible sidebar */}
+      <aside 
+        className={`hidden lg:flex flex-col flex-shrink-0 border-r border-[color:var(--border-soft)] bg-[color:var(--surface)] min-h-screen transition-all duration-300 ${
+          isCollapsed ? "w-16" : "w-56"
+        }`}
+      >
+        {/* Collapse toggle button */}
+        <div className="p-2 border-b border-[color:var(--border-soft)]">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="w-full justify-center h-8"
+          >
+            {isCollapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <>
+                <PanelLeftClose className="h-4 w-4 mr-2" />
+                <span className="text-xs">Collapse</span>
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* Collapsed state: just icons */}
+        {isCollapsed ? (
+          <div className="flex-1 py-4 space-y-2">
+            {/* Live & Futures icons */}
+            {topMenu.map((item) => (
+              <Link
+                key={item.id}
+                href={item.href}
+                className="flex items-center justify-center h-10 mx-2 rounded-lg text-[color:var(--text-muted)] hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-strong)] transition"
+                title={item.label}
+              >
+                {item.icon}
+              </Link>
+            ))}
+            <div className="h-px bg-[color:var(--border-soft)] mx-2 my-2" />
+            {/* Sport icons */}
+            {allSports.slice(0, 8).map((sport) => (
+              <div
+                key={sport.id}
+                className={`flex items-center justify-center h-10 mx-2 rounded-lg cursor-pointer transition ${
+                  activeSport === sport.id
+                    ? "bg-[color:var(--surface-2)] text-[color:var(--text-strong)]"
+                    : "text-[color:var(--text-muted)] hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-strong)]"
+                }`}
+                title={sport.label}
+              >
+                <span className={sport.color}>{sport.icon}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* Expanded state: full content */
+          <SidebarContent 
+            activeSport={activeSport}
+            expandedItems={expandedItems}
+            toggleExpand={toggleExpand}
+          />
+        )}
+      </aside>
+    </>
   );
 }
