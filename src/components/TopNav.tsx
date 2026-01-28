@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, ChevronDown, Moon, Sun } from "lucide-react";
+import { Search, ChevronDown, Moon, Sun, Bell } from "lucide-react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { AuthModal } from "./AuthModal";
@@ -89,16 +89,35 @@ export function TopNav() {
                 How it works
               </button>
               {demoUser ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="flex items-center gap-2 rounded-full bg-[color:var(--surface-2)] px-2 py-1 text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--surface-3)] text-xs font-semibold text-[color:var(--text-strong)]">
-                        {initials}
-                      </span>
-                      <span className="text-sm">{demoUser.handle}</span>
-                      <ChevronDown className="h-4 w-4 text-[color:var(--text-subtle)]" />
-                    </button>
-                  </DropdownMenuTrigger>
+                <>
+                  {/* Portfolio & Cash */}
+                  <div className="flex items-center gap-4 mr-2">
+                    <div className="text-center">
+                      <div className="text-xs text-[color:var(--text-subtle)]">Portfolio</div>
+                      <div className="text-sm font-semibold text-green-500">$0.00</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-[color:var(--text-subtle)]">Cash</div>
+                      <div className="text-sm font-semibold text-green-500">$0.00</div>
+                    </div>
+                  </div>
+                  {/* Notifications */}
+                  <Button
+                    variant="ghost"
+                    className="h-9 w-9 rounded-full p-0 text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)] hover:bg-[color:var(--surface-2)]"
+                  >
+                    <Bell className="h-4 w-4" />
+                  </Button>
+                  {/* User Menu */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="flex items-center gap-1 rounded-full p-1 text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-yellow-500 text-xs font-semibold text-white">
+                          {initials}
+                        </span>
+                        <ChevronDown className="h-4 w-4 text-[color:var(--text-subtle)]" />
+                      </button>
+                    </DropdownMenuTrigger>
                   <DropdownMenuContent className="bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] w-48">
                     <DropdownMenuItem asChild>
                       <Link href="/account">Account</Link>
@@ -135,7 +154,8 @@ export function TopNav() {
                       Logout
                     </DropdownMenuItem>
                   </DropdownMenuContent>
-                </DropdownMenu>
+                  </DropdownMenu>
+                </>
               ) : (
                 <>
                   <Button
