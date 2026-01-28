@@ -264,13 +264,13 @@ function GameCard({ game }: { game: Game }) {
           </div>
         </div>
 
-        {/* Bet Button */}
+        {/* Pick Buttons */}
         <div className="mt-4 flex gap-2">
           <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm">
-            Yes
+            Pick Yes
           </Button>
           <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white text-sm">
-            No
+            Pick No
           </Button>
         </div>
       </div>

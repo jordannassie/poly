@@ -169,12 +169,12 @@ export function FeaturedGameHero({ league = "nfl" }: FeaturedGameHeroProps) {
         {/* CTA Button */}
         {featured.status === "scheduled" && (
           <div className="flex justify-center">
-            <Link href={`/market/${featured.gameId}`}>
+            <Link href={featured.gameId ? `/nfl/game/${featured.gameId}` : "/sports"}>
               <Button 
                 size="lg"
                 className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold px-8 py-6 text-lg rounded-xl shadow-lg shadow-orange-500/25 group"
               >
-                <span>Make Your Pick</span>
+                <span>View Matchup</span>
                 <ChevronRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
@@ -183,12 +183,12 @@ export function FeaturedGameHero({ league = "nfl" }: FeaturedGameHeroProps) {
 
         {featured.status === "in_progress" && (
           <div className="flex justify-center">
-            <Link href={`/market/${featured.gameId}`}>
+            <Link href={featured.gameId ? `/nfl/game/${featured.gameId}` : "/sports"}>
               <Button 
                 size="lg"
                 className="bg-green-600 hover:bg-green-700 text-white font-bold px-8 py-6 text-lg rounded-xl"
               >
-                <span>Watch Live Updates</span>
+                <span>Follow Live</span>
               </Button>
             </Link>
           </div>

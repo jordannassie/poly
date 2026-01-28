@@ -102,7 +102,7 @@ export default function HomeClient() {
                   <div>
                     <h1 className="text-xl md:text-3xl font-bold">ProvePicks Sports</h1>
                     <p className="text-sm md:text-base text-[color:var(--text-muted)]">
-                      Bet on your favorite teams. Win big.
+                      Track matchups. Make your picks. Follow the action.
                     </p>
                   </div>
                 </div>
