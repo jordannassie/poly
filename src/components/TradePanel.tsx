@@ -14,7 +14,7 @@ import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { addDemoBet } from "@/lib/demoAuth";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Target, PartyPopper, Flame } from "lucide-react";
 
 type TradePanelProps = {
   market: Market;
@@ -164,7 +164,7 @@ export function TradePanel({ market }: TradePanelProps) {
           setTradeOpen(true);
         }}
       >
-        🎯 Place Bet
+        <Target className="h-4 w-4 mr-2" /> Place Bet
       </Button>
       <div className="text-xs text-[color:var(--text-subtle)] text-center">
         By trading, you agree to the Terms of Use.
@@ -174,7 +174,9 @@ export function TradePanel({ market }: TradePanelProps) {
         <DialogContent className="bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] max-w-sm overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 via-transparent to-blue-500/10 pointer-events-none" />
           <DialogHeader>
-            <DialogTitle className="text-center text-xl">🎉 Bet Placed!</DialogTitle>
+            <DialogTitle className="text-center text-xl flex items-center justify-center gap-2">
+              <PartyPopper className="h-5 w-5 text-green-500" /> Bet Placed!
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 text-sm relative">
             <div className="text-center text-[color:var(--text-muted)]">
@@ -187,8 +189,8 @@ export function TradePanel({ market }: TradePanelProps) {
               <div className="px-4 py-2 rounded-full bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-500 font-semibold">
                 +25 XP
               </div>
-              <div className="px-4 py-2 rounded-full bg-gradient-to-r from-orange-500/20 to-yellow-500/20 text-orange-500 font-semibold">
-                🔥 Streak +1
+              <div className="px-4 py-2 rounded-full bg-gradient-to-r from-orange-500/20 to-yellow-500/20 text-orange-500 font-semibold flex items-center gap-1">
+                <Flame className="h-4 w-4" /> Streak +1
               </div>
             </div>
             <div className="rounded-xl bg-[color:var(--surface-2)] border border-[color:var(--border-soft)] p-4">

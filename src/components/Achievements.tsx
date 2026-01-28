@@ -2,7 +2,16 @@
 
 import { achievements } from "@/lib/mockData";
 import { Card, CardContent } from "./ui/card";
-import { Award } from "lucide-react";
+import { Award, Target, Flame, Coins, Sunrise, Gem, Trophy } from "lucide-react";
+
+const iconMap: Record<string, React.ReactNode> = {
+  target: <Target className="h-6 w-6" />,
+  flame: <Flame className="h-6 w-6" />,
+  coins: <Coins className="h-6 w-6" />,
+  sunrise: <Sunrise className="h-6 w-6" />,
+  gem: <Gem className="h-6 w-6" />,
+  trophy: <Trophy className="h-6 w-6" />,
+};
 
 export function Achievements() {
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
@@ -29,7 +38,9 @@ export function Achievements() {
                   : "bg-[color:var(--surface-2)] border-[color:var(--border-soft)] opacity-50"
               }`}
             >
-              <span className="text-2xl">{achievement.icon}</span>
+              <div className={achievement.unlocked ? "text-purple-500" : "text-[color:var(--text-muted)]"}>
+                {iconMap[achievement.icon] || <Award className="h-6 w-6" />}
+              </div>
               <span className="text-xs text-center font-medium">
                 {achievement.label}
               </span>

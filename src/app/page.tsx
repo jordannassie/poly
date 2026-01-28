@@ -6,6 +6,7 @@ import { Achievements } from "@/components/Achievements";
 import { UserLevel } from "@/components/UserLevel";
 import { MainFooter } from "@/components/MainFooter";
 import { markets } from "@/lib/mockData";
+import { Target, Flame, Zap } from "lucide-react";
 
 export default function Home() {
   return (
@@ -15,15 +16,22 @@ export default function Home() {
       <main className="mx-auto w-full max-w-6xl px-4 py-6">
         <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 border border-[color:var(--border-soft)]">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">🎯 Predict & Win</h1>
-              <p className="text-sm text-[color:var(--text-muted)]">
-                Place bets on real-world events and earn rewards
-              </p>
+            <div className="flex items-center gap-3">
+              <Target className="h-8 w-8 text-blue-500" />
+              <div>
+                <h1 className="text-2xl font-bold">Predict & Win</h1>
+                <p className="text-sm text-[color:var(--text-muted)]">
+                  Place bets on real-world events and earn rewards
+                </p>
+              </div>
             </div>
             <div className="hidden sm:flex items-center gap-2 text-sm">
-              <span className="px-3 py-1 rounded-full bg-green-500/20 text-green-500">+500 XP Today</span>
-              <span className="px-3 py-1 rounded-full bg-orange-500/20 text-orange-500">🔥 3 Day Streak</span>
+              <span className="px-3 py-1 rounded-full bg-green-500/20 text-green-500 flex items-center gap-1">
+                <Zap className="h-3 w-3" /> +500 XP Today
+              </span>
+              <span className="px-3 py-1 rounded-full bg-orange-500/20 text-orange-500 flex items-center gap-1">
+                <Flame className="h-3 w-3" /> 3 Day Streak
+              </span>
             </div>
           </div>
         </div>

@@ -233,12 +233,12 @@ export const leaderboard = [
 ];
 
 export const achievements = [
-  { id: "first-bet", label: "First Bet", icon: "🎯", unlocked: true },
-  { id: "win-streak-3", label: "3 Win Streak", icon: "🔥", unlocked: true },
-  { id: "profit-100", label: "$100 Profit", icon: "💰", unlocked: false },
-  { id: "early-bird", label: "Early Bird", icon: "🐦", unlocked: true },
-  { id: "diamond-hands", label: "Diamond Hands", icon: "💎", unlocked: false },
-  { id: "top-10", label: "Top 10", icon: "🏆", unlocked: false },
+  { id: "first-bet", label: "First Bet", icon: "target", unlocked: true },
+  { id: "win-streak-3", label: "3 Win Streak", icon: "flame", unlocked: true },
+  { id: "profit-100", label: "$100 Profit", icon: "coins", unlocked: false },
+  { id: "early-bird", label: "Early Bird", icon: "sunrise", unlocked: true },
+  { id: "diamond-hands", label: "Diamond Hands", icon: "gem", unlocked: false },
+  { id: "top-10", label: "Top 10", icon: "trophy", unlocked: false },
 ];
 
 export const demoComments = [

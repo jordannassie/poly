@@ -15,7 +15,7 @@ export function UserLevel({ name = "Demo Trader" }: UserLevelProps) {
 
   return (
     <Card className="bg-gradient-to-br from-[color:var(--surface)] to-[color:var(--surface-2)] border-[color:var(--border-soft)] overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5" />
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5 pointer-events-none" />
       <CardContent className="p-4 relative">
         <div className="flex items-center gap-4">
           <div className="relative">
