@@ -411,7 +411,16 @@ export default function MarketPage({ params }: MarketPageProps) {
                     <span className="text-sm text-[color:var(--text-muted)]">Amount</span>
                     <span className="text-sm text-[color:var(--text-subtle)]">Balance $0.00</span>
                   </div>
-                  <div className="text-4xl font-bold text-right text-[color:var(--text-strong)] mb-3">$0</div>
+                  <div className="relative mb-3">
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 text-3xl font-bold text-[color:var(--text-strong)]">$</span>
+                    <input
+                      type="number"
+                      min="0"
+                      defaultValue=""
+                      placeholder="0"
+                      className="w-full text-4xl font-bold text-right text-[color:var(--text-strong)] py-1 bg-transparent border-none outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                  </div>
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" className="flex-1 border-[color:var(--border-soft)]">+$1</Button>
                     <Button size="sm" variant="outline" className="flex-1 border-[color:var(--border-soft)]">+$20</Button>

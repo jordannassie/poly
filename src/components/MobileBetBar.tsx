@@ -101,14 +101,22 @@ export function MobileBetBar({ team1, team2, onBet }: MobileBetBarProps) {
                 </Button>
               </div>
 
-              {/* Amount Display */}
+              {/* Amount Input */}
               <div className="bg-[color:var(--surface-2)] rounded-2xl p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-[color:var(--text-muted)]">Bet Amount</span>
                   <span className="text-sm text-[color:var(--text-subtle)]">Balance: $0.00</span>
                 </div>
-                <div className="text-4xl font-bold text-center text-[color:var(--text-strong)] py-2">
-                  ${amount}
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-3xl font-bold text-[color:var(--text-strong)]">$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={amount === 0 ? "" : amount}
+                    onChange={(e) => setAmount(Number(e.target.value) || 0)}
+                    placeholder="0"
+                    className="w-full text-4xl font-bold text-center text-[color:var(--text-strong)] py-3 bg-transparent border-none outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
                 </div>
               </div>
 
