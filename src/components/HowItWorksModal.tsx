@@ -14,22 +14,22 @@ type HowItWorksModalProps = {
 const steps = [
   {
     number: 1,
-    title: "Pick a Market",
+    title: "Pick a Game",
     description:
-      "Buy 'Yes' or 'No' shares depending on your prediction. Buying shares is like betting on the outcome. Odds shift in real time as other traders bet.",
+      "Choose from NFL, NBA, MLB, NHL and more. Pick 'Yes' or 'No' on who you think will win. Odds shift in real time as other bettors place their bets.",
   },
   {
     number: 2,
-    title: "Place a Bet",
+    title: "Place Your Bet",
     description:
-      "Fund your account with crypto, credit/debit card, or bank transfer—then you're ready to bet. No bet limits and no fees.",
+      "Fund your account with crypto, credit/debit card, or bank transfer—then you're ready to bet. No bet limits and no fees on any game.",
   },
   {
     number: 3,
-    title: "Profit",
-    emoji: "🤑",
+    title: "Win Big",
+    emoji: "🏆",
     description:
-      "Sell your 'Yes' or 'No' shares at any time, or wait until the market ends to redeem winning shares for $1 each. Create an account and place your first trade in minutes.",
+      "Cash out anytime before the game ends, or wait for the final whistle. Winning bets pay out instantly. Create an account and place your first bet in minutes.",
   },
 ];
 
@@ -86,86 +86,98 @@ export function HowItWorksModal({
             </div>
           )}
 
-          {/* Step 1: Pick a Market Card */}
+          {/* Step 1: Pick a Game Card */}
           {currentStep === 0 && (
-            <div className="bg-white rounded-2xl p-4 w-64 shadow-2xl">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-gray-800 text-sm font-medium">Will there be a US recession this year?</span>
+            <div className="bg-white rounded-2xl p-4 w-72 shadow-2xl">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center text-white font-bold text-xs">KC</div>
+                  <span className="text-gray-800 text-sm font-medium">Chiefs vs Eagles</span>
+                </div>
                 <div className="flex items-center gap-1 text-green-500">
                   <TrendingUp className="h-4 w-4" />
-                  <span className="font-bold">50%</span>
+                  <span className="font-bold">58%</span>
                 </div>
               </div>
+              <div className="text-xs text-gray-500 mb-3">Super Bowl LXII • Sun 6:30 PM</div>
               <div className="flex gap-2">
-                <button className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-semibold transition">
+                <button className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2.5 rounded-lg font-semibold transition">
                   Yes
                 </button>
-                <button className="flex-1 bg-gray-400 hover:bg-gray-500 text-white py-2 rounded-lg font-semibold transition">
+                <button className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-lg font-semibold transition">
                   No
                 </button>
               </div>
             </div>
           )}
 
-          {/* Step 2: Place a Bet Cards */}
+          {/* Step 2: Place Your Bet Cards */}
           {currentStep === 1 && (
             <div className="relative w-72 h-48">
               {/* Back card */}
-              <div className="absolute top-0 right-0 bg-white rounded-2xl p-4 w-48 shadow-xl transform rotate-6">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-800">$100</div>
-                  <div className="text-sm text-gray-500">To Win <span className="text-green-500 font-semibold">$133</span></div>
+              <div className="absolute top-0 right-0 bg-white rounded-2xl p-4 w-52 shadow-xl transform rotate-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-6 h-6 bg-green-700 rounded flex items-center justify-center text-white font-bold text-xs">PHI</div>
+                  <span className="text-gray-600 text-sm">Eagles</span>
                 </div>
-                <div className="flex gap-2 mt-3">
-                  <button className="flex-1 bg-gray-200 text-gray-600 py-1.5 rounded-lg text-sm font-medium">Buy Yes</button>
-                  <button className="flex-1 bg-red-500 text-white py-1.5 rounded-lg text-sm font-medium">Buy No</button>
+                <div className="text-center">
+                  <div className="text-xl font-bold text-gray-800">$50</div>
+                  <div className="text-sm text-gray-500">Payout <span className="text-green-500 font-semibold">$119</span></div>
                 </div>
               </div>
               {/* Front card */}
-              <div className="absolute bottom-0 left-0 bg-white rounded-2xl p-4 w-48 shadow-2xl transform -rotate-6">
+              <div className="absolute bottom-0 left-0 bg-white rounded-2xl p-4 w-52 shadow-2xl transform -rotate-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-6 h-6 bg-red-600 rounded flex items-center justify-center text-white font-bold text-xs">KC</div>
+                  <span className="text-gray-800 text-sm font-medium">Chiefs</span>
+                </div>
                 <div className="flex items-center justify-between mb-2">
-                  <button className="text-gray-400 text-xl">−</button>
+                  <button className="w-8 h-8 bg-gray-100 rounded-lg text-gray-400 text-xl">−</button>
                   <div className="text-2xl font-bold text-gray-800">$100</div>
-                  <button className="text-gray-400 text-xl">+</button>
+                  <button className="w-8 h-8 bg-gray-100 rounded-lg text-gray-400 text-xl">+</button>
                 </div>
                 <div className="text-center text-sm text-gray-500 mb-3">
-                  To Win <span className="text-green-500 font-semibold">$400</span>
+                  Payout <span className="text-green-500 font-semibold">$172</span>
                 </div>
                 <button className="w-full bg-green-500 text-white py-2 rounded-lg font-semibold">
-                  Buy Yes
+                  Bet Yes
                 </button>
               </div>
             </div>
           )}
 
-          {/* Step 3: Profit Card */}
+          {/* Step 3: Win Big Card */}
           {currentStep === 2 && (
-            <div className="bg-white rounded-2xl p-4 w-64 shadow-2xl relative">
+            <div className="bg-white rounded-2xl p-4 w-72 shadow-2xl relative">
               {/* Ticket edge effect */}
               <div className="absolute left-0 top-1/2 w-4 h-8 bg-[#1a2332] rounded-r-full transform -translate-y-1/2 -translate-x-2" />
               <div className="absolute right-0 top-1/2 w-4 h-8 bg-[#1a2332] rounded-l-full transform -translate-y-1/2 translate-x-2" />
               
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-gray-800 text-sm font-medium">Will there be a US recession this year?</span>
-                <TrendingUp className="h-5 w-5 text-green-500" />
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center text-white font-bold">KC</div>
+                <div>
+                  <div className="text-gray-800 font-semibold">Chiefs Win!</div>
+                  <div className="text-xs text-green-500 font-medium">Final: 38-35</div>
+                </div>
+                <div className="ml-auto text-2xl">🏆</div>
               </div>
               <div className="border-t border-dashed border-gray-300 my-3" />
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between text-gray-500">
-                  <span>Odds</span>
-                  <span></span>
+                  <span>Your Bet</span>
+                  <span className="text-gray-800 font-medium">$100 on Yes</span>
                 </div>
                 <div className="flex justify-between text-gray-500">
-                  <span>Bet</span>
-                  <span></span>
+                  <span>Odds</span>
+                  <span className="text-gray-800 font-medium">58%</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">To Win</span>
-                  <span className="text-2xl font-bold text-green-500">$250</span>
+                <div className="flex justify-between items-center pt-1">
+                  <span className="text-gray-500">You Won</span>
+                  <span className="text-3xl font-bold text-green-500">$172</span>
                 </div>
               </div>
-              <button className="w-full bg-blue-500 text-white py-2 rounded-lg font-semibold mt-4">
-                Cash Out
+              <button className="w-full bg-green-500 text-white py-2.5 rounded-lg font-semibold mt-4">
+                Collect Winnings
               </button>
             </div>
           )}
