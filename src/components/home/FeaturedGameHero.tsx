@@ -169,7 +169,7 @@ export function FeaturedGameHero({ league = "nfl" }: FeaturedGameHeroProps) {
         {/* CTA Button */}
         {featured.status === "scheduled" && (
           <div className="flex justify-center">
-            <Link href={featured.gameId ? `/nfl/game/${featured.gameId}` : "/sports"}>
+            <Link href={featured.gameId ? `/nfl/game/${featured.gameId}` : "/nfl"}>
               <Button 
                 size="lg"
                 className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold px-8 py-6 text-lg rounded-xl shadow-lg shadow-orange-500/25 group"
@@ -183,7 +183,7 @@ export function FeaturedGameHero({ league = "nfl" }: FeaturedGameHeroProps) {
 
         {featured.status === "in_progress" && (
           <div className="flex justify-center">
-            <Link href={featured.gameId ? `/nfl/game/${featured.gameId}` : "/sports"}>
+            <Link href={featured.gameId ? `/nfl/game/${featured.gameId}` : "/nfl"}>
               <Button 
                 size="lg"
                 className="bg-green-600 hover:bg-green-700 text-white font-bold px-8 py-6 text-lg rounded-xl"

@@ -91,7 +91,7 @@ export default function NFLGamePage() {
       <main className="max-w-4xl mx-auto p-4 md:p-6">
         {/* Back Link */}
         <Link 
-          href="/sports" 
+          href="/nfl" 
           className="inline-flex items-center gap-2 text-sm text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)] mb-6"
         >
           <ChevronLeft className="h-4 w-4" />
