@@ -5,6 +5,7 @@ import { OutcomeRow } from "@/components/OutcomeRow";
 import { TopNav } from "@/components/TopNav";
 import { TradePanel } from "@/components/TradePanel";
 import { MainFooter } from "@/components/MainFooter";
+import { PriceChart } from "@/components/PriceChart";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -57,9 +58,7 @@ export default function MarketPage({ params }: MarketPageProps) {
             </div>
             <div className="rounded-2xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-6 space-y-4">
               <div className="text-sm font-semibold">Live odds</div>
-              <div className="h-48 rounded-xl bg-[color:var(--surface-2)] border border-[color:var(--border-soft)] flex items-center justify-center text-sm text-[color:var(--text-subtle)]">
-                Price chart placeholder
-              </div>
+              <PriceChart data={market.sparkline ? [...market.sparkline, ...market.sparkline.map(v => v + 10), ...market.sparkline.map(v => v + 20)] : undefined} />
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface-2)] p-4">
                   <div className="text-xs text-[color:var(--text-subtle)]">Volume</div>

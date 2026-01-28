@@ -103,7 +103,9 @@ export function TopNav() {
                     <DropdownMenuItem asChild>
                       <Link href="/account">Account</Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem>Leaderboard</DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/leaderboard">Leaderboard</Link>
+                    </DropdownMenuItem>
                     <DropdownMenuItem>Rewards</DropdownMenuItem>
                     <DropdownMenuItem>APIs</DropdownMenuItem>
                     <DropdownMenuItem>Builders</DropdownMenuItem>

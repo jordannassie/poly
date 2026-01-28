@@ -225,11 +225,27 @@ export const statsOverview = [
 ];
 
 export const leaderboard = [
-  { rank: 1, name: "CryptoWhale", profit: "$48,291", wins: 142, streak: 7 },
-  { rank: 2, name: "MarketMaster", profit: "$31,205", wins: 98, streak: 4 },
-  { rank: 3, name: "BetKing99", profit: "$24,812", wins: 87, streak: 3 },
-  { rank: 4, name: "OddsHunter", profit: "$19,445", wins: 76, streak: 2 },
-  { rank: 5, name: "PredictorX", profit: "$15,882", wins: 64, streak: 5 },
+  { rank: 1, name: "bossoskil1", profit: "+$447,892", volume: "$932,300", avatar: "🟡" },
+  { rank: 2, name: "kch123", profit: "+$334,170", volume: "$1,605,374", avatar: "🟢" },
+  { rank: 3, name: "gopatriots", profit: "+$324,668", volume: "$571,846", avatar: "🔴" },
+  { rank: 4, name: "DrPufferfish", profit: "+$272,769", volume: "$49,179", avatar: "🟠" },
+  { rank: 5, name: "yAmutHAa", profit: "+$195,377", volume: "$193,354", avatar: "🟣" },
+  { rank: 6, name: "TradeWizard", profit: "+$182,445", volume: "$412,890", avatar: "🔵" },
+  { rank: 7, name: "PredictKing", profit: "+$156,230", volume: "$298,100", avatar: "🟤" },
+  { rank: 8, name: "OddsHunter", profit: "+$143,892", volume: "$245,670", avatar: "⚪" },
+  { rank: 9, name: "MarketGuru", profit: "+$128,445", volume: "$189,340", avatar: "🟡" },
+  { rank: 10, name: "BetMaster99", profit: "+$115,670", volume: "$156,780", avatar: "🟢" },
+];
+
+export const biggestWins = [
+  { rank: 1, name: "DrPufferfish", market: "Trail Blazers vs. Wizards", from: "$149,547", to: "$437,552" },
+  { rank: 2, name: "kch123", market: "Utah vs. Panthers", from: "$215,434", to: "$468,002" },
+  { rank: 3, name: "yAmutHAa", market: "Trail Blazers vs. Wizards", from: "$86,948", to: "$279,727" },
+  { rank: 4, name: "bossoskil1", market: "Utah vs. Panthers", from: "$131,461", to: "$305,564" },
+  { rank: 5, name: "gopatriots", market: "Pelicans vs. Thunder", from: "$180,157", to: "$350,000" },
+  { rank: 6, name: "bossoskil1", market: "Capitals vs. Kraken", from: "$141,546", to: "$307,902" },
+  { rank: 7, name: "SwissMiss", market: "Trail Blazers vs. Wizards", from: "$69,826", to: "$223,469" },
+  { rank: 8, name: "gopatriots", market: "Pistons vs. Nuggets", from: "$92,100", to: "$198,450" },
 ];
 
 export const achievements = [

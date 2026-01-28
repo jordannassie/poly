@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { leaderboard } from "@/lib/mockData";
 import { Card, CardContent } from "./ui/card";
-import { Flame, Trophy } from "lucide-react";
+import { Trophy } from "lucide-react";
 
 export function Leaderboard() {
   return (
@@ -11,13 +12,16 @@ export function Leaderboard() {
         <div className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-yellow-500" />
           <span className="text-lg font-bold">Top Traders</span>
-          <span className="ml-auto text-xs bg-yellow-500/20 text-yellow-500 px-2 py-1 rounded-full">
-            Live Rankings
-          </span>
+          <Link
+            href="/leaderboard"
+            className="ml-auto text-xs bg-yellow-500/20 text-yellow-500 px-2 py-1 rounded-full hover:bg-yellow-500/30 transition"
+          >
+            View All
+          </Link>
         </div>
       </div>
       <CardContent className="p-0">
-        {leaderboard.map((trader, index) => (
+        {leaderboard.slice(0, 5).map((trader, index) => (
           <div
             key={trader.rank}
             className={`flex items-center gap-4 p-4 border-b border-[color:var(--border-soft)] last:border-b-0 hover:bg-[color:var(--surface-2)] transition ${
@@ -40,15 +44,9 @@ export function Leaderboard() {
             <div className="flex-1">
               <div className="font-semibold text-sm">{trader.name}</div>
               <div className="text-xs text-[color:var(--text-subtle)]">
-                {trader.wins} wins
+                {trader.volume}
               </div>
             </div>
-            {trader.streak >= 3 && (
-              <div className="flex items-center gap-1 text-orange-500 text-xs">
-                <Flame className="h-4 w-4" />
-                {trader.streak}
-              </div>
-            )}
             <div className="text-right">
               <div className="text-sm font-semibold text-green-500">
                 {trader.profit}
