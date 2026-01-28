@@ -10,6 +10,7 @@ import { HeadToHeadChart } from "@/components/HeadToHeadChart";
 import { Leaderboard } from "@/components/Leaderboard";
 import { UserLevel } from "@/components/UserLevel";
 import { MainFooter } from "@/components/MainFooter";
+import { FeaturedGameHero } from "@/components/home/FeaturedGameHero";
 import { Button } from "@/components/ui/button";
 import {
   Flame,
@@ -118,47 +119,10 @@ export default function HomeClient() {
               </div>
             </div>
 
-            {/* Featured Game - Uses #1 Hot Market */}
-            {featuredMarket && (
-              <div className="mb-8">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold flex items-center gap-2">
-                    <Flame className="h-5 w-5 text-orange-500" />
-                    Featured Game
-                    <span className="ml-2 text-xs px-2 py-1 rounded-full bg-orange-500/20 text-orange-500 font-medium">
-                      #1 HOT
-                    </span>
-                  </h2>
-                  <Link
-                    href={`/market/${featuredMarket.id}`}
-                    className="text-sm text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)] flex items-center gap-1"
-                  >
-                    View Details <ChevronRight className="h-4 w-4" />
-                  </Link>
-                </div>
-                <HeadToHeadChart
-                  team1={{ ...featuredMarket.team1, record: "" }}
-                  team2={{ ...featuredMarket.team2, record: "" }}
-                  gameTime={`Locks in: ${locksInLabel(featuredMarket.startTime)}`}
-                  volume={formatVolume(featuredMarket.volumeToday)}
-                />
-                {/* Featured Game Stats */}
-                <div className="mt-3 flex flex-wrap items-center gap-3 md:gap-6 text-xs md:text-sm">
-                  <div className="flex items-center gap-1.5 md:gap-2 text-[color:var(--text-muted)]">
-                    <Activity className="h-3.5 w-3.5 md:h-4 md:w-4 text-green-500" />
-                    <span>{formatVolume(featuredMarket.volume10m)} last 10m</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 md:gap-2 text-[color:var(--text-muted)]">
-                    <Users className="h-3.5 w-3.5 md:h-4 md:w-4 text-blue-500" />
-                    <span>{featuredMarket.activeBettors} bettors</span>
-                  </div>
-                  <div className={`flex items-center gap-1 ${featuredMarket.percentMove > 0 ? "text-green-500" : "text-red-500"}`}>
-                    <TrendingUp className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                    <span>{featuredMarket.percentMove > 0 ? "+" : ""}{featuredMarket.percentMove}%</span>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Featured Game Hero - Real SportsDataIO Data */}
+            <div className="mb-8">
+              <FeaturedGameHero league="nfl" />
+            </div>
 
             {/* View Title */}
             <div className="flex items-center justify-between mb-4">
