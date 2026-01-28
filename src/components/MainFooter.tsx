@@ -16,7 +16,7 @@ export function MainFooter() {
             Demo UI for prediction markets.
           </div>
         </div>
-        <div className="grid gap-3 text-sm text-white/80 sm:grid-cols-3">
+        <div className="grid gap-3 text-sm text-white/80 sm:grid-cols-4">
           <Link href="/" className="hover:text-white">
             Markets
           </Link>
@@ -25,6 +25,9 @@ export function MainFooter() {
           </Link>
           <Link href="/sports" className="hover:text-white">
             Sports
+          </Link>
+          <Link href="/admin/sports" className="hover:text-white">
+            Admin
           </Link>
           <span className="hover:text-white cursor-pointer">Careers</span>
           <span className="hover:text-white cursor-pointer">Terms of Use</span>
