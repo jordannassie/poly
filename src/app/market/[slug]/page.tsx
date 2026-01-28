@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { demoComments, getMarketBySlug, markets } from "@/lib/mockData";
 import { Eye, Bookmark, TrendingUp, TrendingDown } from "lucide-react";
+import { CountdownTimer } from "@/components/CountdownTimer";
 
 const outcomeColors = ["#3b82f6", "#f97316", "#ef4444", "#22c55e", "#a855f7"];
 
@@ -91,15 +92,16 @@ export default function MarketPage({ params }: MarketPageProps) {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-2">
+                  <CountdownTimer endDate={market.endDate} variant="badge" />
                   <span className="rounded-full bg-[color:var(--surface-2)] px-3 py-1 text-xs text-[color:var(--text-muted)]">
-                    {market.endDate}
-                  </span>
-                  <span className="rounded-full bg-[color:var(--surface-2)] px-3 py-1 text-xs text-[color:var(--text-muted)]">
-                    Feb 28
+                    {market.category}
                   </span>
                 </div>
               </div>
             </div>
+
+            {/* Countdown Timer */}
+            <CountdownTimer endDate={market.endDate} variant="full" />
 
             {/* Multi-line chart */}
             <MultiLineChart lines={chartLines} />

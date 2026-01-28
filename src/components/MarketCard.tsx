@@ -2,7 +2,8 @@ import Link from "next/link";
 import { Market } from "@/lib/mockData";
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
-import { Flame, TrendingUp, Zap, Clock } from "lucide-react";
+import { Flame, TrendingUp, Zap } from "lucide-react";
+import { CountdownTimer } from "./CountdownTimer";
 
 type MarketCardProps = {
   market: Market;
@@ -62,9 +63,7 @@ export function MarketCard({ market }: MarketCardProps) {
             </Button>
           </div>
           <div className="h-10 rounded-lg bg-gradient-to-r from-[color:var(--surface-2)] to-[color:var(--surface-3)] border border-[color:var(--border-soft)] flex items-center justify-between px-3">
-            <span className="text-xs text-[color:var(--text-subtle)] flex items-center gap-1">
-              <Clock className="h-3 w-3" /> {market.endDate}
-            </span>
+            <CountdownTimer endDate={market.endDate} variant="compact" />
             <div className="flex h-5 items-end gap-0.5">
               {market.sparkline?.map((point, index) => (
                 <div
