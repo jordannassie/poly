@@ -39,25 +39,19 @@ export function MobileBetBar({ team1, team2, onBet }: MobileBetBarProps) {
       {/* Fixed Bottom Bar - Mobile Only */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-[color:var(--surface)] border-t border-[color:var(--border-soft)] shadow-2xl safe-area-bottom">
         <div className="p-3">
-          {/* Quick Bet Buttons */}
+          {/* Quick Bet Buttons - Green for Yes, Red for No */}
           <div className="flex gap-2">
             <Button
               onClick={() => handleTeamSelect("team1")}
-              className="flex-1 h-12 text-white font-bold text-base shadow-lg"
-              style={{ 
-                backgroundColor: team1.color,
-              }}
+              className="flex-1 h-12 text-white font-bold text-base shadow-lg bg-green-600 hover:bg-green-700"
             >
-              {team1.abbr} {team1.odds}¢
+              Yes {team1.odds}¢
             </Button>
             <Button
               onClick={() => handleTeamSelect("team2")}
-              className="flex-1 h-12 text-white font-bold text-base shadow-lg"
-              style={{ 
-                backgroundColor: team2.color,
-              }}
+              className="flex-1 h-12 text-white font-bold text-base shadow-lg bg-red-600 hover:bg-red-700"
             >
-              {team2.abbr} {team2.odds}¢
+              No {team2.odds}¢
             </Button>
           </div>
           
@@ -83,33 +77,27 @@ export function MobileBetBar({ team1, team2, onBet }: MobileBetBarProps) {
 
           {selectedTeamData && (
             <div className="space-y-4">
-              {/* Team Selection */}
+              {/* Yes/No Selection */}
               <div className="flex gap-2">
                 <Button
                   onClick={() => setSelectedTeam("team1")}
-                  className={`flex-1 h-14 font-bold text-lg transition-all ${
+                  className={`flex-1 h-14 font-bold text-lg transition-all text-white ${
                     selectedTeam === "team1" 
-                      ? "ring-2 ring-offset-2 ring-offset-[color:var(--surface)]" 
-                      : "opacity-60"
+                      ? "bg-green-600 ring-2 ring-green-400 ring-offset-2 ring-offset-[color:var(--surface)]" 
+                      : "bg-green-600/60"
                   }`}
-                  style={{ 
-                    backgroundColor: team1.color,
-                  }}
                 >
-                  {team1.abbr} {team1.odds}¢
+                  Yes {team1.odds}¢
                 </Button>
                 <Button
                   onClick={() => setSelectedTeam("team2")}
-                  className={`flex-1 h-14 font-bold text-lg transition-all ${
+                  className={`flex-1 h-14 font-bold text-lg transition-all text-white ${
                     selectedTeam === "team2" 
-                      ? "ring-2 ring-offset-2 ring-offset-[color:var(--surface)]" 
-                      : "opacity-60"
+                      ? "bg-red-600 ring-2 ring-red-400 ring-offset-2 ring-offset-[color:var(--surface)]" 
+                      : "bg-red-600/60"
                   }`}
-                  style={{ 
-                    backgroundColor: team2.color,
-                  }}
                 >
-                  {team2.abbr} {team2.odds}¢
+                  No {team2.odds}¢
                 </Button>
               </div>
 
@@ -156,9 +144,13 @@ export function MobileBetBar({ team1, team2, onBet }: MobileBetBarProps) {
                   setAmount(0);
                 }}
                 disabled={amount === 0}
-                className="w-full h-14 text-lg font-bold bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white disabled:opacity-50"
+                className={`w-full h-14 text-lg font-bold text-white disabled:opacity-50 ${
+                  selectedTeam === "team1" 
+                    ? "bg-green-600 hover:bg-green-700" 
+                    : "bg-red-600 hover:bg-red-700"
+                }`}
               >
-                {amount === 0 ? "Enter Amount" : `Bet $${amount} on ${selectedTeamData.abbr}`}
+                {amount === 0 ? "Enter Amount" : `Bet $${amount} ${selectedTeam === "team1" ? "Yes" : "No"}`}
               </Button>
 
               <p className="text-xs text-center text-[color:var(--text-subtle)]">
