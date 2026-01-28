@@ -6,6 +6,7 @@ import { Search, ChevronDown, Moon, Sun } from "lucide-react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { AuthModal } from "./AuthModal";
+import { HowItWorksModal } from "./HowItWorksModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +19,7 @@ import { initTheme, ThemeMode, toggleTheme } from "@/lib/theme";
 
 export function TopNav() {
   const [authOpen, setAuthOpen] = useState(false);
+  const [howOpen, setHowOpen] = useState(false);
   const [demoUser, setDemoUserState] = useState<DemoUser | null>(null);
   const [theme, setTheme] = useState<ThemeMode>("dark");
 
@@ -79,9 +81,13 @@ export function TopNav() {
               )}
             </Button>
             <div className="hidden items-center gap-4 text-sm text-[color:var(--text-muted)] md:flex">
-              <Link href="/breaking" className="hover:text-[color:var(--text-strong)]">
+              <button
+                className="hover:text-[color:var(--text-strong)]"
+                onClick={() => setHowOpen(true)}
+                type="button"
+              >
                 How it works
-              </Link>
+              </button>
               {demoUser ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -165,6 +171,11 @@ export function TopNav() {
           const user = setDemoUser(email);
           setDemoUserState(user);
         }}
+      />
+      <HowItWorksModal
+        open={howOpen}
+        onOpenChange={setHowOpen}
+        onSignIn={() => setAuthOpen(true)}
       />
     </>
   );
