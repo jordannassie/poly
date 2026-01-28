@@ -39,7 +39,7 @@ export function MultiLineChart({ lines, height = 280 }: MultiLineChartProps) {
         return { x, y, val };
       });
 
-  const months = ["Dec 14", "Dec 28", "Jan 11", "Jan 25"];
+  const months = ["Oct", "Nov", "Dec", "Jan"];
 
   return (
     <div className="w-full rounded-xl bg-[color:var(--surface)] border border-[color:var(--border-soft)] p-4">
@@ -96,7 +96,7 @@ export function MultiLineChart({ lines, height = 280 }: MultiLineChartProps) {
           {lines.map((line) => {
             const points = getPoints(line.data);
             const pathData = points
-              .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x},${p.y}`)
+              .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(2)},${p.y.toFixed(2)}`)
               .join(" ");
 
             return (
@@ -105,16 +105,20 @@ export function MultiLineChart({ lines, height = 280 }: MultiLineChartProps) {
                   d={pathData}
                   fill="none"
                   stroke={line.color}
-                  strokeWidth="1"
+                  strokeWidth="0.8"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
+                  style={{ strokeWidth: 2 }}
                 />
                 {/* End dot */}
                 <circle
                   cx={points[points.length - 1].x}
                   cy={points[points.length - 1].y}
-                  r="1.5"
+                  r="1.2"
                   fill={line.color}
+                  stroke="white"
+                  strokeWidth="0.3"
                 />
               </g>
             );

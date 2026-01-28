@@ -27,19 +27,38 @@ export default function MarketPage({ params }: MarketPageProps) {
     notFound();
   }
 
-  // Generate smooth chart data for each outcome
-  const chartLines = market.outcomes.map((outcome, index) => ({
-    name: outcome.name,
-    color: outcomeColors[index % outcomeColors.length],
-    data: Array.from({ length: 20 }, (_, i) => {
-      const base = outcome.prob;
-      // Smooth sine wave without random noise
-      const wave = Math.sin(i * 0.3 + index * 2) * 12;
-      const trend = (i / 19) * 8 - 4; // Slight trend over time
-      return Math.max(5, Math.min(95, base + wave + trend));
-    }),
-    currentValue: outcome.prob,
-  }));
+  // Generate realistic chart data with many points for smooth lines
+  const chartLines = market.outcomes.map((outcome, index) => {
+    const numPoints = 100;
+    const baseValue = outcome.prob - 15; // Start lower
+    const data: number[] = [];
+    let currentVal = baseValue;
+    
+    for (let i = 0; i < numPoints; i++) {
+      // Gradual trend towards final value
+      const progress = i / (numPoints - 1);
+      const targetVal = outcome.prob;
+      const trendPull = (targetVal - currentVal) * 0.03;
+      
+      // Small natural variations (Brownian-like motion)
+      const seed = Math.sin(i * 0.7 + index * 100) * Math.cos(i * 0.3 + index * 50);
+      const variation = seed * 2;
+      
+      currentVal = currentVal + trendPull + variation;
+      currentVal = Math.max(5, Math.min(95, currentVal));
+      data.push(currentVal);
+    }
+    
+    // Ensure last point matches the actual probability
+    data[data.length - 1] = outcome.prob;
+    
+    return {
+      name: outcome.name,
+      color: outcomeColors[index % outcomeColors.length],
+      data,
+      currentValue: outcome.prob,
+    };
+  });
 
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
