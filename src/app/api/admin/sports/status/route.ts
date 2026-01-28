@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAllStatuses, getProviderHealth, getGamesInProgress } from "@/lib/sportsdataio/status";
 import { getAllCacheInfo, getCacheStats } from "@/lib/sportsdataio/cache";
+import { getAllLeagues, getEnabledLeagueKeys, type LeagueConfig } from "@/config/leagues";
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 
@@ -45,6 +46,10 @@ export async function GET(request: NextRequest) {
     const statuses = getAllStatuses();
     const cacheInfo = getAllCacheInfo();
     const cacheStats = getCacheStats();
+    
+    // Get league configuration
+    const allLeagues = getAllLeagues();
+    const enabledLeagueKeys = getEnabledLeagueKeys();
 
     // Transform statuses for JSON serialization
     const statusesJson = statuses.map((s) => ({
@@ -60,9 +65,36 @@ export async function GET(request: NextRequest) {
       expiresAt: c.expiresAt.toISOString(),
     }));
 
+    // Build league status overview
+    const leagueStatus = allLeagues.map((league: LeagueConfig) => {
+      const leagueStatuses = statusesJson.filter(s => 
+        s.key.toLowerCase().includes(league.key.toLowerCase())
+      );
+      const hasErrors = leagueStatuses.some(s => s.errorCount > 0);
+      const lastSuccess = leagueStatuses
+        .filter(s => s.lastSuccessAt)
+        .sort((a, b) => new Date(b.lastSuccessAt!).getTime() - new Date(a.lastSuccessAt!).getTime())[0];
+
+      return {
+        key: league.key,
+        label: league.label,
+        enabled: league.enabled,
+        status: !league.enabled ? "DISABLED" : 
+                hasErrors ? "DEGRADED" : 
+                lastSuccess ? "ONLINE" : "UNKNOWN",
+        lastSuccess: lastSuccess?.lastSuccessAt || null,
+        endpointCount: leagueStatuses.length,
+      };
+    });
+
     return NextResponse.json({
       health,
       gamesInProgress,
+      leagues: {
+        all: allLeagues.map(l => ({ key: l.key, label: l.label, enabled: l.enabled })),
+        enabled: enabledLeagueKeys,
+        status: leagueStatus,
+      },
       statuses: statusesJson,
       cache: {
         stats: cacheStats,

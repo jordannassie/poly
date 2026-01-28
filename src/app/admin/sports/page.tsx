@@ -11,7 +11,9 @@ import {
   XCircle,
   Clock,
   Database,
-  Activity
+  Activity,
+  Lock,
+  Zap
 } from "lucide-react";
 
 // Types matching API responses
@@ -35,9 +37,29 @@ interface CacheEntry {
   isExpired: boolean;
 }
 
+interface LeagueInfo {
+  key: string;
+  label: string;
+  enabled: boolean;
+}
+
+interface LeagueStatus {
+  key: string;
+  label: string;
+  enabled: boolean;
+  status: "ONLINE" | "DEGRADED" | "DISABLED" | "UNKNOWN";
+  lastSuccess: string | null;
+  endpointCount: number;
+}
+
 interface StatusResponse {
   health: "LIVE" | "ONLINE" | "DEGRADED" | "OFFLINE";
   gamesInProgress: boolean;
+  leagues: {
+    all: LeagueInfo[];
+    enabled: string[];
+    status: LeagueStatus[];
+  };
   statuses: EndpointStatus[];
   cache: {
     stats: { totalEntries: number; sportsDataEntries: number };
@@ -46,8 +68,6 @@ interface StatusResponse {
   timestamp: string;
 }
 
-const LEAGUES = ["nfl", "nba", "mlb", "nhl"] as const;
-
 export default function AdminSportsPage() {
   const [token, setToken] = useState<string>("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -55,7 +75,7 @@ export default function AdminSportsPage() {
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [selectedLeague, setSelectedLeague] = useState<string>("nfl");
+  const [selectedLeague, setSelectedLeague] = useState<string>("all");
 
   // Get token from URL on mount
   useEffect(() => {
@@ -240,10 +260,52 @@ export default function AdminSportsPage() {
           </div>
         )}
 
+        {/* League Status Overview */}
+        {status?.leagues?.status && (
+          <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              League Status
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {status.leagues.status.map((league) => (
+                <div
+                  key={league.key}
+                  className={`p-3 rounded-lg border ${
+                    !league.enabled
+                      ? "border-gray-700 bg-gray-800/30 opacity-50"
+                      : league.status === "ONLINE"
+                      ? "border-green-500/30 bg-green-500/10"
+                      : league.status === "DEGRADED"
+                      ? "border-yellow-500/30 bg-yellow-500/10"
+                      : "border-gray-600 bg-gray-700/20"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-bold text-sm">{league.label}</span>
+                    {!league.enabled && <Lock className="h-3 w-3 text-gray-500" />}
+                  </div>
+                  <div className={`text-xs ${
+                    !league.enabled
+                      ? "text-gray-500"
+                      : league.status === "ONLINE"
+                      ? "text-green-400"
+                      : league.status === "DEGRADED"
+                      ? "text-yellow-400"
+                      : "text-gray-400"
+                  }`}>
+                    {league.enabled ? league.status : "DISABLED"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Quick Actions */}
         <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Activity className="h-5 w-5" />
+            <Zap className="h-5 w-5" />
             Quick Actions
           </h2>
           <div className="flex flex-wrap items-center gap-4">
@@ -252,11 +314,21 @@ export default function AdminSportsPage() {
               onChange={(e) => setSelectedLeague(e.target.value)}
               className="px-4 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg text-white"
             >
-              {LEAGUES.map((league) => (
-                <option key={league} value={league}>
-                  {league.toUpperCase()}
-                </option>
-              ))}
+              <option value="all">⚡ All Enabled Leagues</option>
+              <optgroup label="Enabled">
+                {status?.leagues?.all.filter(l => l.enabled).map((league) => (
+                  <option key={league.key} value={league.key}>
+                    {league.label}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Disabled">
+                {status?.leagues?.all.filter(l => !l.enabled).map((league) => (
+                  <option key={league.key} value={league.key} disabled>
+                    {league.label} (Coming Soon)
+                  </option>
+                ))}
+              </optgroup>
             </select>
             
             <Button
@@ -264,7 +336,7 @@ export default function AdminSportsPage() {
               disabled={actionLoading !== null}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              {actionLoading === `teams-${selectedLeague}` ? (
+              {actionLoading?.startsWith("teams") ? (
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <RefreshCw className="h-4 w-4 mr-2" />
@@ -277,7 +349,7 @@ export default function AdminSportsPage() {
               disabled={actionLoading !== null}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              {actionLoading === `games-${selectedLeague}` ? (
+              {actionLoading?.startsWith("games") ? (
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <RefreshCw className="h-4 w-4 mr-2" />
@@ -290,7 +362,7 @@ export default function AdminSportsPage() {
               disabled={actionLoading !== null}
               className="bg-orange-600 hover:bg-orange-700"
             >
-              {actionLoading === `warm-${selectedLeague}` ? (
+              {actionLoading?.startsWith("warm") ? (
                 <Flame className="h-4 w-4 mr-2 animate-pulse" />
               ) : (
                 <Flame className="h-4 w-4 mr-2" />
@@ -304,7 +376,7 @@ export default function AdminSportsPage() {
               variant="outline"
               className="border-red-500 text-red-500 hover:bg-red-500/10"
             >
-              {actionLoading === `flush-${selectedLeague}` ? (
+              {actionLoading?.startsWith("flush") ? (
                 <Trash2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <Trash2 className="h-4 w-4 mr-2" />
@@ -312,6 +384,12 @@ export default function AdminSportsPage() {
               Flush Cache
             </Button>
           </div>
+          
+          {selectedLeague === "all" && (
+            <p className="text-xs text-gray-500 mt-3">
+              Actions will run for all enabled leagues: {status?.leagues?.enabled.map(l => l.toUpperCase()).join(", ")}
+            </p>
+          )}
         </div>
 
         {/* Endpoint Status Table */}

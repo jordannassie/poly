@@ -6,7 +6,7 @@
  * Body:
  * {
  *   action: "teams" | "games" | "flush" | "warm",
- *   league: "nfl" | "nba" | "mlb" | "nhl",
+ *   league: "nfl" | "nba" | "mlb" | "all" (all enabled leagues),
  *   date?: "YYYY-MM-DD" (required for "games" action)
  * }
  */
@@ -23,6 +23,7 @@ import {
 import { getTodayIso } from "@/lib/sportsdataio/nflDate";
 import { flushSportsDataCache, flushLeagueCache } from "@/lib/sportsdataio/cache";
 import { setGamesInProgress } from "@/lib/sportsdataio/status";
+import { getEnabledLeagueKeys, isLeagueEnabled, LEAGUES } from "@/config/leagues";
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 
@@ -49,8 +50,100 @@ type RefreshAction = "teams" | "games" | "flush" | "warm";
 
 interface RefreshBody {
   action: RefreshAction;
-  league: string;
+  league: string; // Single league key or "all" for all enabled
   date?: string;
+}
+
+interface LeagueResult {
+  league: string;
+  success: boolean;
+  count?: number;
+  error?: string;
+  gamesInProgress?: boolean;
+}
+
+// Process a single league action
+async function processLeagueAction(
+  action: RefreshAction,
+  leagueKey: string,
+  date?: string
+): Promise<LeagueResult> {
+  const normalizedLeague = leagueKey.toLowerCase() as League;
+  
+  // Check if league is enabled
+  if (!isLeagueEnabled(leagueKey)) {
+    return {
+      league: leagueKey,
+      success: false,
+      error: "League is disabled",
+    };
+  }
+
+  // Check if league is supported by the client
+  if (!SUPPORTED_LEAGUES.includes(normalizedLeague)) {
+    return {
+      league: leagueKey,
+      success: false,
+      error: `League ${leagueKey} not yet implemented in API client`,
+    };
+  }
+
+  try {
+    switch (action) {
+      case "teams": {
+        const teams = await refreshTeams(normalizedLeague);
+        return {
+          league: leagueKey,
+          success: true,
+          count: teams.length,
+        };
+      }
+
+      case "games": {
+        const inProgress = await areGamesInProgress(normalizedLeague);
+        const gameDate = date || getTodayIso();
+        const games = await refreshGamesByDate(normalizedLeague, gameDate);
+        return {
+          league: leagueKey,
+          success: true,
+          count: games.length,
+          gamesInProgress: inProgress,
+        };
+      }
+
+      case "warm": {
+        const result = await warmCache(normalizedLeague);
+        return {
+          league: leagueKey,
+          success: true,
+          count: (result.teamsCount || 0) + (result.todayGamesCount || 0) + (result.tomorrowGamesCount || 0),
+          gamesInProgress: result.gamesInProgress,
+        };
+      }
+
+      case "flush": {
+        const count = flushLeagueCache(normalizedLeague);
+        return {
+          league: leagueKey,
+          success: true,
+          count,
+        };
+      }
+
+      default:
+        return {
+          league: leagueKey,
+          success: false,
+          error: "Unknown action",
+        };
+    }
+  } catch (error) {
+    return {
+      league: leagueKey,
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -73,83 +166,75 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate league
-    if (!SUPPORTED_LEAGUES.includes(league.toLowerCase() as League)) {
+    // Handle "all" - process all enabled leagues
+    if (league === "all") {
+      const enabledLeagues = getEnabledLeagueKeys();
+      const results: LeagueResult[] = [];
+      let anyGamesInProgress = false;
+
+      // Process enabled leagues in parallel
+      const promises = enabledLeagues.map(leagueKey => 
+        processLeagueAction(action, leagueKey, date)
+      );
+      
+      const leagueResults = await Promise.all(promises);
+      
+      for (const result of leagueResults) {
+        results.push(result);
+        if (result.gamesInProgress) {
+          anyGamesInProgress = true;
+        }
+      }
+
+      // Update global games in progress flag
+      setGamesInProgress(anyGamesInProgress);
+
+      const successCount = results.filter(r => r.success).length;
+      const totalCount = results.reduce((sum, r) => sum + (r.count || 0), 0);
+
+      return NextResponse.json({
+        success: successCount === results.length,
+        action,
+        league: "all",
+        results,
+        totalCount,
+        gamesInProgress: anyGamesInProgress,
+        message: `${action} completed for ${successCount}/${results.length} enabled leagues (${totalCount} items)`,
+      });
+    }
+
+    // Single league action
+    // Validate league exists in config
+    if (!LEAGUES[league.toLowerCase()]) {
       return NextResponse.json(
-        { error: `Invalid league. Must be one of: ${SUPPORTED_LEAGUES.join(", ")}` },
+        { error: `Unknown league: ${league}. Available: ${Object.keys(LEAGUES).join(", ")}` },
         { status: 400 }
       );
     }
 
-    const normalizedLeague = league.toLowerCase() as League;
-
-    switch (action) {
-      case "teams": {
-        const teams = await refreshTeams(normalizedLeague);
-        return NextResponse.json({
-          success: true,
-          action: "teams",
-          league: normalizedLeague,
-          count: teams.length,
-          message: `Refreshed ${teams.length} teams for ${normalizedLeague.toUpperCase()}`,
-        });
-      }
-
-      case "games": {
-        // First check if games are in progress
-        const inProgress = await areGamesInProgress(normalizedLeague);
-        setGamesInProgress(inProgress);
-
-        const gameDate = date || getTodayIso();
-        const games = await refreshGamesByDate(normalizedLeague, gameDate);
-        return NextResponse.json({
-          success: true,
-          action: "games",
-          league: normalizedLeague,
-          date: gameDate,
-          count: games.length,
-          gamesInProgress: inProgress,
-          message: `Refreshed ${games.length} games for ${normalizedLeague.toUpperCase()} on ${gameDate}${inProgress ? " (LIVE)" : ""}`,
-        });
-      }
-
-      case "flush": {
-        // If league is specified, flush only that league; otherwise flush all
-        const count = league === "all" 
-          ? flushSportsDataCache() 
-          : flushLeagueCache(normalizedLeague);
-        return NextResponse.json({
-          success: true,
-          action: "flush",
-          league: normalizedLeague,
-          count,
-          message: `Flushed ${count} cache entries for ${normalizedLeague.toUpperCase()}`,
-        });
-      }
-
-      case "warm": {
-        const result = await warmCache(normalizedLeague);
-        
-        // Update games in progress flag
-        if (result.gamesInProgress !== undefined) {
-          setGamesInProgress(result.gamesInProgress);
-        }
-
-        return NextResponse.json({
-          success: true,
-          action: "warm",
-          league: normalizedLeague,
-          result,
-          message: `Warmed cache: ${result.teamsCount} teams, ${result.todayGamesCount} today's games, ${result.tomorrowGamesCount} tomorrow's games${result.gamesInProgress ? " (LIVE)" : ""}`,
-        });
-      }
-
-      default:
-        return NextResponse.json(
-          { error: "Unknown action" },
-          { status: 400 }
-        );
+    const result = await processLeagueAction(action, league, date);
+    
+    if (result.gamesInProgress !== undefined) {
+      setGamesInProgress(result.gamesInProgress);
     }
+
+    if (!result.success) {
+      return NextResponse.json({
+        success: false,
+        action,
+        league,
+        error: result.error,
+      }, { status: 400 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      action,
+      league,
+      count: result.count,
+      gamesInProgress: result.gamesInProgress,
+      message: `${action} completed for ${league.toUpperCase()}: ${result.count} items`,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("[/api/admin/sports/refresh] Error:", message);
