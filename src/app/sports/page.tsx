@@ -9,6 +9,8 @@ import { HeadToHeadChart } from "@/components/HeadToHeadChart";
 import { MainFooter } from "@/components/MainFooter";
 import { TradePanel } from "@/components/TradePanel";
 import { MobileBetBar } from "@/components/MobileBetBar";
+import { TodayGames } from "@/components/sports/TodayGames";
+import { TeamLogoGrid } from "@/components/sports/TeamLogoGrid";
 import { sportsGames } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,26 +83,40 @@ export default function SportsPage() {
             </div>
 
             {/* Tabs */}
-            <Tabs defaultValue="games" className="mb-4 md:mb-6">
+            <Tabs defaultValue="live" className="mb-4 md:mb-6">
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <TabsList className="bg-[color:var(--surface)] border border-[color:var(--border-soft)]">
-                  <TabsTrigger value="games" className="data-[state=active]:bg-[color:var(--surface-2)] text-xs md:text-sm">
-                    Games
+                  <TabsTrigger value="live" className="data-[state=active]:bg-[color:var(--surface-2)] text-xs md:text-sm">
+                    Live Data
                   </TabsTrigger>
-                  <TabsTrigger value="props" className="data-[state=active]:bg-[color:var(--surface-2)] text-xs md:text-sm">
-                    Props
+                  <TabsTrigger value="games" className="data-[state=active]:bg-[color:var(--surface-2)] text-xs md:text-sm">
+                    Demo Games
+                  </TabsTrigger>
+                  <TabsTrigger value="teams" className="data-[state=active]:bg-[color:var(--surface-2)] text-xs md:text-sm">
+                    All Teams
                   </TabsTrigger>
                 </TabsList>
-                <Button variant="outline" className="gap-2 text-xs md:text-sm h-8 md:h-9 w-fit">
-                  Week 15 <ChevronDown className="h-3 w-3 md:h-4 md:w-4" />
-                </Button>
               </div>
             </Tabs>
 
-            {/* Date Header */}
-            <div className="text-base md:text-lg font-semibold mb-3 md:mb-4">Sun, February 8</div>
+            {/* Live Games from SportsDataIO */}
+            <div className="mb-8">
+              <h2 className="text-lg font-semibold mb-4 text-[color:var(--text-strong)]">Today&apos;s Games</h2>
+              <TodayGames league="nfl" />
+            </div>
 
-            {/* Games List */}
+            {/* NFL Teams Grid */}
+            <div className="mb-8">
+              <h2 className="text-lg font-semibold mb-4 text-[color:var(--text-strong)]">NFL Teams</h2>
+              <TeamLogoGrid league="nfl" />
+            </div>
+
+            {/* Demo Games Section */}
+            <div className="border-t border-[color:var(--border-soft)] pt-8 mt-8">
+              <h2 className="text-lg font-semibold mb-4 text-[color:var(--text-muted)]">Demo Games (Mock Data)</h2>
+            </div>
+
+            {/* Demo Games List */}
             <div className="space-y-3 md:space-y-4">
               {sportsGames
                 .filter((g) => g.league === "NFL")
