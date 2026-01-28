@@ -94,9 +94,7 @@ export function MobileBetBar({ team1, team2, onBet }: MobileBetBarProps) {
                   }`}
                   style={{ 
                     backgroundColor: team1.color,
-                    // @ts-expect-error - Tailwind CSS variable
-                    '--tw-ring-color': team1.color,
-                  } as React.CSSProperties}
+                  }}
                 >
                   {team1.abbr} {team1.odds}¢
                 </Button>
@@ -109,9 +107,7 @@ export function MobileBetBar({ team1, team2, onBet }: MobileBetBarProps) {
                   }`}
                   style={{ 
                     backgroundColor: team2.color,
-                    // @ts-expect-error - Tailwind CSS variable
-                    '--tw-ring-color': team2.color,
-                  } as React.CSSProperties}
+                  }}
                 >
                   {team2.abbr} {team2.odds}¢
                 </Button>
