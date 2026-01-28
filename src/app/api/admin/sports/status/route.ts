@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getAllStatuses, getProviderHealth } from "@/lib/sportsdataio/status";
+import { getAllStatuses, getProviderHealth, getGamesInProgress } from "@/lib/sportsdataio/status";
 import { getAllCacheInfo, getCacheStats } from "@/lib/sportsdataio/cache";
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const health = getProviderHealth();
+    const gamesInProgress = getGamesInProgress();
     const statuses = getAllStatuses();
     const cacheInfo = getAllCacheInfo();
     const cacheStats = getCacheStats();
@@ -61,6 +62,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       health,
+      gamesInProgress,
       statuses: statusesJson,
       cache: {
         stats: cacheStats,

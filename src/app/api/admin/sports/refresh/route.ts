@@ -16,11 +16,13 @@ import {
   refreshTeams, 
   refreshGamesByDate, 
   warmCache,
-  getTodayDate,
+  areGamesInProgress,
   SUPPORTED_LEAGUES,
   type League 
 } from "@/lib/sportsdataio/client";
+import { getTodayIso } from "@/lib/sportsdataio/nflDate";
 import { flushSportsDataCache, flushLeagueCache } from "@/lib/sportsdataio/cache";
+import { setGamesInProgress } from "@/lib/sportsdataio/status";
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 
@@ -94,7 +96,11 @@ export async function POST(request: NextRequest) {
       }
 
       case "games": {
-        const gameDate = date || getTodayDate();
+        // First check if games are in progress
+        const inProgress = await areGamesInProgress(normalizedLeague);
+        setGamesInProgress(inProgress);
+
+        const gameDate = date || getTodayIso();
         const games = await refreshGamesByDate(normalizedLeague, gameDate);
         return NextResponse.json({
           success: true,
@@ -102,7 +108,8 @@ export async function POST(request: NextRequest) {
           league: normalizedLeague,
           date: gameDate,
           count: games.length,
-          message: `Refreshed ${games.length} games for ${normalizedLeague.toUpperCase()} on ${gameDate}`,
+          gamesInProgress: inProgress,
+          message: `Refreshed ${games.length} games for ${normalizedLeague.toUpperCase()} on ${gameDate}${inProgress ? " (LIVE)" : ""}`,
         });
       }
 
@@ -122,12 +129,18 @@ export async function POST(request: NextRequest) {
 
       case "warm": {
         const result = await warmCache(normalizedLeague);
+        
+        // Update games in progress flag
+        if (result.gamesInProgress !== undefined) {
+          setGamesInProgress(result.gamesInProgress);
+        }
+
         return NextResponse.json({
           success: true,
           action: "warm",
           league: normalizedLeague,
           result,
-          message: `Warmed cache: ${result.teamsCount} teams, ${result.todayGamesCount} today's games, ${result.tomorrowGamesCount} tomorrow's games`,
+          message: `Warmed cache: ${result.teamsCount} teams, ${result.todayGamesCount} today's games, ${result.tomorrowGamesCount} tomorrow's games${result.gamesInProgress ? " (LIVE)" : ""}`,
         });
       }
 
@@ -139,6 +152,7 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("[/api/admin/sports/refresh] Error:", message);
     return NextResponse.json(
       { error: message, success: false },
       { status: 500 }

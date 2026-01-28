@@ -3,7 +3,7 @@
  * Maintains in-memory status per key (league + endpoint).
  */
 
-export type EndpointKey = `${string}:${string}`; // e.g., "nfl:teams", "nfl:games"
+export type EndpointKey = `${string}:${string}`; // e.g., "nfl:teams", "nfl:scores"
 
 export interface EndpointStatus {
   key: EndpointKey;
@@ -17,6 +17,9 @@ export interface EndpointStatus {
 
 // In-memory status storage
 const statusMap = new Map<EndpointKey, EndpointStatus>();
+
+// Track if games are currently in progress
+let gamesInProgress = false;
 
 /**
  * Initialize or get status for an endpoint
@@ -45,6 +48,8 @@ export function recordSuccess(league: string, endpoint: string, latencyMs: numbe
   status.lastSuccessAt = new Date();
   status.lastLatencyMs = latencyMs;
   status.successCount++;
+  // Clear last error message on success
+  status.lastErrorMessage = null;
 }
 
 /**
@@ -74,9 +79,27 @@ export function getStatus(league: string, endpoint: string): EndpointStatus | nu
 }
 
 /**
- * Calculate overall provider health status
+ * Set whether games are currently in progress
  */
-export function getProviderHealth(): "ONLINE" | "DEGRADED" | "OFFLINE" {
+export function setGamesInProgress(inProgress: boolean): void {
+  gamesInProgress = inProgress;
+}
+
+/**
+ * Get whether games are currently in progress
+ */
+export function getGamesInProgress(): boolean {
+  return gamesInProgress;
+}
+
+/**
+ * Calculate overall provider health status
+ * - LIVE: Games are in progress and we have recent data
+ * - ONLINE: Last success within 2 minutes, no recent errors
+ * - DEGRADED: Stale data or intermittent errors
+ * - OFFLINE: No successful fetch yet or last success > 10 minutes
+ */
+export function getProviderHealth(): "LIVE" | "ONLINE" | "DEGRADED" | "OFFLINE" {
   const statuses = getAllStatuses();
   
   if (statuses.length === 0) {
@@ -104,19 +127,28 @@ export function getProviderHealth(): "ONLINE" | "DEGRADED" | "OFFLINE" {
       allStale = false;
     }
     
+    // Check if there's a recent error that's more recent than the last success
     if (lastError > lastSuccess && now - lastError < TWO_MINUTES) {
       hasRecentError = true;
     }
   }
   
+  // If completely stale, we're offline
   if (allStale) {
     return "OFFLINE";
   }
   
+  // If games are in progress and we have recent data, we're LIVE
+  if (gamesInProgress && hasRecentSuccess && !hasRecentError) {
+    return "LIVE";
+  }
+  
+  // If we have recent success without errors, we're online
   if (hasRecentSuccess && !hasRecentError) {
     return "ONLINE";
   }
   
+  // Otherwise degraded
   return "DEGRADED";
 }
 
@@ -125,4 +157,5 @@ export function getProviderHealth(): "ONLINE" | "DEGRADED" | "OFFLINE" {
  */
 export function resetAllStatuses(): void {
   statusMap.clear();
+  gamesInProgress = false;
 }

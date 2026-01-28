@@ -36,7 +36,8 @@ interface CacheEntry {
 }
 
 interface StatusResponse {
-  health: "ONLINE" | "DEGRADED" | "OFFLINE";
+  health: "LIVE" | "ONLINE" | "DEGRADED" | "OFFLINE";
+  gamesInProgress: boolean;
   statuses: EndpointStatus[];
   cache: {
     stats: { totalEntries: number; sportsDataEntries: number };
@@ -151,18 +152,22 @@ export default function AdminSportsPage() {
   };
 
   // Health status badge
-  const HealthBadge = ({ health }: { health: "ONLINE" | "DEGRADED" | "OFFLINE" }) => {
+  const HealthBadge = ({ health, gamesInProgress }: { health: "LIVE" | "ONLINE" | "DEGRADED" | "OFFLINE"; gamesInProgress?: boolean }) => {
     const config = {
-      ONLINE: { bg: "bg-green-500/20", text: "text-green-500", icon: CheckCircle },
-      DEGRADED: { bg: "bg-yellow-500/20", text: "text-yellow-500", icon: AlertTriangle },
-      OFFLINE: { bg: "bg-red-500/20", text: "text-red-500", icon: XCircle },
+      LIVE: { bg: "bg-purple-500/20", text: "text-purple-400", icon: Activity, pulse: true },
+      ONLINE: { bg: "bg-green-500/20", text: "text-green-500", icon: CheckCircle, pulse: false },
+      DEGRADED: { bg: "bg-yellow-500/20", text: "text-yellow-500", icon: AlertTriangle, pulse: false },
+      OFFLINE: { bg: "bg-red-500/20", text: "text-red-500", icon: XCircle, pulse: false },
     };
-    const { bg, text, icon: Icon } = config[health];
+    const { bg, text, icon: Icon, pulse } = config[health];
     
     return (
       <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${bg}`}>
-        <Icon className={`h-5 w-5 ${text}`} />
+        <Icon className={`h-5 w-5 ${text} ${pulse ? "animate-pulse" : ""}`} />
         <span className={`font-bold ${text}`}>{health}</span>
+        {gamesInProgress && health !== "LIVE" && (
+          <span className="text-xs text-purple-400">(games active)</span>
+        )}
       </div>
     );
   };
@@ -212,7 +217,7 @@ export default function AdminSportsPage() {
             <p className="text-gray-400 text-sm">Monitor feed health and manage cache</p>
           </div>
           <div className="flex items-center gap-4">
-            {status && <HealthBadge health={status.health} />}
+            {status && <HealthBadge health={status.health} gamesInProgress={status.gamesInProgress} />}
             <Button
               variant="outline"
               size="sm"
@@ -331,16 +336,41 @@ export default function AdminSportsPage() {
                 </thead>
                 <tbody>
                   {status.statuses.map((s) => (
-                    <tr key={s.key} className="border-b border-[#30363d]/50 hover:bg-[#0d1117]/50">
+                    <tr key={s.key} className={`border-b border-[#30363d]/50 hover:bg-[#0d1117]/50 ${s.lastErrorMessage ? "bg-red-500/5" : ""}`}>
                       <td className="py-3 px-4 font-mono text-blue-400">{s.key}</td>
-                      <td className="py-3 px-4">{timeAgo(s.lastSuccessAt)}</td>
                       <td className="py-3 px-4">
-                        {s.lastLatencyMs ? formatMs(s.lastLatencyMs) : "-"}
+                        {s.lastSuccessAt ? (
+                          <span className="text-green-400">{timeAgo(s.lastSuccessAt)}</span>
+                        ) : (
+                          <span className="text-gray-500">Never</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">
+                        {s.lastLatencyMs ? (
+                          <span className={s.lastLatencyMs > 2000 ? "text-yellow-400" : "text-gray-300"}>
+                            {formatMs(s.lastLatencyMs)}
+                          </span>
+                        ) : "-"}
                       </td>
                       <td className="py-3 px-4 text-green-400">{s.successCount}</td>
-                      <td className="py-3 px-4 text-red-400">{s.errorCount}</td>
-                      <td className="py-3 px-4 text-red-400 text-xs max-w-xs truncate">
-                        {s.lastErrorMessage || "-"}
+                      <td className="py-3 px-4">
+                        {s.errorCount > 0 ? (
+                          <span className="text-red-400 font-semibold">{s.errorCount}</span>
+                        ) : (
+                          <span className="text-gray-500">0</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">
+                        {s.lastErrorMessage ? (
+                          <div className="bg-red-500/10 border border-red-500/30 rounded px-2 py-1 text-xs text-red-400 max-w-md">
+                            <div className="font-mono break-all">{s.lastErrorMessage}</div>
+                            {s.lastErrorAt && (
+                              <div className="text-red-500/60 mt-1">{timeAgo(s.lastErrorAt)}</div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-500">-</span>
+                        )}
                       </td>
                     </tr>
                   ))}
