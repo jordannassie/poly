@@ -119,7 +119,7 @@ export function SportsSidebar({ activeSport = "nfl" }: { activeSport?: string })
   };
 
   return (
-    <aside className="w-56 flex-shrink-0 border-r border-[color:var(--border-soft)] bg-[color:var(--surface)] min-h-screen">
+    <aside className="hidden lg:block w-56 flex-shrink-0 border-r border-[color:var(--border-soft)] bg-[color:var(--surface)] min-h-screen">
       <div className="p-4 space-y-1">
         {/* Top Menu - Live & Futures */}
         {topMenu.map((item) => (

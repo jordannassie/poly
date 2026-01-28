@@ -98,12 +98,12 @@ export default function MarketPage({ params }: MarketPageProps) {
       <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
         <TopNav />
 
-        <div className="flex">
+        <div className="flex flex-col lg:flex-row">
           {/* Sidebar */}
           <SportsSidebar activeSport="nfl" />
 
           {/* Main Content */}
-          <main className="flex-1 p-6">
+          <main className="flex-1 p-4 md:p-6">
             <div className="max-w-4xl">
               {/* Breadcrumb */}
               <div className="flex items-center gap-2 text-sm text-[color:var(--text-muted)] mb-4">
@@ -115,22 +115,22 @@ export default function MarketPage({ params }: MarketPageProps) {
               </div>
 
               {/* Header */}
-              <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 md:mb-6">
+                <h1 className="text-xl md:text-2xl font-bold">
                   {team1.name} vs {team2.name}
                 </h1>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon">
-                    <Settings className="h-5 w-5" />
+                <div className="flex items-center gap-1 md:gap-2">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9">
+                    <Settings className="h-4 w-4 md:h-5 md:w-5" />
                   </Button>
-                  <Button variant="ghost" size="icon">
-                    <Code className="h-5 w-5" />
+                  <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9">
+                    <Code className="h-4 w-4 md:h-5 md:w-5" />
                   </Button>
-                  <Button variant="ghost" size="icon">
-                    <Bookmark className="h-5 w-5" />
+                  <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9">
+                    <Bookmark className="h-4 w-4 md:h-5 md:w-5" />
                   </Button>
-                  <Button variant="ghost" size="icon">
-                    <Share2 className="h-5 w-5" />
+                  <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9">
+                    <Share2 className="h-4 w-4 md:h-5 md:w-5" />
                   </Button>
                 </div>
               </div>
@@ -144,25 +144,25 @@ export default function MarketPage({ params }: MarketPageProps) {
               />
 
               {/* Betting Tabs - Default to Game Lines */}
-              <div className="mt-6">
+              <div className="mt-4 md:mt-6 -mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto">
                 <Tabs defaultValue="game-lines">
-                  <TabsList className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] p-1">
-                    <TabsTrigger value="game-lines" className="data-[state=active]:bg-[color:var(--surface-2)]">
+                  <TabsList className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] p-1 inline-flex w-auto min-w-full md:min-w-0">
+                    <TabsTrigger value="game-lines" className="data-[state=active]:bg-[color:var(--surface-2)] text-xs md:text-sm whitespace-nowrap">
                       Game Lines
                     </TabsTrigger>
-                    <TabsTrigger value="1st-half" className="data-[state=active]:bg-[color:var(--surface-2)]">
+                    <TabsTrigger value="1st-half" className="data-[state=active]:bg-[color:var(--surface-2)] text-xs md:text-sm whitespace-nowrap">
                       1st Half
                     </TabsTrigger>
-                    <TabsTrigger value="team-totals" className="data-[state=active]:bg-[color:var(--surface-2)]">
+                    <TabsTrigger value="team-totals" className="data-[state=active]:bg-[color:var(--surface-2)] text-xs md:text-sm whitespace-nowrap">
                       Team Totals
                     </TabsTrigger>
-                    <TabsTrigger value="touchdowns" className="data-[state=active]:bg-[color:var(--surface-2)]">
+                    <TabsTrigger value="touchdowns" className="data-[state=active]:bg-[color:var(--surface-2)] text-xs md:text-sm whitespace-nowrap">
                       Touchdowns
                     </TabsTrigger>
-                    <TabsTrigger value="rushing" className="data-[state=active]:bg-[color:var(--surface-2)]">
+                    <TabsTrigger value="rushing" className="data-[state=active]:bg-[color:var(--surface-2)] text-xs md:text-sm whitespace-nowrap">
                       Rushing
                     </TabsTrigger>
-                    <TabsTrigger value="receiving" className="data-[state=active]:bg-[color:var(--surface-2)]">
+                    <TabsTrigger value="receiving" className="data-[state=active]:bg-[color:var(--surface-2)] text-xs md:text-sm whitespace-nowrap">
                       Receiving
                     </TabsTrigger>
                   </TabsList>
@@ -170,61 +170,61 @@ export default function MarketPage({ params }: MarketPageProps) {
               </div>
 
               {/* Betting Options */}
-              <div className="mt-6 space-y-4">
+              <div className="mt-4 md:mt-6 space-y-3 md:space-y-4">
                 {/* Moneyline */}
-                <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-3">
+                <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-3 md:p-4">
+                  <div className="flex items-center justify-between mb-2 md:mb-3">
                     <div>
-                      <div className="font-semibold">Moneyline</div>
-                      <div className="text-sm text-[color:var(--text-subtle)]">{formatVolume(volumeToday * 0.4)} Vol.</div>
+                      <div className="font-semibold text-sm md:text-base">Moneyline</div>
+                      <div className="text-xs md:text-sm text-[color:var(--text-subtle)]">{formatVolume(volumeToday * 0.4)} Vol.</div>
                     </div>
                   </div>
-                  <div className="flex gap-3">
-                    <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white h-12">
+                  <div className="flex gap-2 md:gap-3">
+                    <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white h-10 md:h-12 text-sm md:text-base">
                       {team1.abbr} {team1.odds}¢
                     </Button>
-                    <Button variant="outline" className="flex-1 h-12 border-[color:var(--border-soft)]">
+                    <Button variant="outline" className="flex-1 h-10 md:h-12 text-sm md:text-base border-[color:var(--border-soft)]">
                       {team2.abbr} {team2.odds}¢
                     </Button>
                   </div>
                 </div>
 
                 {/* Spreads */}
-                <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-3">
+                <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-3 md:p-4">
+                  <div className="flex items-center justify-between mb-2 md:mb-3">
                     <div>
-                      <div className="font-semibold">Spreads</div>
-                      <div className="text-sm text-[color:var(--text-subtle)]">{formatVolume(volumeToday * 0.3)} Vol.</div>
+                      <div className="font-semibold text-sm md:text-base">Spreads</div>
+                      <div className="text-xs md:text-sm text-[color:var(--text-subtle)]">{formatVolume(volumeToday * 0.3)} Vol.</div>
                     </div>
                   </div>
-                  <div className="flex gap-3">
-                    <div className="flex-1 flex items-center justify-between px-4 py-3 bg-[color:var(--surface-2)] rounded-lg cursor-pointer hover:bg-[color:var(--surface-3)] transition">
-                      <span className="text-[color:var(--text-muted)]">{team1.abbr} -4.5</span>
-                      <span className="font-semibold">51¢</span>
+                  <div className="flex gap-2 md:gap-3">
+                    <div className="flex-1 flex items-center justify-between px-3 md:px-4 py-2.5 md:py-3 bg-[color:var(--surface-2)] rounded-lg cursor-pointer hover:bg-[color:var(--surface-3)] transition">
+                      <span className="text-xs md:text-sm text-[color:var(--text-muted)]">{team1.abbr} -4.5</span>
+                      <span className="font-semibold text-sm md:text-base">51¢</span>
                     </div>
-                    <div className="flex-1 flex items-center justify-between px-4 py-3 bg-[color:var(--surface-2)] rounded-lg cursor-pointer hover:bg-[color:var(--surface-3)] transition">
-                      <span className="text-[color:var(--text-muted)]">{team2.abbr} +4.5</span>
-                      <span className="font-semibold">50¢</span>
+                    <div className="flex-1 flex items-center justify-between px-3 md:px-4 py-2.5 md:py-3 bg-[color:var(--surface-2)] rounded-lg cursor-pointer hover:bg-[color:var(--surface-3)] transition">
+                      <span className="text-xs md:text-sm text-[color:var(--text-muted)]">{team2.abbr} +4.5</span>
+                      <span className="font-semibold text-sm md:text-base">50¢</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Totals */}
-                <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-3">
+                <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-3 md:p-4">
+                  <div className="flex items-center justify-between mb-2 md:mb-3">
                     <div>
-                      <div className="font-semibold">Totals</div>
-                      <div className="text-sm text-[color:var(--text-subtle)]">{formatVolume(volumeToday * 0.2)} Vol.</div>
+                      <div className="font-semibold text-sm md:text-base">Totals</div>
+                      <div className="text-xs md:text-sm text-[color:var(--text-subtle)]">{formatVolume(volumeToday * 0.2)} Vol.</div>
                     </div>
                   </div>
-                  <div className="flex gap-3">
-                    <div className="flex-1 flex items-center justify-between px-4 py-3 bg-[color:var(--surface-2)] rounded-lg cursor-pointer hover:bg-[color:var(--surface-3)] transition">
-                      <span className="text-[color:var(--text-muted)]">Over 46.5</span>
-                      <span className="font-semibold">47¢</span>
+                  <div className="flex gap-2 md:gap-3">
+                    <div className="flex-1 flex items-center justify-between px-3 md:px-4 py-2.5 md:py-3 bg-[color:var(--surface-2)] rounded-lg cursor-pointer hover:bg-[color:var(--surface-3)] transition">
+                      <span className="text-xs md:text-sm text-[color:var(--text-muted)]">Over 46.5</span>
+                      <span className="font-semibold text-sm md:text-base">47¢</span>
                     </div>
-                    <div className="flex-1 flex items-center justify-between px-4 py-3 bg-[color:var(--surface-2)] rounded-lg cursor-pointer hover:bg-[color:var(--surface-3)] transition">
-                      <span className="text-[color:var(--text-muted)]">Under 46.5</span>
-                      <span className="font-semibold">54¢</span>
+                    <div className="flex-1 flex items-center justify-between px-3 md:px-4 py-2.5 md:py-3 bg-[color:var(--surface-2)] rounded-lg cursor-pointer hover:bg-[color:var(--surface-3)] transition">
+                      <span className="text-xs md:text-sm text-[color:var(--text-muted)]">Under 46.5</span>
+                      <span className="font-semibold text-sm md:text-base">54¢</span>
                     </div>
                   </div>
                 </div>
@@ -250,31 +250,31 @@ export default function MarketPage({ params }: MarketPageProps) {
                 </div>
 
                 {/* Player Props */}
-                <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-3">
+                <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-3 md:p-4">
+                  <div className="flex items-center justify-between mb-2 md:mb-3">
                     <div>
-                      <div className="font-semibold">Player Props</div>
-                      <div className="text-sm text-[color:var(--text-subtle)]">68 markets</div>
+                      <div className="font-semibold text-sm md:text-base">Player Props</div>
+                      <div className="text-xs md:text-sm text-[color:var(--text-subtle)]">68 markets</div>
                     </div>
-                    <Button variant="ghost" size="sm">
-                      View All <ChevronRight className="h-4 w-4 ml-1" />
+                    <Button variant="ghost" size="sm" className="text-xs md:text-sm h-8">
+                      View All <ChevronRight className="h-3 w-3 md:h-4 md:w-4 ml-1" />
                     </Button>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 bg-[color:var(--surface-2)] rounded-lg cursor-pointer hover:bg-[color:var(--surface-3)] transition">
-                      <div className="text-sm text-[color:var(--text-muted)]">QB Passing Yards</div>
-                      <div className="font-semibold mt-1">Over 275.5</div>
+                  <div className="grid grid-cols-2 gap-2 md:gap-3">
+                    <div className="p-2.5 md:p-3 bg-[color:var(--surface-2)] rounded-lg cursor-pointer hover:bg-[color:var(--surface-3)] transition">
+                      <div className="text-xs md:text-sm text-[color:var(--text-muted)]">QB Passing Yards</div>
+                      <div className="font-semibold text-sm md:text-base mt-1">Over 275.5</div>
                     </div>
-                    <div className="p-3 bg-[color:var(--surface-2)] rounded-lg cursor-pointer hover:bg-[color:var(--surface-3)] transition">
-                      <div className="text-sm text-[color:var(--text-muted)]">Total TDs</div>
-                      <div className="font-semibold mt-1">Over 4.5</div>
+                    <div className="p-2.5 md:p-3 bg-[color:var(--surface-2)] rounded-lg cursor-pointer hover:bg-[color:var(--surface-3)] transition">
+                      <div className="text-xs md:text-sm text-[color:var(--text-muted)]">Total TDs</div>
+                      <div className="font-semibold text-sm md:text-base mt-1">Over 4.5</div>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Comments */}
-              <div className="mt-8 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4">
+              <div className="mt-6 md:mt-8 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-3 md:p-4">
                 <div className="flex items-center gap-3 mb-4">
                   <Input
                     placeholder="Add a comment"
@@ -325,9 +325,9 @@ export default function MarketPage({ params }: MarketPageProps) {
             </div>
           </main>
 
-          {/* Trade Panel - Right Side */}
-          <div className="w-80 flex-shrink-0 p-6 border-l border-[color:var(--border-soft)]">
-            <div className="sticky top-6">
+          {/* Trade Panel - Right Side on desktop, below content on mobile */}
+          <div className="w-full lg:w-80 flex-shrink-0 p-4 md:p-6 lg:border-l border-t lg:border-t-0 border-[color:var(--border-soft)]">
+            <div className="lg:sticky lg:top-6 max-w-md mx-auto lg:max-w-none">
               {/* Selected Market Info */}
               <div className="mb-4 p-4 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl">
                 <div className="flex items-center gap-3 mb-3">

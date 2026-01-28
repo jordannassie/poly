@@ -28,18 +28,79 @@ export function HeadToHeadChart({
   const team2Percent = 100 - team1Percent;
 
   return (
-    <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-6">
+    <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4 md:p-6">
       {/* Game Time Badge */}
-      <div className="flex justify-center mb-6">
-        <span className="px-4 py-1.5 rounded-full bg-[color:var(--surface-2)] border border-[color:var(--border-soft)] text-sm font-medium text-[color:var(--text-muted)]">
+      <div className="flex justify-center mb-4 md:mb-6">
+        <span className="px-3 md:px-4 py-1 md:py-1.5 rounded-full bg-[color:var(--surface-2)] border border-[color:var(--border-soft)] text-xs md:text-sm font-medium text-[color:var(--text-muted)]">
           {gameTime}
         </span>
       </div>
 
-      {/* Teams and Progress */}
-      <div className="flex items-center gap-6">
-        {/* Team 1 */}
-        <div className="flex-1 text-center">
+      {/* Teams and Progress - Horizontal on desktop, vertical on mobile */}
+      <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
+        {/* Mobile: Team row with both teams side by side */}
+        <div className="flex md:hidden items-center justify-between">
+          {/* Team 1 */}
+          <div className="text-center">
+            <div
+              className="w-14 h-14 mx-auto rounded-lg flex items-center justify-center text-white font-bold text-lg mb-2"
+              style={{ backgroundColor: team1.color }}
+            >
+              {team1.abbr}
+            </div>
+            <div className="font-semibold text-sm text-[color:var(--text-strong)]">{team1.name}</div>
+          </div>
+
+          {/* VS */}
+          <div className="text-[color:var(--text-subtle)] font-medium text-sm">vs</div>
+
+          {/* Team 2 */}
+          <div className="text-center">
+            <div
+              className="w-14 h-14 mx-auto rounded-lg flex items-center justify-center text-white font-bold text-lg mb-2"
+              style={{ backgroundColor: team2.color }}
+            >
+              {team2.abbr}
+            </div>
+            <div className="font-semibold text-sm text-[color:var(--text-strong)]">{team2.name}</div>
+          </div>
+        </div>
+
+        {/* Mobile: Progress Bar */}
+        <div className="md:hidden">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-lg font-bold text-[color:var(--text-strong)]">
+              {team1Percent}%
+            </span>
+            <span className="text-lg font-bold text-[color:var(--text-strong)]">
+              {team2Percent}%
+            </span>
+          </div>
+          <div className="h-2.5 rounded-full overflow-hidden bg-[color:var(--surface-3)] flex">
+            <div
+              className="h-full transition-all duration-500"
+              style={{
+                width: `${team1Percent}%`,
+                backgroundColor: team1.color,
+              }}
+            />
+            <div
+              className="h-full transition-all duration-500"
+              style={{
+                width: `${team2Percent}%`,
+                backgroundColor: team2.color,
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-center gap-2 mt-2 text-xs text-[color:var(--text-subtle)]">
+            <span>{volume}</span>
+            <span>•</span>
+            <span>{source}</span>
+          </div>
+        </div>
+
+        {/* Desktop: Team 1 */}
+        <div className="hidden md:block flex-1 text-center">
           <div
             className="w-20 h-20 mx-auto rounded-xl flex items-center justify-center text-white font-bold text-2xl mb-3"
             style={{ backgroundColor: team1.color }}
@@ -52,8 +113,8 @@ export function HeadToHeadChart({
           )}
         </div>
 
-        {/* Progress Bar Section */}
-        <div className="flex-1 max-w-xs">
+        {/* Desktop: Progress Bar Section */}
+        <div className="hidden md:block flex-1 max-w-xs">
           <div className="flex items-center justify-center gap-3 mb-2">
             <span className="text-2xl font-bold text-[color:var(--text-strong)]">
               {team1Percent}%
@@ -85,8 +146,8 @@ export function HeadToHeadChart({
           </div>
         </div>
 
-        {/* Team 2 */}
-        <div className="flex-1 text-center">
+        {/* Desktop: Team 2 */}
+        <div className="hidden md:block flex-1 text-center">
           <div
             className="w-20 h-20 mx-auto rounded-xl flex items-center justify-center text-white font-bold text-2xl mb-3"
             style={{ backgroundColor: team2.color }}

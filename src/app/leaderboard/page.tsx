@@ -19,23 +19,23 @@ export default function LeaderboardPage() {
     <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
       <TopNav />
       <CategoryTabs activeLabel="Trending" />
-      <main className="mx-auto w-full max-w-6xl px-4 py-6">
-        <h1 className="text-3xl font-bold mb-6 flex items-center gap-3">
-          <Trophy className="h-8 w-8 text-yellow-500" />
+      <main className="mx-auto w-full max-w-6xl px-4 py-4 md:py-6">
+        <h1 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6 flex items-center gap-2 md:gap-3">
+          <Trophy className="h-6 w-6 md:h-8 md:w-8 text-yellow-500" />
           Leaderboard
         </h1>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="grid gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           {/* Main Leaderboard */}
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             {/* Filters */}
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex rounded-lg bg-[color:var(--surface)] border border-[color:var(--border-soft)] p-1">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-4">
+              <div className="flex rounded-lg bg-[color:var(--surface)] border border-[color:var(--border-soft)] p-1 overflow-x-auto">
                 {timeFilters.map((filter) => (
                   <button
                     key={filter}
                     onClick={() => setActiveFilter(filter)}
-                    className={`px-4 py-2 text-sm rounded-md transition ${
+                    className={`px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm rounded-md transition whitespace-nowrap ${
                       activeFilter === filter
                         ? "bg-[color:var(--surface-3)] text-[color:var(--text-strong)] font-semibold"
                         : "text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
@@ -47,10 +47,10 @@ export default function LeaderboardPage() {
               </div>
               <Button
                 variant="outline"
-                className="ml-auto border-[color:var(--border-soft)] bg-[color:var(--surface)] text-[color:var(--text-strong)]"
+                className="sm:ml-auto border-[color:var(--border-soft)] bg-[color:var(--surface)] text-[color:var(--text-strong)] text-xs md:text-sm h-8 md:h-9"
               >
                 All Categories
-                <ChevronDown className="ml-2 h-4 w-4" />
+                <ChevronDown className="ml-1 md:ml-2 h-3 w-3 md:h-4 md:w-4" />
               </Button>
             </div>
 
@@ -63,8 +63,8 @@ export default function LeaderboardPage() {
               />
             </div>
 
-            {/* Table Header */}
-            <div className="grid grid-cols-[auto_1fr_auto_auto] gap-4 px-4 text-sm text-[color:var(--text-muted)] border-b border-[color:var(--border-soft)] pb-2">
+            {/* Table Header - Hidden on mobile */}
+            <div className="hidden md:grid grid-cols-[auto_1fr_auto_auto] gap-4 px-4 text-sm text-[color:var(--text-muted)] border-b border-[color:var(--border-soft)] pb-2">
               <span className="w-8"></span>
               <span></span>
               <span className="text-right">Profit/Loss</span>
@@ -80,7 +80,26 @@ export default function LeaderboardPage() {
                     trader.rank <= 3 ? "border-l-4 border-l-yellow-500" : ""
                   }`}
                 >
-                  <CardContent className="p-4 grid grid-cols-[auto_1fr_auto_auto] gap-4 items-center">
+                  {/* Mobile Layout */}
+                  <CardContent className="p-3 md:hidden">
+                    <div className="flex items-center gap-3">
+                      <span className="w-6 text-center font-bold text-sm text-[color:var(--text-muted)]">
+                        {trader.rank}
+                      </span>
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm">
+                        {trader.avatar}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="font-semibold text-sm truncate block">{trader.name}</span>
+                        <div className="flex items-center gap-3 text-xs">
+                          <span className="text-green-500 font-medium">{trader.profit}</span>
+                          <span className="text-[color:var(--text-muted)]">{trader.volume}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                  {/* Desktop Layout */}
+                  <CardContent className="hidden md:grid p-4 grid-cols-[auto_1fr_auto_auto] gap-4 items-center">
                     <span className="w-8 text-center font-bold text-[color:var(--text-muted)]">
                       {trader.rank}
                     </span>
@@ -103,7 +122,18 @@ export default function LeaderboardPage() {
 
             {/* Your Position */}
             <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] border-2 border-dashed">
-              <CardContent className="p-4 grid grid-cols-[auto_1fr_auto_auto] gap-4 items-center">
+              {/* Mobile */}
+              <CardContent className="p-3 md:hidden">
+                <div className="flex items-center gap-3">
+                  <span className="w-6 text-center font-bold text-sm text-[color:var(--text-muted)]">—</span>
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs">
+                    DT
+                  </div>
+                  <span className="font-semibold text-sm">jordannase (You)</span>
+                </div>
+              </CardContent>
+              {/* Desktop */}
+              <CardContent className="hidden md:grid p-4 grid-cols-[auto_1fr_auto_auto] gap-4 items-center">
                 <span className="w-8 text-center font-bold text-[color:var(--text-muted)]">
                   —
                 </span>

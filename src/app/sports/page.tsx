@@ -51,58 +51,62 @@ export default function SportsPage() {
       <TopNav />
       <CategoryTabs activeLabel="Sports" />
 
-      <div className="flex">
+      <div className="flex flex-col lg:flex-row">
         {/* Sidebar */}
         <SportsSidebar activeSport="nfl" />
 
         {/* Main Content */}
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-4 md:p-6">
           <div className="max-w-5xl mx-auto">
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">🏈</span>
-                <h1 className="text-2xl font-bold">NFL</h1>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 md:mb-6">
+              <div className="flex items-center gap-2 md:gap-3">
+                <span className="text-xl md:text-2xl">🏈</span>
+                <h1 className="text-xl md:text-2xl font-bold">NFL</h1>
               </div>
-              <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon">
-                  <Settings className="h-5 w-5" />
+              <div className="flex items-center gap-2 md:gap-4">
+                <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9">
+                  <Settings className="h-4 w-4 md:h-5 md:w-5" />
                 </Button>
-                <div className="flex items-center gap-2 bg-[color:var(--surface-2)] rounded-full px-4 py-2">
-                  <ToggleRight className={`h-5 w-5 ${showSpreads ? "text-green-500" : "text-[color:var(--text-muted)]"}`} />
-                  <span className="text-sm">Show Spreads + Totals</span>
-                </div>
+                <button
+                  onClick={() => setShowSpreads(!showSpreads)}
+                  className="flex items-center gap-1.5 md:gap-2 bg-[color:var(--surface-2)] rounded-full px-3 md:px-4 py-1.5 md:py-2"
+                >
+                  <ToggleRight className={`h-4 w-4 md:h-5 md:w-5 ${showSpreads ? "text-green-500" : "text-[color:var(--text-muted)]"}`} />
+                  <span className="text-xs md:text-sm hidden sm:inline">Show Spreads + Totals</span>
+                  <span className="text-xs sm:hidden">Spreads</span>
+                </button>
               </div>
             </div>
 
             {/* Tabs */}
-            <Tabs defaultValue="games" className="mb-6">
-              <TabsList className="bg-[color:var(--surface)] border border-[color:var(--border-soft)]">
-                <TabsTrigger value="games" className="data-[state=active]:bg-[color:var(--surface-2)]">
-                  Games
-                </TabsTrigger>
-                <TabsTrigger value="props" className="data-[state=active]:bg-[color:var(--surface-2)]">
-                  Props
-                </TabsTrigger>
-              </TabsList>
-              <div className="ml-auto flex items-center gap-2">
-                <Button variant="outline" className="gap-2">
-                  Week 15 <ChevronDown className="h-4 w-4" />
+            <Tabs defaultValue="games" className="mb-4 md:mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <TabsList className="bg-[color:var(--surface)] border border-[color:var(--border-soft)]">
+                  <TabsTrigger value="games" className="data-[state=active]:bg-[color:var(--surface-2)] text-xs md:text-sm">
+                    Games
+                  </TabsTrigger>
+                  <TabsTrigger value="props" className="data-[state=active]:bg-[color:var(--surface-2)] text-xs md:text-sm">
+                    Props
+                  </TabsTrigger>
+                </TabsList>
+                <Button variant="outline" className="gap-2 text-xs md:text-sm h-8 md:h-9 w-fit">
+                  Week 15 <ChevronDown className="h-3 w-3 md:h-4 md:w-4" />
                 </Button>
               </div>
             </Tabs>
 
             {/* Date Header */}
-            <div className="text-lg font-semibold mb-4">Sun, February 8</div>
+            <div className="text-base md:text-lg font-semibold mb-3 md:mb-4">Sun, February 8</div>
 
             {/* Games List */}
-            <div className="space-y-4">
+            <div className="space-y-3 md:space-y-4">
               {sportsGames
                 .filter((g) => g.league === "NFL")
                 .map((game) => (
                   <div
                     key={game.id}
-                    className={`bg-[color:var(--surface)] border rounded-xl p-4 cursor-pointer transition ${
+                    className={`bg-[color:var(--surface)] border rounded-xl p-3 md:p-4 cursor-pointer transition ${
                       selectedGame.id === game.id
                         ? "border-[color:var(--accent)] ring-1 ring-[color:var(--accent)]"
                         : "border-[color:var(--border-soft)] hover:border-[color:var(--border-strong)]"
@@ -110,26 +114,82 @@ export default function SportsPage() {
                     onClick={() => setSelectedGame(game)}
                   >
                     {/* Game Header */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium bg-[color:var(--surface-2)] px-3 py-1 rounded">
+                    <div className="flex items-center justify-between mb-3 md:mb-4">
+                      <div className="flex items-center gap-2 md:gap-3">
+                        <span className="text-xs md:text-sm font-medium bg-[color:var(--surface-2)] px-2 md:px-3 py-1 rounded">
                           {game.gameTime}
                         </span>
-                        <span className="text-sm text-[color:var(--text-muted)]">{game.volume}</span>
+                        <span className="text-xs md:text-sm text-[color:var(--text-muted)]">{game.volume}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs bg-[color:var(--surface-2)] px-2 py-1 rounded">68</span>
-                        <Link
-                          href={`/market/${game.id}`}
-                          className="text-sm text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)] flex items-center gap-1"
-                        >
-                          Game View <ChevronRight className="h-4 w-4" />
-                        </Link>
-                      </div>
+                      <Link
+                        href={`/market/${game.id}`}
+                        className="text-xs md:text-sm text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)] flex items-center gap-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span className="hidden sm:inline">Game View</span>
+                        <span className="sm:hidden">View</span>
+                        <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
+                      </Link>
                     </div>
 
-                    {/* Teams Grid */}
-                    <div className="space-y-3">
+                    {/* Mobile Layout - Compact */}
+                    <div className="md:hidden space-y-3">
+                      {/* Teams Row */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs"
+                            style={{ backgroundColor: game.team1.color }}
+                          >
+                            {game.team1.abbr}
+                          </div>
+                          <div>
+                            <div className="font-medium text-sm">{game.team1.name}</div>
+                            <div className="text-xs text-[color:var(--text-subtle)]">{game.team1.record}</div>
+                          </div>
+                        </div>
+                        <Button className="bg-green-600 hover:bg-green-700 text-white h-8 px-3 text-xs">
+                          {game.team1.odds}¢
+                        </Button>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs"
+                            style={{ backgroundColor: game.team2.color }}
+                          >
+                            {game.team2.abbr}
+                          </div>
+                          <div>
+                            <div className="font-medium text-sm">{game.team2.name}</div>
+                            <div className="text-xs text-[color:var(--text-subtle)]">{game.team2.record}</div>
+                          </div>
+                        </div>
+                        <Button variant="outline" className="border-[color:var(--border-soft)] h-8 px-3 text-xs">
+                          {game.team2.odds}¢
+                        </Button>
+                      </div>
+                      {/* Mobile Spreads/Totals */}
+                      {showSpreads && (game.spread || game.total) && (
+                        <div className="flex gap-2 pt-2 border-t border-[color:var(--border-soft)]">
+                          {game.spread && (
+                            <div className="flex-1 text-center py-1.5 bg-[color:var(--surface-2)] rounded-lg text-xs">
+                              <span className="text-[color:var(--text-muted)]">Spread </span>
+                              <span className="font-medium">{game.spread.team1}</span>
+                            </div>
+                          )}
+                          {game.total && (
+                            <div className="flex-1 text-center py-1.5 bg-[color:var(--surface-2)] rounded-lg text-xs">
+                              <span className="text-[color:var(--text-muted)]">O/U </span>
+                              <span className="font-medium">{game.total.over}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Desktop Layout - Full */}
+                    <div className="hidden md:block space-y-3">
                       {/* Team 1 Row */}
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-3 w-48">
@@ -212,26 +272,26 @@ export default function SportsPage() {
             </div>
 
             {/* Comments Section */}
-            <div className="mt-8 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4">
-              <div className="flex items-center gap-3 mb-4">
+            <div className="mt-6 md:mt-8 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-3 md:p-4">
+              <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
                 <Input
                   placeholder="Add a comment"
-                  className="flex-1 bg-[color:var(--surface-2)] border-[color:var(--border-soft)]"
+                  className="flex-1 bg-[color:var(--surface-2)] border-[color:var(--border-soft)] text-sm"
                 />
-                <Button className="bg-[color:var(--accent)] hover:bg-[color:var(--accent-strong)] text-white">
+                <Button className="bg-[color:var(--accent)] hover:bg-[color:var(--accent-strong)] text-white text-sm h-9 px-3 md:px-4">
                   Post
                 </Button>
               </div>
 
-              <div className="flex items-center gap-4 mb-4">
-                <Button variant="outline" size="sm" className="gap-2">
-                  Newest <ChevronDown className="h-4 w-4" />
+              <div className="flex flex-wrap items-center gap-2 md:gap-4 mb-3 md:mb-4">
+                <Button variant="outline" size="sm" className="gap-1 md:gap-2 text-xs md:text-sm h-7 md:h-8">
+                  Newest <ChevronDown className="h-3 w-3 md:h-4 md:w-4" />
                 </Button>
-                <label className="flex items-center gap-2 text-sm text-[color:var(--text-muted)]">
-                  <input type="checkbox" className="rounded" />
+                <label className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-[color:var(--text-muted)]">
+                  <input type="checkbox" className="rounded w-3 h-3 md:w-4 md:h-4" />
                   Holders
                 </label>
-                <div className="ml-auto flex items-center gap-2 text-sm text-[color:var(--text-muted)]">
+                <div className="hidden sm:flex ml-auto items-center gap-2 text-xs md:text-sm text-[color:var(--text-muted)]">
                   <span className="text-yellow-500">⚠</span>
                   Beware of external links.
                 </div>
@@ -286,20 +346,20 @@ export default function SportsPage() {
           </div>
         </main>
 
-        {/* Trade Panel */}
-        <div className="w-80 flex-shrink-0 p-6 border-l border-[color:var(--border-soft)]">
-          <div className="sticky top-6">
+        {/* Trade Panel - Right Side on desktop, below content on mobile */}
+        <div className="w-full lg:w-80 flex-shrink-0 p-4 md:p-6 lg:border-l border-t lg:border-t-0 border-[color:var(--border-soft)]">
+          <div className="lg:sticky lg:top-6 max-w-md mx-auto lg:max-w-none">
             {/* Selected Game Info */}
-            <div className="mb-4 p-4 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl">
+            <div className="mb-4 p-3 md:p-4 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl">
               <div className="flex items-center gap-3 mb-3">
                 <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold"
+                  className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm md:text-base"
                   style={{ backgroundColor: selectedGame.team1.color }}
                 >
                   {selectedGame.team1.abbr}
                 </div>
                 <div>
-                  <div className="font-semibold">
+                  <div className="font-semibold text-sm md:text-base">
                     {selectedGame.team1.name} vs {selectedGame.team2.name}
                   </div>
                   <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-500">

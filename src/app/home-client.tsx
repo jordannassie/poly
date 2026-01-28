@@ -89,29 +89,29 @@ export default function HomeClient() {
         <SportsSidebar />
 
         {/* Main Content */}
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-4 md:p-6">
           <div className="max-w-5xl mx-auto">
             {/* Hero Section */}
-            <div className="mb-8 p-6 rounded-2xl bg-gradient-to-r from-[color:var(--surface)] to-[color:var(--surface-2)] border border-[color:var(--border-soft)]">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
-                    <Trophy className="h-8 w-8 text-white" />
+            <div className="mb-6 md:mb-8 p-4 md:p-6 rounded-2xl bg-gradient-to-r from-[color:var(--surface)] to-[color:var(--surface-2)] border border-[color:var(--border-soft)]">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex items-center gap-3 md:gap-4">
+                  <div className="h-12 w-12 md:h-16 md:w-16 rounded-xl md:rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center flex-shrink-0">
+                    <Trophy className="h-6 w-6 md:h-8 md:w-8 text-white" />
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold">ProvePicks Sports</h1>
-                    <p className="text-[color:var(--text-muted)]">
+                    <h1 className="text-xl md:text-3xl font-bold">ProvePicks Sports</h1>
+                    <p className="text-sm md:text-base text-[color:var(--text-muted)]">
                       Bet on your favorite teams. Win big.
                     </p>
                   </div>
                 </div>
-                <div className="hidden md:flex items-center gap-3">
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/20 text-green-500">
-                    <Zap className="h-4 w-4" />
-                    <span className="font-medium">+500 XP Today</span>
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-green-500/20 text-green-500 text-sm">
+                    <Zap className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                    <span className="font-medium">+500 XP</span>
                   </div>
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500/20 text-orange-500">
-                    <Flame className="h-4 w-4" />
+                  <div className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-orange-500/20 text-orange-500 text-sm">
+                    <Flame className="h-3.5 w-3.5 md:h-4 md:w-4" />
                     <span className="font-medium">3 Day Streak</span>
                   </div>
                 </div>
@@ -143,18 +143,18 @@ export default function HomeClient() {
                   volume={formatVolume(featuredMarket.volumeToday)}
                 />
                 {/* Featured Game Stats */}
-                <div className="mt-3 flex items-center gap-6 text-sm">
-                  <div className="flex items-center gap-2 text-[color:var(--text-muted)]">
-                    <Activity className="h-4 w-4 text-green-500" />
+                <div className="mt-3 flex flex-wrap items-center gap-3 md:gap-6 text-xs md:text-sm">
+                  <div className="flex items-center gap-1.5 md:gap-2 text-[color:var(--text-muted)]">
+                    <Activity className="h-3.5 w-3.5 md:h-4 md:w-4 text-green-500" />
                     <span>{formatVolume(featuredMarket.volume10m)} last 10m</span>
                   </div>
-                  <div className="flex items-center gap-2 text-[color:var(--text-muted)]">
-                    <Users className="h-4 w-4 text-blue-500" />
-                    <span>{featuredMarket.activeBettors} active bettors</span>
+                  <div className="flex items-center gap-1.5 md:gap-2 text-[color:var(--text-muted)]">
+                    <Users className="h-3.5 w-3.5 md:h-4 md:w-4 text-blue-500" />
+                    <span>{featuredMarket.activeBettors} bettors</span>
                   </div>
                   <div className={`flex items-center gap-1 ${featuredMarket.percentMove > 0 ? "text-green-500" : "text-red-500"}`}>
-                    <TrendingUp className="h-4 w-4" />
-                    <span>{featuredMarket.percentMove > 0 ? "+" : ""}{featuredMarket.percentMove}% today</span>
+                    <TrendingUp className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                    <span>{featuredMarket.percentMove > 0 ? "+" : ""}{featuredMarket.percentMove}%</span>
                   </div>
                 </div>
               </div>
@@ -172,7 +172,7 @@ export default function HomeClient() {
             </div>
 
             {/* Markets Grid */}
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
               {markets.map((market) => {
                 const badge = getMarketBadge(market);
                 const isLive = market.isLive;
@@ -313,22 +313,22 @@ export default function HomeClient() {
             )}
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-              <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4 text-center">
-                <div className="text-2xl font-bold text-green-500">$48M</div>
-                <div className="text-sm text-[color:var(--text-muted)]">Daily Volume</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mt-6 md:mt-8">
+              <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-3 md:p-4 text-center">
+                <div className="text-xl md:text-2xl font-bold text-green-500">$48M</div>
+                <div className="text-xs md:text-sm text-[color:var(--text-muted)]">Daily Volume</div>
               </div>
-              <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4 text-center">
-                <div className="text-2xl font-bold">1,200+</div>
-                <div className="text-sm text-[color:var(--text-muted)]">Live Markets</div>
+              <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-3 md:p-4 text-center">
+                <div className="text-xl md:text-2xl font-bold">1,200+</div>
+                <div className="text-xs md:text-sm text-[color:var(--text-muted)]">Live Markets</div>
               </div>
-              <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4 text-center">
-                <div className="text-2xl font-bold text-orange-500">18</div>
-                <div className="text-sm text-[color:var(--text-muted)]">Sports</div>
+              <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-3 md:p-4 text-center">
+                <div className="text-xl md:text-2xl font-bold text-orange-500">18</div>
+                <div className="text-xs md:text-sm text-[color:var(--text-muted)]">Sports</div>
               </div>
-              <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4 text-center">
-                <div className="text-2xl font-bold">2.4M</div>
-                <div className="text-sm text-[color:var(--text-muted)]">Users</div>
+              <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-3 md:p-4 text-center">
+                <div className="text-xl md:text-2xl font-bold">2.4M</div>
+                <div className="text-xs md:text-sm text-[color:var(--text-muted)]">Users</div>
               </div>
             </div>
           </div>
