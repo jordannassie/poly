@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, ChevronDown, Moon, Sun, Bell } from "lucide-react";
+import { Search, ChevronDown, Moon, Sun, Bell, Zap } from "lucide-react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { AuthModal } from "./AuthModal";
@@ -51,13 +51,13 @@ export function TopNav() {
 
   return (
     <>
-      <div className="border-b border-[color:var(--border-soft)] bg-[color:var(--surface)]/80 backdrop-blur">
+      <div className="border-b border-orange-500/20 bg-gradient-to-r from-orange-500/5 via-[color:var(--surface)]/95 to-[color:var(--surface)]/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-4 py-4">
           <Link href="/" className="flex items-center gap-2 text-[color:var(--text-strong)]">
-            <div className="h-8 w-8 rounded-md bg-[color:var(--accent)] flex items-center justify-center text-sm font-bold text-white">
-              P
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/30">
+              <Zap className="h-5 w-5 text-white" />
             </div>
-            <span className="hidden text-sm font-semibold sm:block">
+            <span className="hidden text-sm font-bold sm:block bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
               ProvePicks
             </span>
           </Link>
