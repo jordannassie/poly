@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
+
 type Team = {
   abbr: string;
   name: string;
   record?: string;
   odds: number;
   color: string;
+  logoUrl?: string | null;
 };
 
 type HeadToHeadChartProps = {
@@ -15,6 +18,52 @@ type HeadToHeadChartProps = {
   volume?: string;
   source?: string;
 };
+
+// Team Badge component with logo support
+function TeamBadge({ 
+  team, 
+  size = "md" 
+}: { 
+  team: Team; 
+  size?: "sm" | "md" | "lg";
+}) {
+  const [imgError, setImgError] = useState(false);
+  
+  const sizeClasses = {
+    sm: "w-10 h-10 text-sm",
+    md: "w-20 h-20 text-2xl",
+    lg: "w-24 h-24 text-3xl",
+  };
+  
+  const imgSizes = {
+    sm: "w-7 h-7",
+    md: "w-14 h-14",
+    lg: "w-18 h-18",
+  };
+
+  return (
+    <div
+      className={`${sizeClasses[size]} rounded-xl flex items-center justify-center text-white font-bold overflow-hidden`}
+      style={{ 
+        backgroundColor: team.color,
+        boxShadow: size !== "sm" ? `0 8px 24px ${team.color}40` : undefined
+      }}
+    >
+      {team.logoUrl && !imgError ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={team.logoUrl}
+          alt={team.name}
+          className={`${imgSizes[size]} object-contain`}
+          onError={() => setImgError(true)}
+          loading="lazy"
+        />
+      ) : (
+        team.abbr
+      )}
+    </div>
+  );
+}
 
 export function HeadToHeadChart({
   team1,
@@ -44,14 +93,8 @@ export function HeadToHeadChart({
           <div className="flex items-center justify-center gap-3 mb-4">
             {/* Team 1 */}
             <div className="text-center flex-1">
-              <div
-                className="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg mb-2"
-                style={{ 
-                  backgroundColor: team1.color,
-                  boxShadow: `0 8px 24px ${team1.color}40`
-                }}
-              >
-                {team1.abbr}
+              <div className="mx-auto mb-2">
+                <TeamBadge team={team1} size="md" />
               </div>
               <div className="font-bold text-base text-[color:var(--text-strong)]">{team1.name}</div>
               <div className="text-2xl font-bold mt-1" style={{ color: team1.color }}>
@@ -68,14 +111,8 @@ export function HeadToHeadChart({
 
             {/* Team 2 */}
             <div className="text-center flex-1">
-              <div
-                className="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg mb-2"
-                style={{ 
-                  backgroundColor: team2.color,
-                  boxShadow: `0 8px 24px ${team2.color}40`
-                }}
-              >
-                {team2.abbr}
+              <div className="mx-auto mb-2">
+                <TeamBadge team={team2} size="md" />
               </div>
               <div className="font-bold text-base text-[color:var(--text-strong)]">{team2.name}</div>
               <div className="text-2xl font-bold mt-1" style={{ color: team2.color }}>
@@ -110,11 +147,8 @@ export function HeadToHeadChart({
 
         {/* Desktop: Team 1 */}
         <div className="hidden md:block flex-1 text-center">
-          <div
-            className="w-20 h-20 mx-auto rounded-xl flex items-center justify-center text-white font-bold text-2xl mb-3"
-            style={{ backgroundColor: team1.color }}
-          >
-            {team1.abbr}
+          <div className="mx-auto mb-3 flex justify-center">
+            <TeamBadge team={team1} size="md" />
           </div>
           <div className="font-semibold text-[color:var(--text-strong)]">{team1.name}</div>
           {team1.record && (
@@ -157,11 +191,8 @@ export function HeadToHeadChart({
 
         {/* Desktop: Team 2 */}
         <div className="hidden md:block flex-1 text-center">
-          <div
-            className="w-20 h-20 mx-auto rounded-xl flex items-center justify-center text-white font-bold text-2xl mb-3"
-            style={{ backgroundColor: team2.color }}
-          >
-            {team2.abbr}
+          <div className="mx-auto mb-3 flex justify-center">
+            <TeamBadge team={team2} size="md" />
           </div>
           <div className="font-semibold text-[color:var(--text-strong)]">{team2.name}</div>
           {team2.record && (
@@ -200,12 +231,7 @@ export function HeadToHeadRow({
 
         {/* Team 1 */}
         <div className="flex items-center gap-2 flex-1">
-          <div
-            className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm"
-            style={{ backgroundColor: team1.color }}
-          >
-            {team1.abbr}
-          </div>
+          <TeamBadge team={team1} size="sm" />
           <div>
             <div className="font-medium text-sm">{team1.name}</div>
             {team1.record && (
@@ -264,12 +290,7 @@ export function HeadToHeadRow({
       {/* Team 2 Row */}
       <div className="flex items-center gap-4 mt-3 pl-28">
         <div className="flex items-center gap-2 flex-1">
-          <div
-            className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm"
-            style={{ backgroundColor: team2.color }}
-          >
-            {team2.abbr}
-          </div>
+          <TeamBadge team={team2} size="sm" />
           <div>
             <div className="font-medium text-sm">{team2.name}</div>
             {team2.record && (

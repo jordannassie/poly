@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TopNav } from "@/components/TopNav";
@@ -35,6 +35,13 @@ import {
   AlertCircle,
 } from "lucide-react";
 
+// Team logo lookup type
+interface TeamInfo {
+  abbreviation: string;
+  logoUrl: string | null;
+  primaryColor: string | null;
+}
+
 // Format number with commas and 2 decimal places
 const formatCurrency = (value: number): string => {
   return value.toLocaleString("en-US", {
@@ -58,6 +65,38 @@ export default function MarketPage({ params }: MarketPageProps) {
   // Trade panel state
   const [tradeAmount, setTradeAmount] = useState(0);
   const [selectedPosition, setSelectedPosition] = useState<"yes" | "no">("yes");
+  
+  // Team logos state
+  const [teamLogos, setTeamLogos] = useState<Map<string, TeamInfo>>(new Map());
+
+  // Fetch team logos on mount
+  useEffect(() => {
+    async function fetchTeamLogos() {
+      try {
+        const res = await fetch("/api/sports/teams?league=nfl");
+        if (res.ok) {
+          const data = await res.json();
+          const logoMap = new Map<string, TeamInfo>();
+          for (const team of data.teams) {
+            logoMap.set(team.abbreviation, {
+              abbreviation: team.abbreviation,
+              logoUrl: team.logoUrl,
+              primaryColor: team.primaryColor,
+            });
+          }
+          setTeamLogos(logoMap);
+        }
+      } catch (error) {
+        console.error("Failed to fetch team logos:", error);
+      }
+    }
+    fetchTeamLogos();
+  }, []);
+
+  // Helper to get logo URL for a team abbreviation
+  const getTeamLogo = (abbr: string): string | null => {
+    return teamLogos.get(abbr)?.logoUrl || null;
+  };
 
   // Try to find as a hot market first for extra data
   const hotMarkets = generateHotMarkets();
@@ -157,8 +196,8 @@ export default function MarketPage({ params }: MarketPageProps) {
 
               {/* Head to Head Chart */}
               <HeadToHeadChart
-                team1={{ ...team1, record: "" }}
-                team2={{ ...team2, record: "" }}
+                team1={{ ...team1, record: "", logoUrl: getTeamLogo(team1.abbr) }}
+                team2={{ ...team2, record: "", logoUrl: getTeamLogo(team2.abbr) }}
                 gameTime={`Locks in: ${locksInLabel(startTime)}`}
                 volume={formatVolume(volumeToday)}
               />
@@ -352,10 +391,20 @@ export default function MarketPage({ params }: MarketPageProps) {
               <div className="mb-4 p-4 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl">
                 <div className="flex items-center gap-3 mb-3">
                   <div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold"
+                    className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold overflow-hidden"
                     style={{ backgroundColor: team1.color }}
                   >
-                    {team1.abbr}
+                    {getTeamLogo(team1.abbr) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img 
+                        src={getTeamLogo(team1.abbr)!} 
+                        alt={team1.name}
+                        className="w-9 h-9 object-contain"
+                        loading="lazy"
+                      />
+                    ) : (
+                      team1.abbr
+                    )}
                   </div>
                   <div>
                     <div className="font-semibold">
