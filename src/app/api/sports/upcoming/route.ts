@@ -20,7 +20,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getNflTeams, getNflScoresByDate, type Score, type Team } from "@/lib/sportsdataio/client";
+import { getNflTeams, getNflScoresByDate, getTeamLogoUrl, type Score, type Team } from "@/lib/sportsdataio/client";
 import { getTodayIso } from "@/lib/sportsdataio/nflDate";
 import { getFromCache, setInCache, getCacheKey } from "@/lib/sportsdataio/cache";
 
@@ -75,7 +75,7 @@ function normalizeTeam(team: Team | undefined, abbr: string): NormalizedTeam {
     name: team.Name,
     city: team.City,
     fullName: team.FullName || `${team.City} ${team.Name}`,
-    logoUrl: team.WikipediaLogoUrl || null,
+    logoUrl: getTeamLogoUrl(team),
     primaryColor: team.PrimaryColor ? `#${team.PrimaryColor}` : null,
   };
 }
