@@ -6,11 +6,11 @@ export function MainFooter() {
     <footer className="bg-gradient-to-r from-orange-500 to-amber-500">
       <div className="mx-auto w-full max-w-6xl px-4 py-10 space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 text-white">
-            <div className="h-8 w-8 rounded-lg bg-white/20 backdrop-blur flex items-center justify-center">
-              <Zap className="h-5 w-5 text-white" />
+          <div className="flex items-center gap-3 text-white">
+            <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
+              <Zap className="h-6 w-6 text-white" />
             </div>
-            <span className="text-sm font-bold text-white">ProvePicks</span>
+            <span className="text-lg font-bold text-white">ProvePicks</span>
           </div>
           <div className="text-sm text-white/80">
             Demo UI for prediction markets.

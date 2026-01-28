@@ -53,11 +53,11 @@ export function TopNav() {
     <>
       <div className="bg-gradient-to-r from-orange-500 to-amber-500">
         <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-4 py-4">
-          <Link href="/" className="flex items-center gap-2 text-white">
-            <div className="h-8 w-8 rounded-lg bg-white/20 backdrop-blur flex items-center justify-center">
-              <Zap className="h-5 w-5 text-white" />
+          <Link href="/" className="flex items-center gap-3 text-white">
+            <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
+              <Zap className="h-6 w-6 text-white" />
             </div>
-            <span className="hidden text-sm font-bold sm:block text-white">
+            <span className="hidden text-lg font-bold sm:block text-white">
               ProvePicks
             </span>
           </Link>
