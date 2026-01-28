@@ -196,6 +196,7 @@ export default function MarketPage({ params }: MarketPageProps) {
 
               {/* Head to Head Chart */}
               <HeadToHeadChart
+                key={`h2h-${teamLogos.size}`}
                 team1={{ ...team1, record: "", logoUrl: getTeamLogo(team1.abbr) }}
                 team2={{ ...team2, record: "", logoUrl: getTeamLogo(team2.abbr) }}
                 gameTime={`Locks in: ${locksInLabel(startTime)}`}
