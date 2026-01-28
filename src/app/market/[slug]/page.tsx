@@ -136,21 +136,23 @@ export default function MarketPage({ params }: MarketPageProps) {
                 </div>
               ))}
             </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface-2)] p-4">
-                  <div className="text-xs text-[color:var(--text-subtle)]">Volume</div>
-                  <div className="text-lg font-semibold">{market.volume}</div>
-                </div>
-                <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface-2)] p-4">
-                  <div className="text-xs text-[color:var(--text-subtle)]">Open interest</div>
-                  <div className="text-lg font-semibold">$412k</div>
-                </div>
-                <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface-2)] p-4">
-                  <div className="text-xs text-[color:var(--text-subtle)]">Traders</div>
-                  <div className="text-lg font-semibold">4,238</div>
-                </div>
+
+            {/* Stats Grid */}
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-4">
+                <div className="text-xs text-[color:var(--text-subtle)]">Volume</div>
+                <div className="text-lg font-semibold">{market.volume}</div>
+              </div>
+              <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-4">
+                <div className="text-xs text-[color:var(--text-subtle)]">Open interest</div>
+                <div className="text-lg font-semibold">$412k</div>
+              </div>
+              <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-4">
+                <div className="text-xs text-[color:var(--text-subtle)]">Traders</div>
+                <div className="text-lg font-semibold">4,238</div>
               </div>
             </div>
+
             <div className="rounded-2xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-6 space-y-4">
               <div className="text-sm font-semibold">Rules summary</div>
               <p className="text-sm text-[color:var(--text-muted)]">
