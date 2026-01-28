@@ -144,7 +144,7 @@ export function TradePanel({ market }: TradePanelProps) {
       </div>
 
       <Button
-        className="w-full bg-[color:var(--accent)] hover:bg-[color:var(--accent-strong)] text-white h-11"
+        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white h-12 text-base font-bold shadow-lg shadow-blue-500/30 transition-all hover:shadow-xl hover:shadow-purple-500/40 hover:scale-[1.02]"
         onClick={() => {
           if (!selectedOutcome) return;
           const price =
@@ -164,46 +164,61 @@ export function TradePanel({ market }: TradePanelProps) {
           setTradeOpen(true);
         }}
       >
-        Trade
+        🎯 Place Bet
       </Button>
       <div className="text-xs text-[color:var(--text-subtle)] text-center">
         By trading, you agree to the Terms of Use.
       </div>
 
       <Dialog open={tradeOpen} onOpenChange={setTradeOpen}>
-        <DialogContent className="bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] max-w-sm">
+        <DialogContent className="bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] max-w-sm overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 via-transparent to-blue-500/10 pointer-events-none" />
           <DialogHeader>
-            <DialogTitle>Trade placed</DialogTitle>
+            <DialogTitle className="text-center text-xl">🎉 Bet Placed!</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 text-sm text-[color:var(--text-muted)]">
-            <div>
-              {side === "sell" ? "Sell" : "Buy"} {position.toUpperCase()} on{" "}
-              <span className="text-[color:var(--text-strong)]">
+          <div className="space-y-4 text-sm relative">
+            <div className="text-center text-[color:var(--text-muted)]">
+              {side === "sell" ? "Sold" : "Bought"} {position.toUpperCase()} on{" "}
+              <span className="text-[color:var(--text-strong)] font-semibold">
                 {selectedOutcome?.name}
               </span>
             </div>
-            <div className="rounded-lg bg-[color:var(--surface-2)] border border-[color:var(--border-soft)] p-3">
-              <div className="flex justify-between">
-                <span>Amount</span>
-                <span className="text-[color:var(--text-strong)]">
+            <div className="flex justify-center gap-3">
+              <div className="px-4 py-2 rounded-full bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-500 font-semibold">
+                +25 XP
+              </div>
+              <div className="px-4 py-2 rounded-full bg-gradient-to-r from-orange-500/20 to-yellow-500/20 text-orange-500 font-semibold">
+                🔥 Streak +1
+              </div>
+            </div>
+            <div className="rounded-xl bg-[color:var(--surface-2)] border border-[color:var(--border-soft)] p-4">
+              <div className="flex justify-between mb-2">
+                <span className="text-[color:var(--text-muted)]">Amount</span>
+                <span className="font-bold text-lg">
                   ${amount || 50}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span>Price</span>
-                <span className="text-[color:var(--text-strong)]">
+              <div className="flex justify-between mb-2">
+                <span className="text-[color:var(--text-muted)]">Price</span>
+                <span className="font-bold">
                   {position === "yes"
                     ? selectedOutcome?.yesPrice
                     : selectedOutcome?.noPrice}
                   ¢
                 </span>
               </div>
+              <div className="flex justify-between pt-2 border-t border-[color:var(--border-soft)]">
+                <span className="text-[color:var(--text-muted)]">Potential Win</span>
+                <span className="font-bold text-green-500">
+                  ${Math.round((amount || 50) * (100 / (position === "yes" ? selectedOutcome?.yesPrice || 50 : selectedOutcome?.noPrice || 50)))}
+                </span>
+              </div>
             </div>
             <Button
               asChild
-              className="w-full bg-[color:var(--accent)] hover:bg-[color:var(--accent-strong)] text-white"
+              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold"
             >
-              <Link href="/account">View account</Link>
+              <Link href="/account">View Portfolio →</Link>
             </Button>
           </div>
         </DialogContent>

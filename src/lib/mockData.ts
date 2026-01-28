@@ -224,6 +224,23 @@ export const statsOverview = [
   { label: "Markets live", value: "214" },
 ];
 
+export const leaderboard = [
+  { rank: 1, name: "CryptoWhale", profit: "$48,291", wins: 142, streak: 7 },
+  { rank: 2, name: "MarketMaster", profit: "$31,205", wins: 98, streak: 4 },
+  { rank: 3, name: "BetKing99", profit: "$24,812", wins: 87, streak: 3 },
+  { rank: 4, name: "OddsHunter", profit: "$19,445", wins: 76, streak: 2 },
+  { rank: 5, name: "PredictorX", profit: "$15,882", wins: 64, streak: 5 },
+];
+
+export const achievements = [
+  { id: "first-bet", label: "First Bet", icon: "🎯", unlocked: true },
+  { id: "win-streak-3", label: "3 Win Streak", icon: "🔥", unlocked: true },
+  { id: "profit-100", label: "$100 Profit", icon: "💰", unlocked: false },
+  { id: "early-bird", label: "Early Bird", icon: "🐦", unlocked: true },
+  { id: "diamond-hands", label: "Diamond Hands", icon: "💎", unlocked: false },
+  { id: "top-10", label: "Top 10", icon: "🏆", unlocked: false },
+];
+
 export const demoComments = [
   {
     id: "c1",
