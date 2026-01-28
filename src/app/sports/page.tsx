@@ -8,6 +8,7 @@ import { SportsSidebar } from "@/components/SportsSidebar";
 import { HeadToHeadChart } from "@/components/HeadToHeadChart";
 import { MainFooter } from "@/components/MainFooter";
 import { TradePanel } from "@/components/TradePanel";
+import { MobileBetBar } from "@/components/MobileBetBar";
 import { sportsGames } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -373,6 +374,12 @@ export default function SportsPage() {
           </div>
         </div>
       </div>
+
+      {/* Mobile Sticky Bet Bar */}
+      <MobileBetBar 
+        team1={selectedGame.team1} 
+        team2={selectedGame.team2} 
+      />
 
       <MainFooter />
     </div>

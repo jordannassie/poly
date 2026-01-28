@@ -6,6 +6,7 @@ import { TopNav } from "@/components/TopNav";
 import { SportsSidebar } from "@/components/SportsSidebar";
 import { MainFooter } from "@/components/MainFooter";
 import { HeadToHeadChart } from "@/components/HeadToHeadChart";
+import { MobileBetBar } from "@/components/MobileBetBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -432,6 +433,9 @@ export default function MarketPage({ params }: MarketPageProps) {
             </div>
           </div>
         </div>
+
+        {/* Mobile Sticky Bet Bar */}
+        <MobileBetBar team1={team1} team2={team2} />
 
         <MainFooter />
       </div>
