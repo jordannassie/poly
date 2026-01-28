@@ -11,25 +11,29 @@ const sportsMarkets = markets.filter((market) => market.category === "Sports");
 
 export default function SportsPage() {
   return (
-    <div className="min-h-screen bg-[#0b1320] text-white">
+    <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
       <TopNav />
       <CategoryTabs activeLabel="Sports" />
       <main className="mx-auto w-full max-w-6xl px-4 py-6">
         <div className="flex gap-6">
           <SportsSidebar />
           <section className="flex-1 space-y-4">
-            <div className="rounded-2xl border border-white/10 bg-[#111a27] p-4">
-              <div className="text-sm text-white/60 mb-2">Sports • NFL</div>
+            <div className="rounded-2xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-4">
+              <div className="text-sm text-[color:var(--text-muted)] mb-2">
+                Sports • NFL
+              </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="text-lg font-semibold">Seahawks vs Patriots</div>
-                  <div className="text-xs text-white/50">Feb 8 • 3:30 PM</div>
+                  <div className="text-xs text-[color:var(--text-subtle)]">
+                    Feb 8 • 3:30 PM
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <div className="rounded-lg bg-[#1b8f4b] px-4 py-2 text-white">
+                  <div className="rounded-lg bg-[color:var(--yes)] px-4 py-2 text-white">
                     SEA 69¢
                   </div>
-                  <div className="rounded-lg bg-white/10 px-4 py-2 text-white">
+                  <div className="rounded-lg bg-[color:var(--surface-2)] px-4 py-2 text-[color:var(--text-strong)]">
                     NE 32¢
                   </div>
                 </div>

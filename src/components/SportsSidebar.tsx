@@ -22,21 +22,25 @@ const iconMap = [
 export function SportsSidebar() {
   return (
     <aside className="hidden lg:flex lg:flex-col gap-4 w-64">
-      <div className="rounded-2xl border border-white/10 bg-[#111a27] p-4">
-        <div className="text-xs uppercase text-white/40 mb-3">All Sports</div>
+      <div className="rounded-2xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-4">
+        <div className="text-xs uppercase text-[color:var(--text-subtle)] mb-3">
+          All Sports
+        </div>
         <div className="space-y-2">
           {sportsSidebarItems.map((item, index) => {
             const Icon = iconMap[index % iconMap.length];
             return (
               <div
                 key={item.id}
-                className="flex items-center justify-between rounded-lg px-3 py-2 text-sm text-white/70 hover:bg-white/5"
+                className="flex items-center justify-between rounded-lg px-3 py-2 text-sm text-[color:var(--text-muted)] hover:bg-[color:var(--surface-2)]"
               >
                 <div className="flex items-center gap-2">
-                  <Icon className="h-4 w-4 text-white/40" />
+                  <Icon className="h-4 w-4 text-[color:var(--text-subtle)]" />
                   {item.label}
                 </div>
-                <span className="text-xs text-white/40">{item.count}</span>
+                <span className="text-xs text-[color:var(--text-subtle)]">
+                  {item.count}
+                </span>
               </div>
             );
           })}

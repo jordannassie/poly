@@ -22,26 +22,31 @@ export default function MarketPage({ params }: MarketPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[#0b1320] text-white">
+    <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
       <TopNav />
       <CategoryTabs activeLabel={market.category} />
       <main className="mx-auto w-full max-w-6xl px-4 py-6">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <section className="space-y-6">
-            <Link href="/" className="text-sm text-white/60 hover:text-white">
+            <Link
+              href="/"
+              className="text-sm text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
+            >
               ← Back to Movers
             </Link>
             <div className="space-y-3">
               <div className="text-2xl font-semibold">{market.title}</div>
               <div className="flex flex-wrap gap-2">
-                <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-white/70">
+                <span className="rounded-full bg-[color:var(--surface-2)] px-3 py-1 text-xs text-[color:var(--text-muted)]">
                   {market.endDate}
                 </span>
-                <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-white/70">
+                <span className="rounded-full bg-[color:var(--surface-2)] px-3 py-1 text-xs text-[color:var(--text-muted)]">
                   Feb 28
                 </span>
               </div>
-              <div className="text-sm text-white/50">{market.volume}</div>
+              <div className="text-sm text-[color:var(--text-subtle)]">
+                {market.volume}
+              </div>
             </div>
             <div className="space-y-3">
               {market.outcomes.map((outcome) => (

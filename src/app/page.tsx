@@ -8,7 +8,7 @@ import { markets } from "@/lib/mockData";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[#0b1320] text-white">
+    <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
       <TopNav />
       <CategoryTabs activeLabel="Trending" />
       <main className="mx-auto w-full max-w-6xl px-4 py-6">

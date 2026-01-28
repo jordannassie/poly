@@ -18,40 +18,44 @@ export function MarketCard({ market }: MarketCardProps) {
 
   return (
     <Link href={`/market/${market.slug}`} className="block h-full">
-      <Card className="h-full bg-[#111a27] border-white/5 hover:border-white/15 transition">
+      <Card className="h-full bg-[color:var(--surface)] border-[color:var(--border-soft)] hover:border-[color:var(--border-strong)] transition">
         <CardContent className="p-4 flex flex-col gap-4">
           <div className="flex items-start gap-3">
-            <div className="h-10 w-10 rounded-full bg-[#1e2a3d] flex items-center justify-center text-xs font-semibold text-white/70">
+            <div className="h-10 w-10 rounded-full bg-[color:var(--surface-3)] flex items-center justify-center text-xs font-semibold text-[color:var(--text-muted)]">
               {initials}
             </div>
             <div className="flex-1">
-              <div className="text-sm font-semibold text-white">
+              <div className="text-sm font-semibold text-[color:var(--text-strong)]">
                 {market.title}
               </div>
-              <div className="text-xs text-white/50">{market.volume}</div>
+              <div className="text-xs text-[color:var(--text-subtle)]">
+                {market.volume}
+              </div>
             </div>
-            <div className="text-2xl font-semibold text-white">
+            <div className="text-2xl font-semibold text-[color:var(--text-strong)]">
               {leadOutcome.prob}%
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button className="flex-1 bg-[#1b8f4b] hover:bg-[#21a357] text-white h-8 text-xs">
+            <Button className="flex-1 bg-[color:var(--yes)] hover:bg-[color:var(--yes-strong)] text-white h-8 text-xs">
               Buy Yes {leadOutcome.yesPrice}¢
             </Button>
             <Button
               variant="secondary"
-              className="flex-1 bg-white/10 hover:bg-white/20 text-white h-8 text-xs"
+              className="flex-1 bg-[color:var(--surface-2)] hover:bg-[color:var(--surface-3)] text-[color:var(--text-strong)] h-8 text-xs"
             >
               Buy No {leadOutcome.noPrice}¢
             </Button>
           </div>
-          <div className="h-8 rounded-md bg-[#0b1320] border border-white/5 flex items-center justify-between px-2">
-            <span className="text-xs text-white/40">{market.endDate}</span>
+          <div className="h-8 rounded-md bg-[color:var(--surface-2)] border border-[color:var(--border-soft)] flex items-center justify-between px-2">
+            <span className="text-xs text-[color:var(--text-subtle)]">
+              {market.endDate}
+            </span>
             <div className="flex h-4 items-end gap-1">
               {market.sparkline?.map((point, index) => (
                 <div
                   key={`${market.slug}-${index}`}
-                  className="w-1 rounded-sm bg-[#2d7ff9]/60"
+                  className="w-1 rounded-sm bg-[color:var(--accent)]/60"
                   style={{ height: `${Math.max(6, point / 2)}px` }}
                 />
               ))}

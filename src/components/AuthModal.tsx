@@ -34,38 +34,38 @@ export function AuthModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-[#111a27] border-white/10 text-white max-w-md">
+      <DialogContent className="bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl">Welcome to Polymarket</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <Button
-            className="w-full bg-[#2d7ff9] hover:bg-[#3a8bff] text-white"
+            className="w-full bg-[color:var(--accent)] hover:bg-[color:var(--accent-strong)] text-white"
             onClick={() => {
               onSuccess?.("demo@polymarket.com");
               onOpenChange(false);
             }}
           >
-            <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/10">
+            <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[color:var(--surface-3)] text-[color:var(--text-strong)]">
               G
             </span>
             Continue with Google
           </Button>
-          <div className="text-center text-xs uppercase text-white/40">
+          <div className="text-center text-xs uppercase text-[color:var(--text-subtle)]">
             or
           </div>
           <div className="space-y-2">
             <div className="relative">
-              <Mail className="absolute left-3 top-3 h-4 w-4 text-white/40" />
+              <Mail className="absolute left-3 top-3 h-4 w-4 text-[color:var(--text-subtle)]" />
               <Input
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="Email address"
-                className="pl-9 bg-[#0b1320] border-white/10 text-white placeholder:text-white/40"
+                className="pl-9 bg-[color:var(--surface-2)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] placeholder:text-[color:var(--text-subtle)]"
               />
             </div>
             <Button
-              className="w-full bg-white/10 hover:bg-white/20 text-white"
+              className="w-full bg-[color:var(--surface-2)] hover:bg-[color:var(--surface-3)] text-[color:var(--text-strong)]"
               onClick={() => {
                 onSuccess?.(email);
                 onOpenChange(false);
@@ -80,7 +80,7 @@ export function AuthModal({
               return (
                 <button
                   key={action.id}
-                  className="flex h-11 items-center justify-center rounded-lg bg-[#0b1320] border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition"
+                  className="flex h-11 items-center justify-center rounded-lg bg-[color:var(--surface-2)] border border-[color:var(--border-soft)] text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)] hover:bg-[color:var(--surface-3)] transition"
                   type="button"
                 >
                   <Icon className="h-5 w-5" />
@@ -88,7 +88,7 @@ export function AuthModal({
               );
             })}
           </div>
-          <div className="text-xs text-white/40 text-center">
+          <div className="text-xs text-[color:var(--text-subtle)] text-center">
             By trading, you agree to the Terms • Privacy
           </div>
         </div>

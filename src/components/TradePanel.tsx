@@ -42,21 +42,23 @@ export function TradePanel({ market }: TradePanelProps) {
     .toUpperCase();
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#111a27] p-4 space-y-4">
+    <div className="rounded-2xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-4 space-y-4">
       <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-full bg-[#1e2a3d] flex items-center justify-center text-xs font-semibold text-white/70">
+        <div className="h-10 w-10 rounded-full bg-[color:var(--surface-3)] flex items-center justify-center text-xs font-semibold text-[color:var(--text-muted)]">
           {initials}
         </div>
         <div>
-          <div className="text-sm font-semibold text-white">
+          <div className="text-sm font-semibold text-[color:var(--text-strong)]">
             {selectedOutcome?.name ?? "Select outcome"}
           </div>
-          <div className="text-xs text-white/40">{market.title}</div>
+          <div className="text-xs text-[color:var(--text-subtle)]">
+            {market.title}
+          </div>
         </div>
       </div>
 
       <Tabs value={side} onValueChange={setSide}>
-        <TabsList className="grid grid-cols-2 bg-[#0b1320]">
+        <TabsList className="grid grid-cols-2 bg-[color:var(--surface-2)]">
           <TabsTrigger value="buy">Buy</TabsTrigger>
           <TabsTrigger value="sell">Sell</TabsTrigger>
         </TabsList>
@@ -66,17 +68,17 @@ export function TradePanel({ market }: TradePanelProps) {
         <DropdownMenuTrigger asChild>
           <Button
             variant="secondary"
-            className="w-full justify-between bg-white/10 text-white"
+            className="w-full justify-between bg-[color:var(--surface-2)] text-[color:var(--text-strong)]"
           >
             Market
-            <ChevronDown className="h-4 w-4 text-white/60" />
+            <ChevronDown className="h-4 w-4 text-[color:var(--text-subtle)]" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="bg-[#0b1320] border-white/10 text-white">
+        <DropdownMenuContent className="bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)]">
           {market.outcomes.map((outcome) => (
             <DropdownMenuItem
               key={outcome.id}
-              className="cursor-pointer focus:bg-white/10"
+              className="cursor-pointer focus:bg-[color:var(--surface-2)]"
               onSelect={() => setSelectedOutcomeId(outcome.id)}
             >
               {outcome.name}
@@ -89,8 +91,8 @@ export function TradePanel({ market }: TradePanelProps) {
         <Button
           className={`h-12 ${
             position === "yes"
-              ? "bg-[#1b8f4b] hover:bg-[#21a357]"
-              : "bg-white/10 hover:bg-white/20"
+              ? "bg-[color:var(--yes)] hover:bg-[color:var(--yes-strong)]"
+              : "bg-[color:var(--surface-2)] hover:bg-[color:var(--surface-3)]"
           } text-white`}
           onClick={() => setPosition("yes")}
         >
@@ -99,8 +101,8 @@ export function TradePanel({ market }: TradePanelProps) {
         <Button
           className={`h-12 ${
             position === "no"
-              ? "bg-[#2d7ff9] hover:bg-[#3a8bff]"
-              : "bg-white/10 hover:bg-white/20"
+              ? "bg-[color:var(--accent)] hover:bg-[color:var(--accent-strong)]"
+              : "bg-[color:var(--surface-2)] hover:bg-[color:var(--surface-3)]"
           } text-white`}
           onClick={() => setPosition("no")}
         >
@@ -108,10 +110,10 @@ export function TradePanel({ market }: TradePanelProps) {
         </Button>
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-[#0b1320] p-4 space-y-3">
-        <div className="flex items-center justify-between text-sm text-white/60">
+      <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface-2)] p-4 space-y-3">
+        <div className="flex items-center justify-between text-sm text-[color:var(--text-muted)]">
           <span>Amount</span>
-          <span className="text-2xl text-white">
+          <span className="text-2xl text-[color:var(--text-strong)]">
             ${amount.toLocaleString()}
           </span>
         </div>
@@ -123,13 +125,13 @@ export function TradePanel({ market }: TradePanelProps) {
             setAmount(Number(event.target.value || 0))
           }
           placeholder="Enter amount"
-          className="bg-[#111a27] border-white/10 text-white placeholder:text-white/40"
+          className="bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] placeholder:text-[color:var(--text-subtle)]"
         />
         <div className="grid grid-cols-4 gap-2 text-xs">
           {[1, 20, 100, 250].map((value, index) => (
             <button
               key={value}
-              className="rounded-lg bg-white/10 py-2 text-white/70 hover:text-white hover:bg-white/20 transition"
+              className="rounded-lg bg-[color:var(--surface)] py-2 text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)] hover:bg-[color:var(--surface-3)] transition"
               type="button"
               onClick={() =>
                 setAmount(index === 3 ? 500 : amount + value)
@@ -142,7 +144,7 @@ export function TradePanel({ market }: TradePanelProps) {
       </div>
 
       <Button
-        className="w-full bg-[#2d7ff9] hover:bg-[#3a8bff] text-white h-11"
+        className="w-full bg-[color:var(--accent)] hover:bg-[color:var(--accent-strong)] text-white h-11"
         onClick={() => {
           if (!selectedOutcome) return;
           const price =
@@ -164,30 +166,32 @@ export function TradePanel({ market }: TradePanelProps) {
       >
         Trade
       </Button>
-      <div className="text-xs text-white/40 text-center">
+      <div className="text-xs text-[color:var(--text-subtle)] text-center">
         By trading, you agree to the Terms of Use.
       </div>
 
       <Dialog open={tradeOpen} onOpenChange={setTradeOpen}>
-        <DialogContent className="bg-[#111a27] border-white/10 text-white max-w-sm">
+        <DialogContent className="bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] max-w-sm">
           <DialogHeader>
             <DialogTitle>Trade placed</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 text-sm text-white/70">
+          <div className="space-y-3 text-sm text-[color:var(--text-muted)]">
             <div>
               {side === "sell" ? "Sell" : "Buy"} {position.toUpperCase()} on{" "}
-              <span className="text-white">{selectedOutcome?.name}</span>
+              <span className="text-[color:var(--text-strong)]">
+                {selectedOutcome?.name}
+              </span>
             </div>
-            <div className="rounded-lg bg-[#0b1320] border border-white/10 p-3">
+            <div className="rounded-lg bg-[color:var(--surface-2)] border border-[color:var(--border-soft)] p-3">
               <div className="flex justify-between">
                 <span>Amount</span>
-                <span className="text-white">
+                <span className="text-[color:var(--text-strong)]">
                   ${amount || 50}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span>Price</span>
-                <span className="text-white">
+                <span className="text-[color:var(--text-strong)]">
                   {position === "yes"
                     ? selectedOutcome?.yesPrice
                     : selectedOutcome?.noPrice}
@@ -197,7 +201,7 @@ export function TradePanel({ market }: TradePanelProps) {
             </div>
             <Button
               asChild
-              className="w-full bg-[#2d7ff9] hover:bg-[#3a8bff] text-white"
+              className="w-full bg-[color:var(--accent)] hover:bg-[color:var(--accent-strong)] text-white"
             >
               <Link href="/account">View account</Link>
             </Button>
