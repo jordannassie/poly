@@ -15,6 +15,7 @@ import {
 type AuthModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: (email?: string) => void;
 };
 
 const walletActions = [
@@ -24,7 +25,11 @@ const walletActions = [
   { id: "key", icon: KeyRound },
 ];
 
-export function AuthModal({ open, onOpenChange }: AuthModalProps) {
+export function AuthModal({
+  open,
+  onOpenChange,
+  onSuccess,
+}: AuthModalProps) {
   const [email, setEmail] = useState("");
 
   return (
@@ -34,7 +39,13 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
           <DialogTitle className="text-xl">Welcome to Polymarket</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <Button className="w-full bg-[#2d7ff9] hover:bg-[#3a8bff] text-white">
+          <Button
+            className="w-full bg-[#2d7ff9] hover:bg-[#3a8bff] text-white"
+            onClick={() => {
+              onSuccess?.("demo@polymarket.com");
+              onOpenChange(false);
+            }}
+          >
             <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/10">
               G
             </span>
@@ -53,7 +64,13 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
                 className="pl-9 bg-[#0b1320] border-white/10 text-white placeholder:text-white/40"
               />
             </div>
-            <Button className="w-full bg-white/10 hover:bg-white/20 text-white">
+            <Button
+              className="w-full bg-white/10 hover:bg-white/20 text-white"
+              onClick={() => {
+                onSuccess?.(email);
+                onOpenChange(false);
+              }}
+            >
               Continue
             </Button>
           </div>
