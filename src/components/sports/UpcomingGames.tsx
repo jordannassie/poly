@@ -39,6 +39,16 @@ interface UpcomingGamesProps {
   days?: number;
 }
 
+// Get game detail route based on league
+function getGameRoute(league: string, gameId: string): string {
+  // NFL has a dedicated route, others use the sports page for now
+  if (league === "nfl") {
+    return `/nfl/game/${gameId}`;
+  }
+  // For other leagues, link to sports page with league param
+  return `/sports?league=${league}`;
+}
+
 export function UpcomingGames({ league = "nfl", days = 7 }: UpcomingGamesProps) {
   const [data, setData] = useState<UpcomingResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -139,7 +149,7 @@ export function UpcomingGames({ league = "nfl", days = 7 }: UpcomingGamesProps) 
             {/* Games for this date */}
             <div className="space-y-3">
               {games.map((game) => (
-                <GameCard key={game.gameId} game={game} />
+                <GameCard key={game.gameId} game={game} league={league} />
               ))}
             </div>
           </div>
@@ -149,7 +159,7 @@ export function UpcomingGames({ league = "nfl", days = 7 }: UpcomingGamesProps) 
   );
 }
 
-function GameCard({ game }: { game: Game }) {
+function GameCard({ game, league }: { game: Game; league: string }) {
   const [awayImgError, setAwayImgError] = useState(false);
   const [homeImgError, setHomeImgError] = useState(false);
 
@@ -255,7 +265,7 @@ function GameCard({ game }: { game: Game }) {
       {/* Action Button */}
       {game.status === "scheduled" && (
         <div className="mt-4">
-          <Link href={`/nfl/game/${game.gameId}`}>
+          <Link href={getGameRoute(league, game.gameId)}>
             <Button 
               variant="outline" 
               className="w-full border-[color:var(--border-soft)] hover:bg-[color:var(--surface-2)] group"

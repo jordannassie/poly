@@ -82,39 +82,54 @@ export function TeamLogoGrid({ league = "nfl" }: TeamLogoGridProps) {
     );
   }
 
-  // Group teams by conference
-  const afcTeams = teams.filter((t) => t.conference === "AFC");
-  const nfcTeams = teams.filter((t) => t.conference === "NFC");
+  // Group teams by conference if available, otherwise by first letter of name
+  const groupTeams = () => {
+    const groups = new Map<string, Team[]>();
+    
+    for (const team of teams) {
+      // Use conference if available, otherwise use first letter
+      const groupKey = team.conference || team.name.charAt(0).toUpperCase();
+      
+      if (!groups.has(groupKey)) {
+        groups.set(groupKey, []);
+      }
+      groups.get(groupKey)!.push(team);
+    }
+    
+    // Sort groups: known conferences first, then alphabetically
+    const knownConferences = ["AFC", "NFC", "Eastern", "Western", "American", "National"];
+    const sortedKeys = Array.from(groups.keys()).sort((a, b) => {
+      const aIndex = knownConferences.indexOf(a);
+      const bIndex = knownConferences.indexOf(b);
+      
+      if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+      if (aIndex !== -1) return -1;
+      if (bIndex !== -1) return 1;
+      return a.localeCompare(b);
+    });
+    
+    return sortedKeys.map(key => ({
+      name: key,
+      teams: groups.get(key)!.sort((a, b) => a.name.localeCompare(b.name)),
+    }));
+  };
+
+  const teamGroups = groupTeams();
 
   return (
     <div className="space-y-8">
-      {/* AFC Teams */}
-      {afcTeams.length > 0 && (
-        <div>
+      {teamGroups.map((group) => (
+        <div key={group.name}>
           <h3 className="text-lg font-semibold mb-4 text-[color:var(--text-strong)]">
-            AFC
+            {group.name}
           </h3>
           <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4">
-            {afcTeams.map((team) => (
+            {group.teams.map((team) => (
               <TeamCard key={team.teamId} team={team} />
             ))}
           </div>
         </div>
-      )}
-
-      {/* NFC Teams */}
-      {nfcTeams.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold mb-4 text-[color:var(--text-strong)]">
-            NFC
-          </h3>
-          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4">
-            {nfcTeams.map((team) => (
-              <TeamCard key={team.teamId} team={team} />
-            ))}
-          </div>
-        </div>
-      )}
+      ))}
 
       {/* Data Source */}
       <div className="mt-6 text-center text-xs text-[color:var(--text-subtle)]">

@@ -168,9 +168,16 @@ function GameCard({ game }: { game: Game }) {
   const awayTeam = game.AwayTeamData;
   const homeTeam = game.HomeTeamData;
 
+  // Determine the game detail route based on league
+  // NFL has dedicated /nfl/game route, others use /sports for now
+  const getGameHref = () => {
+    // For now, all leagues link to their respective game pages when available
+    // NFL has a dedicated route, others can use a generic sports game route
+    return `/nfl/game/${game.GameKey}`; // TODO: Add routes for other leagues
+  };
+
   return (
-    <Link href={`/nfl/game/${game.GameKey}`}>
-      <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4 hover:border-[color:var(--border-strong)] transition cursor-pointer">
+    <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4 hover:border-[color:var(--border-strong)] transition cursor-pointer">
         {/* Status Row */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -274,6 +281,5 @@ function GameCard({ game }: { game: Game }) {
           </Button>
         </div>
       </div>
-    </Link>
   );
 }
