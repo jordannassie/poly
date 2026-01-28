@@ -51,27 +51,27 @@ export function TopNav() {
 
   return (
     <>
-      <div className="border-b border-orange-500/20 bg-gradient-to-r from-orange-500/5 via-[color:var(--surface)]/95 to-[color:var(--surface)]/95 backdrop-blur">
+      <div className="bg-gradient-to-r from-orange-500 to-amber-500">
         <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-4 py-4">
-          <Link href="/" className="flex items-center gap-2 text-[color:var(--text-strong)]">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/30">
+          <Link href="/" className="flex items-center gap-2 text-white">
+            <div className="h-8 w-8 rounded-lg bg-white/20 backdrop-blur flex items-center justify-center">
               <Zap className="h-5 w-5 text-white" />
             </div>
-            <span className="hidden text-sm font-bold sm:block bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
+            <span className="hidden text-sm font-bold sm:block text-white">
               ProvePicks
             </span>
           </Link>
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-[color:var(--text-subtle)]" />
+            <Search className="absolute left-3 top-3 h-4 w-4 text-white/60" />
             <Input
               placeholder="Search markets"
-              className="pl-9 bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] placeholder:text-[color:var(--text-subtle)]"
+              className="pl-9 bg-white/20 border-white/30 text-white placeholder:text-white/60 focus:bg-white/30"
             />
           </div>
           <div className="ml-auto flex items-center gap-2">
             <Button
               variant="ghost"
-              className="h-9 w-9 rounded-full p-0 text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)] hover:bg-[color:var(--surface-2)]"
+              className="h-9 w-9 rounded-full p-0 text-white/80 hover:text-white hover:bg-white/20"
               onClick={() => setTheme(toggleTheme())}
             >
               {theme === "dark" ? (
@@ -80,9 +80,9 @@ export function TopNav() {
                 <Moon className="h-4 w-4" />
               )}
             </Button>
-            <div className="hidden items-center gap-4 text-sm text-[color:var(--text-muted)] md:flex">
+            <div className="hidden items-center gap-4 text-sm text-white/80 md:flex">
               <button
-                className="hover:text-[color:var(--text-strong)]"
+                className="hover:text-white"
                 onClick={() => setHowOpen(true)}
                 type="button"
               >
@@ -93,29 +93,29 @@ export function TopNav() {
                   {/* Portfolio & Cash */}
                   <Link href="/portfolio" className="flex items-center gap-4 mr-2 hover:opacity-80 transition">
                     <div className="text-center">
-                      <div className="text-xs text-[color:var(--text-subtle)]">Portfolio</div>
-                      <div className="text-sm font-semibold text-green-500">$0.00</div>
+                      <div className="text-xs text-white/70">Portfolio</div>
+                      <div className="text-sm font-semibold text-white">$0.00</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-xs text-[color:var(--text-subtle)]">Cash</div>
-                      <div className="text-sm font-semibold text-green-500">$0.00</div>
+                      <div className="text-xs text-white/70">Cash</div>
+                      <div className="text-sm font-semibold text-white">$0.00</div>
                     </div>
                   </Link>
                   {/* Notifications */}
                   <Button
                     variant="ghost"
-                    className="h-9 w-9 rounded-full p-0 text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)] hover:bg-[color:var(--surface-2)]"
+                    className="h-9 w-9 rounded-full p-0 text-white/80 hover:text-white hover:bg-white/20"
                   >
                     <Bell className="h-4 w-4" />
                   </Button>
                   {/* User Menu */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <button className="flex items-center gap-1 rounded-full p-1 text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-yellow-500 text-xs font-semibold text-white">
+                      <button className="flex items-center gap-1 rounded-full p-1 text-white/80 hover:text-white">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-xs font-semibold text-white">
                           {initials}
                         </span>
-                        <ChevronDown className="h-4 w-4 text-[color:var(--text-subtle)]" />
+                        <ChevronDown className="h-4 w-4 text-white/70" />
                       </button>
                     </DropdownMenuTrigger>
                   <DropdownMenuContent className="bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] w-48">
@@ -162,13 +162,13 @@ export function TopNav() {
                 <>
                   <Button
                     variant="ghost"
-                    className="text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)] hover:bg-[color:var(--surface-2)]"
+                    className="text-white/80 hover:text-white hover:bg-white/20"
                     onClick={() => setAuthOpen(true)}
                   >
                     Log in
                   </Button>
                   <Button
-                    className="bg-[color:var(--accent)] hover:bg-[color:var(--accent-strong)] text-white"
+                    className="bg-white text-orange-600 hover:bg-white/90 font-semibold"
                     onClick={() => setAuthOpen(true)}
                   >
                     Sign up
@@ -179,7 +179,7 @@ export function TopNav() {
             {!demoUser && (
               <Button
                 variant="ghost"
-                className="md:hidden text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)] hover:bg-[color:var(--surface-2)]"
+                className="md:hidden text-white/80 hover:text-white hover:bg-white/20"
                 onClick={() => setAuthOpen(true)}
               >
                 Log in

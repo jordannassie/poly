@@ -3,34 +3,34 @@ import { Zap } from "lucide-react";
 
 export function MainFooter() {
   return (
-    <footer className="border-t border-orange-500/20 bg-gradient-to-r from-[color:var(--surface)] via-[color:var(--surface)] to-orange-500/5">
+    <footer className="bg-gradient-to-r from-orange-500 to-amber-500">
       <div className="mx-auto w-full max-w-6xl px-4 py-10 space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 text-[color:var(--text-strong)]">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/30">
+          <div className="flex items-center gap-2 text-white">
+            <div className="h-8 w-8 rounded-lg bg-white/20 backdrop-blur flex items-center justify-center">
               <Zap className="h-5 w-5 text-white" />
             </div>
-            <span className="text-sm font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">ProvePicks</span>
+            <span className="text-sm font-bold text-white">ProvePicks</span>
           </div>
-          <div className="text-sm text-[color:var(--text-subtle)]">
+          <div className="text-sm text-white/80">
             Demo UI for prediction markets.
           </div>
         </div>
-        <div className="grid gap-3 text-sm text-[color:var(--text-muted)] sm:grid-cols-3">
-          <Link href="/" className="hover:text-[color:var(--text-strong)]">
+        <div className="grid gap-3 text-sm text-white/80 sm:grid-cols-3">
+          <Link href="/" className="hover:text-white">
             Markets
           </Link>
-          <Link href="/breaking" className="hover:text-[color:var(--text-strong)]">
+          <Link href="/breaking" className="hover:text-white">
             Breaking news
           </Link>
-          <Link href="/sports" className="hover:text-[color:var(--text-strong)]">
+          <Link href="/sports" className="hover:text-white">
             Sports
           </Link>
-          <span>Careers</span>
-          <span>Terms of Use</span>
-          <span>Privacy</span>
+          <span className="hover:text-white cursor-pointer">Careers</span>
+          <span className="hover:text-white cursor-pointer">Terms of Use</span>
+          <span className="hover:text-white cursor-pointer">Privacy</span>
         </div>
-        <div className="text-xs text-[color:var(--text-subtle)]">
+        <div className="text-xs text-white/70">
           © 2026 ProvePicks. All rights reserved.
         </div>
       </div>
