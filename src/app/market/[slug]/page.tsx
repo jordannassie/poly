@@ -4,15 +4,33 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TopNav } from "@/components/TopNav";
 import { SportsSidebar } from "@/components/SportsSidebar";
-import { TradePanel } from "@/components/TradePanel";
 import { MainFooter } from "@/components/MainFooter";
 import { HeadToHeadChart } from "@/components/HeadToHeadChart";
-import { CountdownTimer } from "@/components/CountdownTimer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getMarketBySlug, sportsGames, demoComments } from "@/lib/mockData";
-import { Settings, Code, Bookmark, Share2, Heart, MoreHorizontal, ChevronRight } from "lucide-react";
+import {
+  generateHotMarkets,
+  locksInLabel,
+  formatVolume,
+  getWhyMovingReasons,
+} from "@/lib/marketHelpers";
+import {
+  Settings,
+  Code,
+  Bookmark,
+  Share2,
+  Heart,
+  MoreHorizontal,
+  ChevronRight,
+  Clock,
+  Users,
+  Zap,
+  TrendingUp,
+  Sparkles,
+  AlertCircle,
+} from "lucide-react";
 
 type MarketPageProps = {
   params: { slug: string };
@@ -20,39 +38,57 @@ type MarketPageProps = {
 
 export default function MarketPage({ params }: MarketPageProps) {
   const { slug } = params;
-  
-  // Try to find as a sports game first
+
+  // Try to find as a hot market first for extra data
+  const hotMarkets = generateHotMarkets();
+  const hotMarket = hotMarkets.find((m) => m.id === slug);
+
+  // Try to find as a sports game
   const sportsGame = sportsGames.find((g) => g.id === slug);
   const market = getMarketBySlug(slug);
 
-  if (!sportsGame && !market) {
+  if (!sportsGame && !market && !hotMarket) {
     notFound();
   }
 
-  // If it's a sports game, render sports-specific layout
-  if (sportsGame) {
+  // Get "Why moving" reasons
+  const whyMovingReasons = getWhyMovingReasons(slug);
+
+  // Use hot market data if available, otherwise fall back to sportsGame
+  const gameData = hotMarket || sportsGame;
+
+  if (gameData) {
+    const isHotMarket = !!hotMarket;
+    const team1 = isHotMarket ? hotMarket.team1 : sportsGame!.team1;
+    const team2 = isHotMarket ? hotMarket.team2 : sportsGame!.team2;
+    const league = isHotMarket ? hotMarket.league : sportsGame!.league;
+    const volumeToday = isHotMarket ? hotMarket.volumeToday : 4020000;
+    const activeBettors = isHotMarket ? hotMarket.activeBettors : 342;
+    const startTime = isHotMarket ? hotMarket.startTime : new Date(Date.now() + 2 * 60 * 60 * 1000);
+    const volume10m = isHotMarket ? hotMarket.volume10m : 45000;
+
     const formattedMarket = {
-      slug: sportsGame.id,
-      title: `${sportsGame.team1.name} vs ${sportsGame.team2.name}`,
-      category: sportsGame.league,
-      volume: sportsGame.volume,
-      endDate: `${sportsGame.date} ${sportsGame.gameTime}`,
+      slug: slug,
+      title: `${team1.name} vs ${team2.name}`,
+      category: league,
+      volume: formatVolume(volumeToday),
+      endDate: locksInLabel(startTime),
       outcomes: [
         {
-          id: sportsGame.team1.abbr.toLowerCase(),
-          name: sportsGame.team1.name,
-          prob: sportsGame.team1.odds,
-          yesPrice: sportsGame.team1.odds,
-          noPrice: 100 - sportsGame.team1.odds,
-          volume: sportsGame.volume,
+          id: team1.abbr.toLowerCase(),
+          name: team1.name,
+          prob: team1.odds,
+          yesPrice: team1.odds,
+          noPrice: 100 - team1.odds,
+          volume: formatVolume(volumeToday / 2),
         },
         {
-          id: sportsGame.team2.abbr.toLowerCase(),
-          name: sportsGame.team2.name,
-          prob: sportsGame.team2.odds,
-          yesPrice: sportsGame.team2.odds,
-          noPrice: 100 - sportsGame.team2.odds,
-          volume: sportsGame.volume,
+          id: team2.abbr.toLowerCase(),
+          name: team2.name,
+          prob: team2.odds,
+          yesPrice: team2.odds,
+          noPrice: 100 - team2.odds,
+          volume: formatVolume(volumeToday / 2),
         },
       ],
       sparkline: [],
@@ -71,17 +107,17 @@ export default function MarketPage({ params }: MarketPageProps) {
             <div className="max-w-4xl">
               {/* Breadcrumb */}
               <div className="flex items-center gap-2 text-sm text-[color:var(--text-muted)] mb-4">
-                <Link href="/sports" className="hover:text-[color:var(--text-strong)]">
-                  Sports
+                <Link href="/" className="hover:text-[color:var(--text-strong)]">
+                  Home
                 </Link>
                 <ChevronRight className="h-4 w-4" />
-                <span>{sportsGame.league}</span>
+                <span>{league}</span>
               </div>
 
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-bold">
-                  {sportsGame.team1.name} vs {sportsGame.team2.name}
+                  {team1.name} vs {team2.name}
                 </h1>
                 <div className="flex items-center gap-2">
                   <Button variant="ghost" size="icon">
@@ -101,13 +137,13 @@ export default function MarketPage({ params }: MarketPageProps) {
 
               {/* Head to Head Chart */}
               <HeadToHeadChart
-                team1={sportsGame.team1}
-                team2={sportsGame.team2}
-                gameTime={`${sportsGame.date} ${sportsGame.gameTime}`}
-                volume={sportsGame.volume}
+                team1={{ ...team1, record: "" }}
+                team2={{ ...team2, record: "" }}
+                gameTime={`Locks in: ${locksInLabel(startTime)}`}
+                volume={formatVolume(volumeToday)}
               />
 
-              {/* Betting Tabs */}
+              {/* Betting Tabs - Default to Game Lines */}
               <div className="mt-6">
                 <Tabs defaultValue="game-lines">
                   <TabsList className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] p-1">
@@ -140,66 +176,78 @@ export default function MarketPage({ params }: MarketPageProps) {
                   <div className="flex items-center justify-between mb-3">
                     <div>
                       <div className="font-semibold">Moneyline</div>
-                      <div className="text-sm text-[color:var(--text-subtle)]">$1m Vol.</div>
+                      <div className="text-sm text-[color:var(--text-subtle)]">{formatVolume(volumeToday * 0.4)} Vol.</div>
                     </div>
                   </div>
                   <div className="flex gap-3">
                     <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white h-12">
-                      {sportsGame.team1.abbr} {sportsGame.team1.odds}¢
+                      {team1.abbr} {team1.odds}¢
                     </Button>
                     <Button variant="outline" className="flex-1 h-12 border-[color:var(--border-soft)]">
-                      {sportsGame.team2.abbr} {sportsGame.team2.odds}¢
+                      {team2.abbr} {team2.odds}¢
                     </Button>
                   </div>
                 </div>
 
                 {/* Spreads */}
-                {sportsGame.spread && (
-                  <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <div className="font-semibold">Spreads</div>
-                        <div className="text-sm text-[color:var(--text-subtle)]">$800k Vol.</div>
-                      </div>
-                    </div>
-                    <div className="flex gap-3">
-                      <div className="flex-1 flex items-center justify-between px-4 py-3 bg-[color:var(--surface-2)] rounded-lg">
-                        <span className="text-[color:var(--text-muted)]">
-                          {sportsGame.team1.abbr} {sportsGame.spread.team1}
-                        </span>
-                        <span className="font-semibold">{sportsGame.spread.odds1}¢</span>
-                      </div>
-                      <div className="flex-1 flex items-center justify-between px-4 py-3 bg-[color:var(--surface-2)] rounded-lg">
-                        <span className="text-[color:var(--text-muted)]">
-                          {sportsGame.team2.abbr} {sportsGame.spread.team2}
-                        </span>
-                        <span className="font-semibold">{sportsGame.spread.odds2}¢</span>
-                      </div>
+                <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <div className="font-semibold">Spreads</div>
+                      <div className="text-sm text-[color:var(--text-subtle)]">{formatVolume(volumeToday * 0.3)} Vol.</div>
                     </div>
                   </div>
-                )}
+                  <div className="flex gap-3">
+                    <div className="flex-1 flex items-center justify-between px-4 py-3 bg-[color:var(--surface-2)] rounded-lg cursor-pointer hover:bg-[color:var(--surface-3)] transition">
+                      <span className="text-[color:var(--text-muted)]">{team1.abbr} -4.5</span>
+                      <span className="font-semibold">51¢</span>
+                    </div>
+                    <div className="flex-1 flex items-center justify-between px-4 py-3 bg-[color:var(--surface-2)] rounded-lg cursor-pointer hover:bg-[color:var(--surface-3)] transition">
+                      <span className="text-[color:var(--text-muted)]">{team2.abbr} +4.5</span>
+                      <span className="font-semibold">50¢</span>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Totals */}
-                {sportsGame.total && (
-                  <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <div className="font-semibold">Totals</div>
-                        <div className="text-sm text-[color:var(--text-subtle)]">$650k Vol.</div>
-                      </div>
-                    </div>
-                    <div className="flex gap-3">
-                      <div className="flex-1 flex items-center justify-between px-4 py-3 bg-[color:var(--surface-2)] rounded-lg">
-                        <span className="text-[color:var(--text-muted)]">Over {sportsGame.total.over}</span>
-                        <span className="font-semibold">{sportsGame.total.odds1}¢</span>
-                      </div>
-                      <div className="flex-1 flex items-center justify-between px-4 py-3 bg-[color:var(--surface-2)] rounded-lg">
-                        <span className="text-[color:var(--text-muted)]">Under {sportsGame.total.under}</span>
-                        <span className="font-semibold">{sportsGame.total.odds2}¢</span>
-                      </div>
+                <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <div className="font-semibold">Totals</div>
+                      <div className="text-sm text-[color:var(--text-subtle)]">{formatVolume(volumeToday * 0.2)} Vol.</div>
                     </div>
                   </div>
-                )}
+                  <div className="flex gap-3">
+                    <div className="flex-1 flex items-center justify-between px-4 py-3 bg-[color:var(--surface-2)] rounded-lg cursor-pointer hover:bg-[color:var(--surface-3)] transition">
+                      <span className="text-[color:var(--text-muted)]">Over 46.5</span>
+                      <span className="font-semibold">47¢</span>
+                    </div>
+                    <div className="flex-1 flex items-center justify-between px-4 py-3 bg-[color:var(--surface-2)] rounded-lg cursor-pointer hover:bg-[color:var(--surface-3)] transition">
+                      <span className="text-[color:var(--text-muted)]">Under 46.5</span>
+                      <span className="font-semibold">54¢</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Why This Market is Moving - NEW */}
+                <div className="bg-gradient-to-r from-[color:var(--surface)] to-[color:var(--surface-2)] border border-purple-500/30 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Sparkles className="h-5 w-5 text-purple-500" />
+                    <div className="font-semibold">Why this market is moving</div>
+                    <span className="ml-auto text-xs text-[color:var(--text-subtle)] flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      Updated just now
+                    </span>
+                  </div>
+                  <ul className="space-y-2">
+                    {whyMovingReasons.map((reason, index) => (
+                      <li key={index} className="flex items-start gap-2 text-sm text-[color:var(--text-muted)]">
+                        <TrendingUp className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                        <span>{reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
 
                 {/* Player Props */}
                 <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4">
@@ -213,11 +261,11 @@ export default function MarketPage({ params }: MarketPageProps) {
                     </Button>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 bg-[color:var(--surface-2)] rounded-lg">
+                    <div className="p-3 bg-[color:var(--surface-2)] rounded-lg cursor-pointer hover:bg-[color:var(--surface-3)] transition">
                       <div className="text-sm text-[color:var(--text-muted)]">QB Passing Yards</div>
                       <div className="font-semibold mt-1">Over 275.5</div>
                     </div>
-                    <div className="p-3 bg-[color:var(--surface-2)] rounded-lg">
+                    <div className="p-3 bg-[color:var(--surface-2)] rounded-lg cursor-pointer hover:bg-[color:var(--surface-3)] transition">
                       <div className="text-sm text-[color:var(--text-muted)]">Total TDs</div>
                       <div className="font-semibold mt-1">Over 4.5</div>
                     </div>
@@ -277,29 +325,110 @@ export default function MarketPage({ params }: MarketPageProps) {
             </div>
           </main>
 
-          {/* Trade Panel */}
+          {/* Trade Panel - Right Side */}
           <div className="w-80 flex-shrink-0 p-6 border-l border-[color:var(--border-soft)]">
             <div className="sticky top-6">
+              {/* Selected Market Info */}
               <div className="mb-4 p-4 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl">
                 <div className="flex items-center gap-3 mb-3">
                   <div
                     className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold"
-                    style={{ backgroundColor: sportsGame.team1.color }}
+                    style={{ backgroundColor: team1.color }}
                   >
-                    {sportsGame.team1.abbr}
+                    {team1.abbr}
                   </div>
                   <div>
                     <div className="font-semibold">
-                      {sportsGame.team1.name} vs {sportsGame.team2.name}
+                      {team1.name} vs {team2.name}
                     </div>
                     <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-500">
-                      {sportsGame.team1.name}
+                      {team1.name}
                     </span>
+                  </div>
+                </div>
+
+                {/* Urgency Indicators - NEW */}
+                <div className="space-y-2 pt-3 border-t border-[color:var(--border-soft)]">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-2 text-[color:var(--text-muted)]">
+                      <Clock className="h-4 w-4 text-orange-500" />
+                      Locks in
+                    </span>
+                    <span className="font-semibold text-orange-500">{locksInLabel(startTime)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-2 text-[color:var(--text-muted)]">
+                      <Zap className="h-4 w-4 text-yellow-500" />
+                      Traded today
+                    </span>
+                    <span className="font-semibold">{formatVolume(volumeToday)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-2 text-[color:var(--text-muted)]">
+                      <Users className="h-4 w-4 text-blue-500" />
+                      Active bettors
+                    </span>
+                    <span className="font-semibold">{activeBettors}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-2 text-[color:var(--text-muted)]">
+                      <TrendingUp className="h-4 w-4 text-green-500" />
+                      Last 10 min
+                    </span>
+                    <span className="font-semibold text-green-500">{formatVolume(volume10m)}</span>
                   </div>
                 </div>
               </div>
 
-              <TradePanel market={formattedMarket} />
+              {/* Buy/Sell Toggle */}
+              <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4">
+                <div className="flex gap-2 mb-4">
+                  <Button className="flex-1 bg-[color:var(--surface-2)]" variant="ghost">
+                    Buy
+                  </Button>
+                  <Button className="flex-1" variant="ghost">
+                    Sell
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-xs">
+                    Market ▾
+                  </Button>
+                </div>
+
+                {/* Team Selection */}
+                <div className="flex gap-2 mb-4">
+                  <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white">
+                    {team1.abbr} {team1.odds}¢
+                  </Button>
+                  <Button variant="outline" className="flex-1 border-[color:var(--border-soft)]">
+                    {team2.abbr} {team2.odds}¢
+                  </Button>
+                </div>
+
+                {/* Amount */}
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-[color:var(--text-muted)]">Amount</span>
+                    <span className="text-sm text-[color:var(--text-subtle)]">Balance $0.00</span>
+                  </div>
+                  <div className="text-4xl font-bold text-right text-[color:var(--text-strong)] mb-3">$0</div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="flex-1 border-[color:var(--border-soft)]">+$1</Button>
+                    <Button size="sm" variant="outline" className="flex-1 border-[color:var(--border-soft)]">+$20</Button>
+                    <Button size="sm" variant="outline" className="flex-1 border-[color:var(--border-soft)]">+$100</Button>
+                    <Button size="sm" variant="outline" className="flex-1 border-[color:var(--border-soft)]">Max</Button>
+                  </div>
+                </div>
+
+                {/* Unavailable Notice */}
+                <Button className="w-full" variant="outline" disabled>
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  Unavailable
+                </Button>
+
+                <p className="text-xs text-center text-[color:var(--text-subtle)] mt-3">
+                  By trading, you agree to the Terms of Use.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -309,18 +438,10 @@ export default function MarketPage({ params }: MarketPageProps) {
     );
   }
 
-  // Fallback to generic market layout for non-sports markets
+  // Fallback for non-sports markets
   if (!market) {
     notFound();
   }
-
-  const formattedMarket = {
-    ...market,
-    outcomes: market.outcomes.map((o) => ({
-      ...o,
-      volume: o.volume,
-    })),
-  };
 
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
@@ -339,8 +460,6 @@ export default function MarketPage({ params }: MarketPageProps) {
             </Link>
 
             <h1 className="text-2xl font-bold mb-4">{market.title}</h1>
-
-            <CountdownTimer endDate={market.endDate} variant="full" />
 
             <div className="mt-6 space-y-3">
               {market.outcomes.map((outcome) => (
@@ -366,10 +485,6 @@ export default function MarketPage({ params }: MarketPageProps) {
             </div>
           </div>
         </main>
-
-        <div className="w-80 flex-shrink-0 p-6 border-l border-[color:var(--border-soft)]">
-          <TradePanel market={formattedMarket} />
-        </div>
       </div>
 
       <MainFooter />

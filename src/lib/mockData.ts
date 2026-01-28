@@ -24,8 +24,10 @@ export type Category = {
 };
 
 export const categories: Category[] = [
-  { label: "Trending", href: "/" },
-  { label: "Live", href: "/sports/live" },
+  { label: "🔥 Hot Right Now", href: "/" },
+  { label: "Live", href: "/?view=live" },
+  { label: "Starting Soon", href: "/?view=starting-soon" },
+  { label: "Big Volume", href: "/?view=big-volume" },
   { label: "NFL", href: "/sports/nfl" },
   { label: "NBA", href: "/sports/nba" },
   { label: "NCAA", href: "/sports/ncaa" },
@@ -34,11 +36,8 @@ export const categories: Category[] = [
   { label: "Soccer", href: "/sports/soccer" },
   { label: "Tennis", href: "/sports/tennis" },
   { label: "Golf", href: "/sports/golf" },
-  { label: "Baseball", href: "/sports/baseball" },
   { label: "F1", href: "/sports/f1" },
   { label: "Esports", href: "/sports/esports" },
-  { label: "Boxing", href: "/sports/boxing" },
-  { label: "Futures", href: "/sports/futures" },
 ];
 
 // Sports-specific data
