@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TopNav } from "@/components/TopNav";
@@ -34,12 +35,29 @@ import {
   AlertCircle,
 } from "lucide-react";
 
+// Format number with commas and 2 decimal places
+const formatCurrency = (value: number): string => {
+  return value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+// Format number with commas (no decimals for display while typing)
+const formatWithCommas = (value: number): string => {
+  return value.toLocaleString("en-US");
+};
+
 type MarketPageProps = {
   params: { slug: string };
 };
 
 export default function MarketPage({ params }: MarketPageProps) {
   const { slug } = params;
+  
+  // Trade panel state
+  const [tradeAmount, setTradeAmount] = useState(0);
+  const [selectedPosition, setSelectedPosition] = useState<"yes" | "no">("yes");
 
   // Try to find as a hot market first for extra data
   const hotMarkets = generateHotMarkets();
@@ -398,10 +416,24 @@ export default function MarketPage({ params }: MarketPageProps) {
 
                 {/* Yes/No Selection */}
                 <div className="flex gap-2 mb-4">
-                  <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white">
+                  <Button 
+                    onClick={() => setSelectedPosition("yes")}
+                    className={`flex-1 text-white transition-all ${
+                      selectedPosition === "yes" 
+                        ? "bg-green-600 hover:bg-green-700 ring-2 ring-green-400 ring-offset-2 ring-offset-[color:var(--surface)]" 
+                        : "bg-green-600/60 hover:bg-green-600"
+                    }`}
+                  >
                     Yes {team1.odds}¢
                   </Button>
-                  <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white">
+                  <Button 
+                    onClick={() => setSelectedPosition("no")}
+                    className={`flex-1 text-white transition-all ${
+                      selectedPosition === "no" 
+                        ? "bg-red-600 hover:bg-red-700 ring-2 ring-red-400 ring-offset-2 ring-offset-[color:var(--surface)]" 
+                        : "bg-red-600/60 hover:bg-red-600"
+                    }`}
+                  >
                     No {team2.odds}¢
                   </Button>
                 </div>
@@ -415,18 +447,22 @@ export default function MarketPage({ params }: MarketPageProps) {
                   <div className="relative mb-3">
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 text-3xl font-bold text-[color:var(--text-strong)]">$</span>
                     <input
-                      type="number"
-                      min="0"
-                      defaultValue=""
+                      type="text"
+                      inputMode="numeric"
+                      value={tradeAmount === 0 ? "" : formatWithCommas(tradeAmount)}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/,/g, "");
+                        setTradeAmount(Number(value) || 0);
+                      }}
                       placeholder="0"
-                      className="w-full text-4xl font-bold text-right text-[color:var(--text-strong)] py-1 bg-transparent border-none outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="w-full text-4xl font-bold text-right text-[color:var(--text-strong)] py-1 pl-8 bg-transparent border-none outline-none focus:ring-0"
                     />
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="flex-1 border-[color:var(--border-soft)]">+$1</Button>
-                    <Button size="sm" variant="outline" className="flex-1 border-[color:var(--border-soft)]">+$20</Button>
-                    <Button size="sm" variant="outline" className="flex-1 border-[color:var(--border-soft)]">+$100</Button>
-                    <Button size="sm" variant="outline" className="flex-1 border-[color:var(--border-soft)]">Max</Button>
+                    <Button size="sm" variant="outline" className="flex-1 border-[color:var(--border-soft)]" onClick={() => setTradeAmount(prev => prev + 1)}>+$1</Button>
+                    <Button size="sm" variant="outline" className="flex-1 border-[color:var(--border-soft)]" onClick={() => setTradeAmount(prev => prev + 20)}>+$20</Button>
+                    <Button size="sm" variant="outline" className="flex-1 border-[color:var(--border-soft)]" onClick={() => setTradeAmount(prev => prev + 100)}>+$100</Button>
+                    <Button size="sm" variant="outline" className="flex-1 border-[color:var(--border-soft)]" onClick={() => setTradeAmount(10000)}>Max</Button>
                   </div>
                 </div>
 
@@ -435,16 +471,16 @@ export default function MarketPage({ params }: MarketPageProps) {
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-[color:var(--text-muted)]">Odds</span>
                     <span className="text-sm font-semibold text-[color:var(--text-strong)]">
-                      {team1.odds}% chance
+                      {selectedPosition === "yes" ? team1.odds : team2.odds}% chance
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1 text-sm text-[color:var(--text-muted)]">
-                      <span>Payout if Yes</span>
+                      <span>Payout if {selectedPosition === "yes" ? "Yes" : "No"}</span>
                       <ChevronDown className="h-3 w-3" />
                     </div>
                     <span className="text-xl font-bold text-green-500">
-                      $0.00
+                      ${formatCurrency(tradeAmount > 0 ? tradeAmount * (100 / (selectedPosition === "yes" ? team1.odds : team2.odds)) : 0)}
                     </span>
                   </div>
                 </div>
