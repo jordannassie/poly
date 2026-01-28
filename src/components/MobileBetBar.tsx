@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
-import { ChevronUp, Zap } from "lucide-react";
+import { ChevronDown, ChevronUp, Zap } from "lucide-react";
 
 type Team = {
   abbr: string;
@@ -16,6 +16,14 @@ type MobileBetBarProps = {
   team1: Team;
   team2: Team;
   onBet?: (team: "team1" | "team2", amount: number) => void;
+};
+
+// Format number with commas and 2 decimal places
+const formatCurrency = (value: number): string => {
+  return value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 };
 
 export function MobileBetBar({ team1, team2, onBet }: MobileBetBarProps) {
@@ -33,6 +41,12 @@ export function MobileBetBar({ team1, team2, onBet }: MobileBetBarProps) {
   };
 
   const selectedTeamData = selectedTeam === "team1" ? team1 : selectedTeam === "team2" ? team2 : null;
+  
+  // Calculate payout (amount * 100 / odds)
+  const calculatePayout = (): number => {
+    if (!selectedTeamData || amount === 0) return 0;
+    return amount * (100 / selectedTeamData.odds);
+  };
 
   return (
     <>
@@ -134,12 +148,26 @@ export function MobileBetBar({ team1, team2, onBet }: MobileBetBarProps) {
                 ))}
               </div>
 
-              {/* Potential Win */}
-              <div className="flex items-center justify-between px-2 py-3 bg-green-500/10 rounded-xl">
-                <span className="text-sm text-[color:var(--text-muted)]">Potential Win</span>
-                <span className="text-lg font-bold text-green-500">
-                  ${amount > 0 ? Math.round(amount * (100 / selectedTeamData.odds)) : 0}
-                </span>
+              {/* Odds and Payout */}
+              <div className="space-y-3 pt-2">
+                {/* Odds */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-[color:var(--text-muted)]">Odds</span>
+                  <span className="text-base font-semibold text-[color:var(--text-strong)]">
+                    {selectedTeamData.odds}% chance
+                  </span>
+                </div>
+
+                {/* Payout if Yes/No */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1 text-sm text-[color:var(--text-muted)]">
+                    <span>Payout if {selectedTeam === "team1" ? "Yes" : "No"}</span>
+                    <ChevronDown className="h-3 w-3" />
+                  </div>
+                  <span className="text-2xl font-bold text-green-500">
+                    ${formatCurrency(calculatePayout())}
+                  </span>
+                </div>
               </div>
 
               {/* Place Bet Button */}
@@ -158,7 +186,7 @@ export function MobileBetBar({ team1, team2, onBet }: MobileBetBarProps) {
                     : "bg-red-600 hover:bg-red-700"
                 }`}
               >
-                {amount === 0 ? "Enter Amount" : `Bet $${amount} ${selectedTeam === "team1" ? "Yes" : "No"}`}
+                {amount === 0 ? "Enter Amount" : `Bet $${formatCurrency(amount)} ${selectedTeam === "team1" ? "Yes" : "No"}`}
               </Button>
 
               <p className="text-xs text-center text-[color:var(--text-subtle)]">

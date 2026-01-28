@@ -25,6 +25,7 @@ import {
   Heart,
   MoreHorizontal,
   ChevronRight,
+  ChevronDown,
   Clock,
   Users,
   Zap,
@@ -429,10 +430,28 @@ export default function MarketPage({ params }: MarketPageProps) {
                   </div>
                 </div>
 
-                {/* Unavailable Notice */}
-                <Button className="w-full" variant="outline" disabled>
-                  <AlertCircle className="h-4 w-4 mr-2" />
-                  Unavailable
+                {/* Odds and Payout */}
+                <div className="space-y-3 mb-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-[color:var(--text-muted)]">Odds</span>
+                    <span className="text-sm font-semibold text-[color:var(--text-strong)]">
+                      {team1.odds}% chance
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-sm text-[color:var(--text-muted)]">
+                      <span>Payout if Yes</span>
+                      <ChevronDown className="h-3 w-3" />
+                    </div>
+                    <span className="text-xl font-bold text-green-500">
+                      $0.00
+                    </span>
+                  </div>
+                </div>
+
+                {/* Sign Up to Trade */}
+                <Button className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold">
+                  Sign up to trade
                 </Button>
 
                 <p className="text-xs text-center text-[color:var(--text-subtle)] mt-3">
