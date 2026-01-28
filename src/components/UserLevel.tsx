@@ -14,12 +14,11 @@ export function UserLevel({ name = "Demo Trader" }: UserLevelProps) {
   const progress = (xp / xpToNext) * 100;
 
   return (
-    <Card className="bg-gradient-to-br from-[color:var(--surface)] to-[color:var(--surface-2)] border-[color:var(--border-soft)] overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5 pointer-events-none" />
-      <CardContent className="p-4 relative">
+    <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] overflow-hidden">
+      <CardContent className="p-4">
         <div className="flex items-center gap-4">
           <div className="relative">
-            <div className="h-14 w-14 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl">
+            <div className="h-14 w-14 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white font-bold text-xl">
               {level}
             </div>
             <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center">
@@ -33,7 +32,7 @@ export function UserLevel({ name = "Demo Trader" }: UserLevelProps) {
             </div>
             <div className="mt-2 h-2 rounded-full bg-[color:var(--surface-3)] overflow-hidden">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all"
+                className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all"
                 style={{ width: `${progress}%` }}
               />
             </div>
