@@ -182,10 +182,10 @@ export default function MarketPage({ params }: MarketPageProps) {
                   </div>
                   <div className="flex gap-2 md:gap-3">
                     <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white h-10 md:h-12 text-sm md:text-base">
-                      {team1.abbr} {team1.odds}¢
+                      Yes {team1.odds}¢
                     </Button>
-                    <Button variant="outline" className="flex-1 h-10 md:h-12 text-sm md:text-base border-[color:var(--border-soft)]">
-                      {team2.abbr} {team2.odds}¢
+                    <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white h-10 md:h-12 text-sm md:text-base">
+                      No {team2.odds}¢
                     </Button>
                   </div>
                 </div>
@@ -395,13 +395,13 @@ export default function MarketPage({ params }: MarketPageProps) {
                   </Button>
                 </div>
 
-                {/* Team Selection */}
+                {/* Yes/No Selection */}
                 <div className="flex gap-2 mb-4">
                   <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white">
-                    {team1.abbr} {team1.odds}¢
+                    Yes {team1.odds}¢
                   </Button>
-                  <Button variant="outline" className="flex-1 border-[color:var(--border-soft)]">
-                    {team2.abbr} {team2.odds}¢
+                  <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white">
+                    No {team2.odds}¢
                   </Button>
                 </div>
 

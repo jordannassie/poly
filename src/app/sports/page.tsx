@@ -150,7 +150,7 @@ export default function SportsPage() {
                           </div>
                         </div>
                         <Button className="bg-green-600 hover:bg-green-700 text-white h-8 px-3 text-xs">
-                          {game.team1.odds}¢
+                          Yes {game.team1.odds}¢
                         </Button>
                       </div>
                       <div className="flex items-center justify-between">
@@ -166,8 +166,8 @@ export default function SportsPage() {
                             <div className="text-xs text-[color:var(--text-subtle)]">{game.team2.record}</div>
                           </div>
                         </div>
-                        <Button variant="outline" className="border-[color:var(--border-soft)] h-8 px-3 text-xs">
-                          {game.team2.odds}¢
+                        <Button className="bg-red-600 hover:bg-red-700 text-white h-8 px-3 text-xs">
+                          No {game.team2.odds}¢
                         </Button>
                       </div>
                       {/* Mobile Spreads/Totals */}
@@ -208,7 +208,7 @@ export default function SportsPage() {
 
                         {/* Moneyline */}
                         <Button className="bg-green-600 hover:bg-green-700 text-white px-6">
-                          {game.team1.abbr} {game.team1.odds}¢
+                          Yes {game.team1.odds}¢
                         </Button>
 
                         {/* Spread */}
@@ -244,11 +244,8 @@ export default function SportsPage() {
                         </div>
 
                         {/* Moneyline */}
-                        <Button
-                          variant="outline"
-                          className="border-[color:var(--border-soft)] px-6"
-                        >
-                          {game.team2.abbr} {game.team2.odds}¢
+                        <Button className="bg-red-600 hover:bg-red-700 text-white px-6">
+                          No {game.team2.odds}¢
                         </Button>
 
                         {/* Spread */}
