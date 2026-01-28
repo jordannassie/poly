@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import Link from "next/link";
-import { Loader2, AlertCircle, Calendar, Clock, ChevronRight } from "lucide-react";
+import { Loader2, AlertCircle, Calendar, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Team {
@@ -286,14 +285,15 @@ function TeamLogo({
       style={{ backgroundColor: team.primaryColor || "var(--surface-2)" }}
     >
       {team.logoUrl && !hasError ? (
-        <Image
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
           src={team.logoUrl}
           alt={team.fullName}
           width={40}
           height={40}
-          className="object-contain"
+          className="object-contain w-10 h-10"
           onError={onError}
-          unoptimized
+          loading="lazy"
         />
       ) : (
         <span className="text-white font-bold text-sm">{team.abbreviation}</span>

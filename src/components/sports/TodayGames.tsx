@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import Link from "next/link";
-import { Loader2, AlertCircle, Calendar, Clock } from "lucide-react";
+import { Loader2, AlertCircle, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Team {
@@ -198,14 +197,15 @@ function GameCard({ game }: { game: Game }) {
               style={{ backgroundColor: awayTeam?.PrimaryColor ? `#${awayTeam.PrimaryColor}` : "var(--surface-2)" }}
             >
               {awayTeam?.WikipediaLogoUrl && !awayImgError ? (
-                <Image
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
                   src={awayTeam.WikipediaLogoUrl}
                   alt={game.AwayTeam}
                   width={32}
                   height={32}
-                  className="object-contain"
+                  className="object-contain w-8 h-8"
                   onError={() => setAwayImgError(true)}
-                  unoptimized
+                  loading="lazy"
                 />
               ) : (
                 <span className="text-white font-bold text-xs">{game.AwayTeam}</span>
@@ -247,14 +247,15 @@ function GameCard({ game }: { game: Game }) {
               style={{ backgroundColor: homeTeam?.PrimaryColor ? `#${homeTeam.PrimaryColor}` : "var(--surface-2)" }}
             >
               {homeTeam?.WikipediaLogoUrl && !homeImgError ? (
-                <Image
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
                   src={homeTeam.WikipediaLogoUrl}
                   alt={game.HomeTeam}
                   width={32}
                   height={32}
-                  className="object-contain"
+                  className="object-contain w-8 h-8"
                   onError={() => setHomeImgError(true)}
-                  unoptimized
+                  loading="lazy"
                 />
               ) : (
                 <span className="text-white font-bold text-xs">{game.HomeTeam}</span>

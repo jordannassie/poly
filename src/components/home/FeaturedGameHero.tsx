@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { Loader2, Calendar, Tv, Trophy, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -223,14 +222,15 @@ function TeamDisplay({
         }}
       >
         {team.logoUrl && !imgError ? (
-          <Image
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             src={team.logoUrl}
             alt={team.fullName}
             width={80}
             height={80}
-            className="object-contain md:w-24 md:h-24"
+            className="object-contain w-16 h-16 md:w-24 md:h-24"
             onError={() => setImgError(true)}
-            unoptimized
+            loading="lazy"
           />
         ) : (
           <span className="text-white font-bold text-2xl md:text-4xl">

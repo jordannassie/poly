@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getNflTeams, SUPPORTED_LEAGUES, type League } from "@/lib/sportsdataio/client";
+import { getNflTeams, getTeamLogoUrl, SUPPORTED_LEAGUES, type League } from "@/lib/sportsdataio/client";
 
 export async function GET(request: NextRequest) {
   try {
@@ -48,12 +48,16 @@ export async function GET(request: NextRequest) {
       city: team.City,
       fullName: team.FullName || `${team.City} ${team.Name}`,
       abbreviation: team.Key,
-      logoUrl: team.WikipediaLogoUrl || null,
+      logoUrl: getTeamLogoUrl(team),
       primaryColor: team.PrimaryColor ? `#${team.PrimaryColor}` : null,
       secondaryColor: team.SecondaryColor ? `#${team.SecondaryColor}` : null,
       conference: team.Conference,
       division: team.Division,
     }));
+    
+    // Log for debugging
+    const teamsWithLogos = simplifiedTeams.filter(t => t.logoUrl).length;
+    console.log(`[/api/sports/teams] Returning ${simplifiedTeams.length} teams, ${teamsWithLogos} with logos`);
 
     return NextResponse.json({
       league,

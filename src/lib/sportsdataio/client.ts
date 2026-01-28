@@ -103,6 +103,24 @@ export interface Team {
   PrimaryColor?: string;
   SecondaryColor?: string;
   WikipediaLogoUrl?: string;
+  WikipediaWordMarkUrl?: string;
+  GlobalTeamID?: number;
+  StadiumID?: number;
+}
+
+/**
+ * Get the best available logo URL for a team
+ */
+export function getTeamLogoUrl(team: Team): string | null {
+  // Try WikipediaLogoUrl first (most common)
+  if (team.WikipediaLogoUrl && team.WikipediaLogoUrl.trim()) {
+    return team.WikipediaLogoUrl;
+  }
+  // Fallback to word mark
+  if (team.WikipediaWordMarkUrl && team.WikipediaWordMarkUrl.trim()) {
+    return team.WikipediaWordMarkUrl;
+  }
+  return null;
 }
 
 export interface Score {

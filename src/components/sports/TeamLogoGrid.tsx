@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import { Loader2, AlertCircle } from "lucide-react";
 
 interface Team {
@@ -116,6 +115,11 @@ export function TeamLogoGrid({ league = "nfl" }: TeamLogoGridProps) {
           </div>
         </div>
       )}
+
+      {/* Data Source */}
+      <div className="mt-6 text-center text-xs text-[color:var(--text-subtle)]">
+        Data provided by SportsDataIO
+      </div>
     </div>
   );
 }
@@ -135,14 +139,15 @@ function TeamCard({ team }: { team: Team }) {
         }}
       >
         {team.logoUrl && !imgError ? (
-          <Image
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             src={team.logoUrl}
             alt={team.fullName}
             width={40}
             height={40}
-            className="object-contain"
+            className="object-contain w-10 h-10"
             onError={() => setImgError(true)}
-            unoptimized
+            loading="lazy"
           />
         ) : (
           <span 
