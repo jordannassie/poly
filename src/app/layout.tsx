@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import { AppWrapper } from "@/components/AppWrapper";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ProvePicks",
-  description: "Prediction markets for real-world events",
+  title: "ProvePicks - Coming Soon",
+  description: "The future of sports betting prediction markets",
 };
 
 export default function RootLayout({
@@ -16,7 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}>
-        {children}
+        <AppWrapper>{children}</AppWrapper>
       </body>
     </html>
   );
