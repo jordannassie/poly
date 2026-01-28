@@ -82,7 +82,7 @@ export default function BreakingPage() {
           <aside className="space-y-4">
             <div className="rounded-2xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-4">
               <div className="flex items-center justify-between text-sm text-[color:var(--text-muted)]">
-                <span>Live from @polymarket</span>
+                <span>Live from @provepicks</span>
                 <span className="rounded-full bg-[color:var(--surface-2)] px-2 py-1 text-xs">
                   Follow on X
                 </span>

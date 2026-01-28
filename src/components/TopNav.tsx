@@ -58,13 +58,13 @@ export function TopNav() {
               P
             </div>
             <span className="hidden text-sm font-semibold sm:block">
-              Polymarket
+              ProvePicks
             </span>
           </Link>
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-3 h-4 w-4 text-[color:var(--text-subtle)]" />
             <Input
-              placeholder="Search polymarket"
+              placeholder="Search markets"
               className="pl-9 bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] placeholder:text-[color:var(--text-subtle)]"
             />
           </div>

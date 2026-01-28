@@ -9,7 +9,7 @@ export function MainFooter() {
             <div className="h-8 w-8 rounded-md bg-[color:var(--accent)] flex items-center justify-center text-sm font-bold text-white">
               P
             </div>
-            <span className="text-sm font-semibold">Polymarket</span>
+            <span className="text-sm font-semibold">ProvePicks</span>
           </div>
           <div className="text-sm text-[color:var(--text-subtle)]">
             Demo UI for prediction markets.
@@ -30,7 +30,7 @@ export function MainFooter() {
           <span>Privacy</span>
         </div>
         <div className="text-xs text-[color:var(--text-subtle)]">
-          © 2026 Polymarket UI. Built for demo purposes.
+          © 2026 ProvePicks. All rights reserved.
         </div>
       </div>
     </footer>

@@ -14,7 +14,7 @@ export default function Home() {
       <TopNav />
       <CategoryTabs activeLabel="Trending" />
       <main className="mx-auto w-full max-w-6xl px-4 py-6">
-        <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 border border-[color:var(--border-soft)]">
+        <div className="mb-6 p-4 rounded-2xl bg-[color:var(--surface)] border border-[color:var(--border-soft)]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Target className="h-8 w-8 text-blue-500" />

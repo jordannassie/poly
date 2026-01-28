@@ -4,8 +4,8 @@ import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Polymarket UI",
-  description: "Polymarket-style UI mock using Next.js",
+  title: "ProvePicks",
+  description: "Prediction markets for real-world events",
 };
 
 export default function RootLayout({

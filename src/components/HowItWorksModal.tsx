@@ -11,7 +11,7 @@ type HowItWorksModalProps = {
 
 const steps = [
   {
-    title: "1. Pick a Polymarket",
+    title: "1. Pick a Market",
     description:
       "Buy Yes or No shares depending on your prediction. Odds move in real time.",
     tag: "Pick",

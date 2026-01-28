@@ -36,13 +36,13 @@ export function AuthModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-xl">Welcome to Polymarket</DialogTitle>
+          <DialogTitle className="text-xl">Welcome to ProvePicks</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <Button
             className="w-full bg-[color:var(--accent)] hover:bg-[color:var(--accent-strong)] text-white"
             onClick={() => {
-              onSuccess?.("demo@polymarket.com");
+              onSuccess?.("demo@provepicks.com");
               onOpenChange(false);
             }}
           >

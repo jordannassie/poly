@@ -30,7 +30,7 @@ export const getDemoUser = (): DemoUser | null => {
 };
 
 export const setDemoUser = (email?: string): DemoUser => {
-  const normalizedEmail = email?.trim() || "demo@polymarket.com";
+  const normalizedEmail = email?.trim() || "demo@provepicks.com";
   const handleBase = normalizedEmail.split("@")[0] || "demo";
   const user: DemoUser = {
     name: "Demo Trader",
