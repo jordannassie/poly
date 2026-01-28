@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { TopNav } from "@/components/TopNav";
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { MarketCard } from "@/components/MarketCard";
@@ -5,10 +8,16 @@ import { Leaderboard } from "@/components/Leaderboard";
 import { Achievements } from "@/components/Achievements";
 import { UserLevel } from "@/components/UserLevel";
 import { MainFooter } from "@/components/MainFooter";
+import { AvailabilitySection } from "@/components/AvailabilitySection";
 import { markets } from "@/lib/mockData";
-import { Target, Flame, Zap } from "lucide-react";
+import { Target, Flame, Zap, ChevronDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function Home() {
+  const [showAll, setShowAll] = useState(false);
+  const initialCount = 4;
+  const displayedMarkets = showAll ? markets : markets.slice(0, initialCount);
+
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
       <TopNav />
@@ -38,10 +47,27 @@ export default function Home() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2">
-              {markets.map((market) => (
+              {displayedMarkets.map((market) => (
                 <MarketCard key={market.slug} market={market} />
               ))}
             </div>
+            {/* Show More Button */}
+            {markets.length > initialCount && (
+              <div className="flex justify-center pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAll(!showAll)}
+                  className="gap-2 px-8 py-3 border-[color:var(--border-soft)] hover:bg-[color:var(--surface-2)] transition-all"
+                >
+                  {showAll ? "Show Less" : "Show More"}
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${
+                      showAll ? "rotate-180" : ""
+                    }`}
+                  />
+                </Button>
+              </div>
+            )}
           </div>
           <aside className="space-y-6">
             <UserLevel />
@@ -50,6 +76,7 @@ export default function Home() {
           </aside>
         </div>
       </main>
+      <AvailabilitySection />
       <MainFooter />
     </div>
   );
