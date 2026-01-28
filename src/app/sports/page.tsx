@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { TopNav } from "@/components/TopNav";
 import { CategoryTabs } from "@/components/CategoryTabs";
@@ -18,9 +18,46 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings, ToggleRight, ChevronDown, MessageSquare, MoreHorizontal, Heart, ChevronRight } from "lucide-react";
 
+// Team logo lookup type
+interface TeamInfo {
+  abbreviation: string;
+  logoUrl: string | null;
+  primaryColor: string | null;
+}
+
 export default function SportsPage() {
   const [selectedGame, setSelectedGame] = useState(sportsGames[0]);
   const [showSpreads, setShowSpreads] = useState(true);
+  const [teamLogos, setTeamLogos] = useState<Map<string, TeamInfo>>(new Map());
+
+  // Fetch team logos on mount
+  useEffect(() => {
+    async function fetchTeamLogos() {
+      try {
+        const res = await fetch("/api/sports/teams?league=nfl");
+        if (res.ok) {
+          const data = await res.json();
+          const logoMap = new Map<string, TeamInfo>();
+          for (const team of data.teams) {
+            logoMap.set(team.abbreviation, {
+              abbreviation: team.abbreviation,
+              logoUrl: team.logoUrl,
+              primaryColor: team.primaryColor,
+            });
+          }
+          setTeamLogos(logoMap);
+        }
+      } catch (error) {
+        console.error("Failed to fetch team logos:", error);
+      }
+    }
+    fetchTeamLogos();
+  }, []);
+
+  // Helper to get logo URL for a team abbreviation
+  const getTeamLogo = (abbr: string): string | null => {
+    return teamLogos.get(abbr)?.logoUrl || null;
+  };
 
   // Format for trade panel
   const formattedMarket = {
@@ -163,10 +200,20 @@ export default function SportsPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs"
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs overflow-hidden"
                             style={{ backgroundColor: game.team1.color }}
                           >
-                            {game.team1.abbr}
+                            {getTeamLogo(game.team1.abbr) ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img 
+                                src={getTeamLogo(game.team1.abbr)!} 
+                                alt={game.team1.name}
+                                className="w-6 h-6 object-contain"
+                                loading="lazy"
+                              />
+                            ) : (
+                              game.team1.abbr
+                            )}
                           </div>
                           <div>
                             <div className="font-medium text-sm">{game.team1.name}</div>
@@ -180,10 +227,20 @@ export default function SportsPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs"
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs overflow-hidden"
                             style={{ backgroundColor: game.team2.color }}
                           >
-                            {game.team2.abbr}
+                            {getTeamLogo(game.team2.abbr) ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img 
+                                src={getTeamLogo(game.team2.abbr)!} 
+                                alt={game.team2.name}
+                                className="w-6 h-6 object-contain"
+                                loading="lazy"
+                              />
+                            ) : (
+                              game.team2.abbr
+                            )}
                           </div>
                           <div>
                             <div className="font-medium text-sm">{game.team2.name}</div>
@@ -219,10 +276,20 @@ export default function SportsPage() {
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-3 w-48">
                           <div
-                            className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm"
+                            className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm overflow-hidden"
                             style={{ backgroundColor: game.team1.color }}
                           >
-                            {game.team1.abbr}
+                            {getTeamLogo(game.team1.abbr) ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img 
+                                src={getTeamLogo(game.team1.abbr)!} 
+                                alt={game.team1.name}
+                                className="w-8 h-8 object-contain"
+                                loading="lazy"
+                              />
+                            ) : (
+                              game.team1.abbr
+                            )}
                           </div>
                           <div>
                             <div className="font-medium">{game.team1.name}</div>
@@ -256,10 +323,20 @@ export default function SportsPage() {
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-3 w-48">
                           <div
-                            className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm"
+                            className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm overflow-hidden"
                             style={{ backgroundColor: game.team2.color }}
                           >
-                            {game.team2.abbr}
+                            {getTeamLogo(game.team2.abbr) ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img 
+                                src={getTeamLogo(game.team2.abbr)!} 
+                                alt={game.team2.name}
+                                className="w-8 h-8 object-contain"
+                                loading="lazy"
+                              />
+                            ) : (
+                              game.team2.abbr
+                            )}
                           </div>
                           <div>
                             <div className="font-medium">{game.team2.name}</div>
@@ -374,11 +451,39 @@ export default function SportsPage() {
             {/* Selected Game Info */}
             <div className="mb-4 p-3 md:p-4 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl">
               <div className="flex items-center gap-3 mb-3">
-                <div
-                  className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm md:text-base"
-                  style={{ backgroundColor: selectedGame.team1.color }}
-                >
-                  {selectedGame.team1.abbr}
+                <div className="flex items-center -space-x-2">
+                  <div
+                    className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm md:text-base overflow-hidden z-10 border-2 border-[color:var(--surface)]"
+                    style={{ backgroundColor: selectedGame.team1.color }}
+                  >
+                    {getTeamLogo(selectedGame.team1.abbr) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img 
+                        src={getTeamLogo(selectedGame.team1.abbr)!} 
+                        alt={selectedGame.team1.name}
+                        className="w-8 h-8 md:w-10 md:h-10 object-contain"
+                        loading="lazy"
+                      />
+                    ) : (
+                      selectedGame.team1.abbr
+                    )}
+                  </div>
+                  <div
+                    className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm md:text-base overflow-hidden border-2 border-[color:var(--surface)]"
+                    style={{ backgroundColor: selectedGame.team2.color }}
+                  >
+                    {getTeamLogo(selectedGame.team2.abbr) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img 
+                        src={getTeamLogo(selectedGame.team2.abbr)!} 
+                        alt={selectedGame.team2.name}
+                        className="w-8 h-8 md:w-10 md:h-10 object-contain"
+                        loading="lazy"
+                      />
+                    ) : (
+                      selectedGame.team2.abbr
+                    )}
+                  </div>
                 </div>
                 <div>
                   <div className="font-semibold text-sm md:text-base">
