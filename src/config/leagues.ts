@@ -37,7 +37,7 @@ export const LEAGUES: Record<string, LeagueConfig> = {
   nhl: { 
     key: "nhl",
     label: "NHL", 
-    enabled: false,
+    enabled: true,
     description: "National Hockey League",
     apiPrefix: "/v3/nhl/scores/json",
   },
@@ -105,3 +105,8 @@ export function getLeagueConfig(leagueKey: string): LeagueConfig | undefined {
 export function getAllLeagues(): LeagueConfig[] {
   return Object.values(LEAGUES);
 }
+
+// Array of enabled league keys (convenience export)
+export const ENABLED_LEAGUES = Object.entries(LEAGUES)
+  .filter(([, v]) => v.enabled)
+  .map(([k]) => k);

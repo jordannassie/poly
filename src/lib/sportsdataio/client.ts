@@ -303,57 +303,341 @@ export async function warmNflCache(): Promise<{
   };
 }
 
-// ============ Generic Methods (for other leagues - placeholder) ============
+// ============ NHL API Methods ============
 
 /**
- * Get teams for any league (currently only NFL fully implemented)
+ * Get all NHL teams
+ * Endpoint: GET /v3/nhl/scores/json/Teams
+ */
+export async function getNhlTeams(): Promise<Team[]> {
+  return fetchWithCache<Team[]>(
+    "nhl",
+    "teams",
+    "/Teams",
+    TTL.TEAMS
+  );
+}
+
+/**
+ * Force refresh NHL teams cache
+ */
+export async function refreshNhlTeams(): Promise<Team[]> {
+  const cacheKey = getCacheKey("nhl", "teams");
+  const { deleteFromCache } = await import("./cache");
+  deleteFromCache(cacheKey);
+  return getNhlTeams();
+}
+
+/**
+ * Get NHL scores/games by date
+ * Endpoint: GET /v3/nhl/scores/json/GamesByDate/{date}
+ * NHL uses ISO date format: YYYY-MM-DD
+ */
+export async function getNhlScoresByDate(isoDate: string): Promise<Score[]> {
+  return fetchWithCache<Score[]>(
+    "nhl",
+    "scores",
+    `/GamesByDate/${isoDate}`,
+    TTL.GAMES,
+    isoDate
+  );
+}
+
+/**
+ * Force refresh NHL scores cache for a date
+ */
+export async function refreshNhlScoresByDate(isoDate: string): Promise<Score[]> {
+  const cacheKey = getCacheKey("nhl", "scores", isoDate);
+  const { deleteFromCache } = await import("./cache");
+  deleteFromCache(cacheKey);
+  return getNhlScoresByDate(isoDate);
+}
+
+/**
+ * Check if any NHL games are currently in progress
+ * NHL doesn't have a dedicated endpoint, so we check game statuses
+ */
+export async function areNhlGamesInProgress(): Promise<boolean> {
+  try {
+    const today = getTodayIso();
+    const games = await getNhlScoresByDate(today);
+    return games.some(g => g.IsInProgress);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Warm NHL cache by fetching teams and upcoming games
+ */
+export async function warmNhlCache(): Promise<{
+  teamsCount: number;
+  todayGamesCount: number;
+  tomorrowGamesCount: number;
+  gamesInProgress: boolean;
+}> {
+  const today = getTodayIso();
+  const tomorrow = getTomorrowIso();
+
+  const [teams, todayScores, tomorrowScores] = await Promise.all([
+    getNhlTeams(),
+    getNhlScoresByDate(today),
+    getNhlScoresByDate(tomorrow),
+  ]);
+
+  const gamesInProgress = todayScores.some(g => g.IsInProgress);
+
+  return {
+    teamsCount: teams.length,
+    todayGamesCount: todayScores.length,
+    tomorrowGamesCount: tomorrowScores.length,
+    gamesInProgress,
+  };
+}
+
+// ============ NBA API Methods ============
+
+/**
+ * Get all NBA teams
+ * Endpoint: GET /v3/nba/scores/json/Teams
+ */
+export async function getNbaTeams(): Promise<Team[]> {
+  return fetchWithCache<Team[]>(
+    "nba",
+    "teams",
+    "/Teams",
+    TTL.TEAMS
+  );
+}
+
+/**
+ * Force refresh NBA teams cache
+ */
+export async function refreshNbaTeams(): Promise<Team[]> {
+  const cacheKey = getCacheKey("nba", "teams");
+  const { deleteFromCache } = await import("./cache");
+  deleteFromCache(cacheKey);
+  return getNbaTeams();
+}
+
+/**
+ * Get NBA scores/games by date
+ * Endpoint: GET /v3/nba/scores/json/GamesByDate/{date}
+ * NBA uses ISO date format: YYYY-MM-DD
+ */
+export async function getNbaScoresByDate(isoDate: string): Promise<Score[]> {
+  return fetchWithCache<Score[]>(
+    "nba",
+    "scores",
+    `/GamesByDate/${isoDate}`,
+    TTL.GAMES,
+    isoDate
+  );
+}
+
+/**
+ * Force refresh NBA scores cache for a date
+ */
+export async function refreshNbaScoresByDate(isoDate: string): Promise<Score[]> {
+  const cacheKey = getCacheKey("nba", "scores", isoDate);
+  const { deleteFromCache } = await import("./cache");
+  deleteFromCache(cacheKey);
+  return getNbaScoresByDate(isoDate);
+}
+
+/**
+ * Check if any NBA games are currently in progress
+ */
+export async function areNbaGamesInProgress(): Promise<boolean> {
+  try {
+    const today = getTodayIso();
+    const games = await getNbaScoresByDate(today);
+    return games.some(g => g.IsInProgress);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Warm NBA cache
+ */
+export async function warmNbaCache(): Promise<{
+  teamsCount: number;
+  todayGamesCount: number;
+  tomorrowGamesCount: number;
+  gamesInProgress: boolean;
+}> {
+  const today = getTodayIso();
+  const tomorrow = getTomorrowIso();
+
+  const [teams, todayScores, tomorrowScores] = await Promise.all([
+    getNbaTeams(),
+    getNbaScoresByDate(today),
+    getNbaScoresByDate(tomorrow),
+  ]);
+
+  return {
+    teamsCount: teams.length,
+    todayGamesCount: todayScores.length,
+    tomorrowGamesCount: tomorrowScores.length,
+    gamesInProgress: todayScores.some(g => g.IsInProgress),
+  };
+}
+
+// ============ MLB API Methods ============
+
+/**
+ * Get all MLB teams
+ * Endpoint: GET /v3/mlb/scores/json/Teams
+ */
+export async function getMlbTeams(): Promise<Team[]> {
+  return fetchWithCache<Team[]>(
+    "mlb",
+    "teams",
+    "/Teams",
+    TTL.TEAMS
+  );
+}
+
+/**
+ * Force refresh MLB teams cache
+ */
+export async function refreshMlbTeams(): Promise<Team[]> {
+  const cacheKey = getCacheKey("mlb", "teams");
+  const { deleteFromCache } = await import("./cache");
+  deleteFromCache(cacheKey);
+  return getMlbTeams();
+}
+
+/**
+ * Get MLB scores/games by date
+ * Endpoint: GET /v3/mlb/scores/json/GamesByDate/{date}
+ * MLB uses ISO date format: YYYY-MM-DD
+ */
+export async function getMlbScoresByDate(isoDate: string): Promise<Score[]> {
+  return fetchWithCache<Score[]>(
+    "mlb",
+    "scores",
+    `/GamesByDate/${isoDate}`,
+    TTL.GAMES,
+    isoDate
+  );
+}
+
+/**
+ * Force refresh MLB scores cache for a date
+ */
+export async function refreshMlbScoresByDate(isoDate: string): Promise<Score[]> {
+  const cacheKey = getCacheKey("mlb", "scores", isoDate);
+  const { deleteFromCache } = await import("./cache");
+  deleteFromCache(cacheKey);
+  return getMlbScoresByDate(isoDate);
+}
+
+/**
+ * Check if any MLB games are currently in progress
+ */
+export async function areMlbGamesInProgress(): Promise<boolean> {
+  try {
+    const today = getTodayIso();
+    const games = await getMlbScoresByDate(today);
+    return games.some(g => g.IsInProgress);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Warm MLB cache
+ */
+export async function warmMlbCache(): Promise<{
+  teamsCount: number;
+  todayGamesCount: number;
+  tomorrowGamesCount: number;
+  gamesInProgress: boolean;
+}> {
+  const today = getTodayIso();
+  const tomorrow = getTomorrowIso();
+
+  const [teams, todayScores, tomorrowScores] = await Promise.all([
+    getMlbTeams(),
+    getMlbScoresByDate(today),
+    getMlbScoresByDate(tomorrow),
+  ]);
+
+  return {
+    teamsCount: teams.length,
+    todayGamesCount: todayScores.length,
+    tomorrowGamesCount: tomorrowScores.length,
+    gamesInProgress: todayScores.some(g => g.IsInProgress),
+  };
+}
+
+// ============ Generic Methods ============
+
+/**
+ * Get teams for any league
  */
 export async function getTeams(league: League): Promise<Team[]> {
-  if (league === "nfl") {
-    return getNflTeams();
+  switch (league) {
+    case "nfl": return getNflTeams();
+    case "nba": return getNbaTeams();
+    case "mlb": return getMlbTeams();
+    case "nhl": return getNhlTeams();
+    default: throw new Error(`League ${league} not yet implemented`);
   }
-  // Placeholder for other leagues
-  throw new Error(`League ${league} not yet implemented`);
 }
 
 /**
  * Refresh teams for any league
  */
 export async function refreshTeams(league: League): Promise<Team[]> {
-  if (league === "nfl") {
-    return refreshNflTeams();
+  switch (league) {
+    case "nfl": return refreshNflTeams();
+    case "nba": return refreshNbaTeams();
+    case "mlb": return refreshMlbTeams();
+    case "nhl": return refreshNhlTeams();
+    default: throw new Error(`League ${league} not yet implemented`);
   }
-  throw new Error(`League ${league} not yet implemented`);
 }
 
 /**
  * Get games by date for any league
  */
 export async function getGamesByDate(league: League, isoDate: string): Promise<Score[]> {
-  if (league === "nfl") {
-    return getNflScoresByDate(isoDate);
+  switch (league) {
+    case "nfl": return getNflScoresByDate(isoDate);
+    case "nba": return getNbaScoresByDate(isoDate);
+    case "mlb": return getMlbScoresByDate(isoDate);
+    case "nhl": return getNhlScoresByDate(isoDate);
+    default: throw new Error(`League ${league} not yet implemented`);
   }
-  throw new Error(`League ${league} not yet implemented`);
 }
 
 /**
  * Refresh games for any league
  */
 export async function refreshGamesByDate(league: League, isoDate: string): Promise<Score[]> {
-  if (league === "nfl") {
-    return refreshNflScoresByDate(isoDate);
+  switch (league) {
+    case "nfl": return refreshNflScoresByDate(isoDate);
+    case "nba": return refreshNbaScoresByDate(isoDate);
+    case "mlb": return refreshMlbScoresByDate(isoDate);
+    case "nhl": return refreshNhlScoresByDate(isoDate);
+    default: throw new Error(`League ${league} not yet implemented`);
   }
-  throw new Error(`League ${league} not yet implemented`);
 }
 
 /**
  * Check if games are in progress for any league
  */
 export async function areGamesInProgress(league: League): Promise<boolean> {
-  if (league === "nfl") {
-    return areNflGamesInProgress();
+  switch (league) {
+    case "nfl": return areNflGamesInProgress();
+    case "nba": return areNbaGamesInProgress();
+    case "mlb": return areMlbGamesInProgress();
+    case "nhl": return areNhlGamesInProgress();
+    default: return false;
   }
-  return false;
 }
 
 /**
@@ -365,10 +649,13 @@ export async function warmCache(league: League): Promise<{
   tomorrowGamesCount: number;
   gamesInProgress?: boolean;
 }> {
-  if (league === "nfl") {
-    return warmNflCache();
+  switch (league) {
+    case "nfl": return warmNflCache();
+    case "nba": return warmNbaCache();
+    case "mlb": return warmMlbCache();
+    case "nhl": return warmNhlCache();
+    default: throw new Error(`League ${league} not yet implemented`);
   }
-  throw new Error(`League ${league} not yet implemented`);
 }
 
 // Re-export date helpers for convenience

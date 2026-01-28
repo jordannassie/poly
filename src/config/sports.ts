@@ -13,7 +13,7 @@ export interface SportConfig {
 }
 
 // List of currently enabled sports
-export const ENABLED_SPORTS = ["nfl", "nba", "mlb"] as const;
+export const ENABLED_SPORTS = ["nfl", "nba", "mlb", "nhl"] as const;
 export type EnabledSport = typeof ENABLED_SPORTS[number];
 
 // Check if a sport is enabled
@@ -27,9 +27,9 @@ export const sportsMenu: SportConfig[] = [
   { key: "nfl", label: "NFL", enabled: true, route: "/nfl", icon: "🏈" },
   { key: "nba", label: "NBA", enabled: true, route: "/sports?league=nba", icon: "🏀" },
   { key: "mlb", label: "MLB", enabled: true, route: "/sports?league=mlb", icon: "⚾" },
+  { key: "nhl", label: "NHL", enabled: true, route: "/sports?league=nhl", icon: "🏒" },
   
   // Disabled sports - visible but greyed out
-  { key: "nhl", label: "NHL", enabled: false, icon: "🏒" },
   { key: "ncaa-cbb", label: "NCAA CBB", enabled: false, icon: "🏀" },
   { key: "ncaa-fb", label: "NCAA FB", enabled: false, icon: "🏈" },
   { key: "ufc", label: "UFC", enabled: false, icon: "🥊" },
@@ -62,9 +62,9 @@ export const categoryTabs: CategoryConfig[] = [
   { label: "NFL", href: "/nfl", enabled: true, isSport: true },
   { label: "NBA", href: "/sports?league=nba", enabled: true, isSport: true },
   { label: "MLB", href: "/sports?league=mlb", enabled: true, isSport: true },
+  { label: "NHL", href: "/sports?league=nhl", enabled: true, isSport: true },
   
   // Disabled sports - visible but greyed out
-  { label: "NHL", href: "#", enabled: false, isSport: true },
   { label: "UFC", href: "#", enabled: false, isSport: true },
   { label: "Soccer", href: "#", enabled: false, isSport: true },
   { label: "Tennis", href: "#", enabled: false, isSport: true },
