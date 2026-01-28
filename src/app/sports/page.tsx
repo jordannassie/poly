@@ -2,6 +2,9 @@ import { CategoryTabs } from "@/components/CategoryTabs";
 import { MarketCard } from "@/components/MarketCard";
 import { SportsSidebar } from "@/components/SportsSidebar";
 import { TopNav } from "@/components/TopNav";
+import { StatsPanel } from "@/components/StatsPanel";
+import { CommentsPanel } from "@/components/CommentsPanel";
+import { MainFooter } from "@/components/MainFooter";
 import { markets } from "@/lib/mockData";
 
 const sportsMarkets = markets.filter((market) => market.category === "Sports");
@@ -43,9 +46,14 @@ export default function SportsPage() {
                   <MarketCard key={market.slug} market={market} />
                 ))}
             </div>
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+              <StatsPanel title="Sports stats" />
+              <CommentsPanel />
+            </div>
           </section>
         </div>
       </main>
+      <MainFooter />
     </div>
   );
 }

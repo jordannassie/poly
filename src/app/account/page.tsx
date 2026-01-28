@@ -6,6 +6,9 @@ import { TopNav } from "@/components/TopNav";
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { StatsPanel } from "@/components/StatsPanel";
+import { CommentsPanel } from "@/components/CommentsPanel";
+import { MainFooter } from "@/components/MainFooter";
 import { DemoBet, DemoUser, getDemoBets, getDemoUser } from "@/lib/demoAuth";
 
 export default function AccountPage() {
@@ -159,7 +162,12 @@ export default function AccountPage() {
             </aside>
           </div>
         )}
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <StatsPanel title="Account stats" />
+          <CommentsPanel title="Community comments" />
+        </div>
       </main>
+      <MainFooter />
     </div>
   );
 }

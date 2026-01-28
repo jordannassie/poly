@@ -1,6 +1,9 @@
 import { TopNav } from "@/components/TopNav";
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { MarketCard } from "@/components/MarketCard";
+import { StatsPanel } from "@/components/StatsPanel";
+import { CommentsPanel } from "@/components/CommentsPanel";
+import { MainFooter } from "@/components/MainFooter";
 import { markets } from "@/lib/mockData";
 
 export default function Home() {
@@ -14,7 +17,12 @@ export default function Home() {
             <MarketCard key={market.slug} market={market} />
           ))}
         </div>
+        <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <StatsPanel title="Trending stats" />
+          <CommentsPanel />
+        </div>
       </main>
+      <MainFooter />
     </div>
   );
 }

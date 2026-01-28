@@ -217,5 +217,37 @@ export const sportsSidebarItems = [
   { id: "esports", label: "Esports", count: 42 },
 ];
 
+export const statsOverview = [
+  { label: "Total volume", value: "$3.2m" },
+  { label: "Traders", value: "18,492" },
+  { label: "Open interest", value: "$512k" },
+  { label: "Markets live", value: "214" },
+];
+
+export const demoComments = [
+  {
+    id: "c1",
+    user: "tour.snow",
+    tag: "Yes",
+    message:
+      "Momentum is strong here. Watching the spread before adding more.",
+    time: "7m",
+  },
+  {
+    id: "c2",
+    user: "DonHRBob",
+    tag: "No",
+    message: "Feels overpriced at these levels. Waiting for a pullback.",
+    time: "21m",
+  },
+  {
+    id: "c3",
+    user: "market_maker",
+    tag: "Yes",
+    message: "Short-term liquidity looks good. Risk/reward is solid.",
+    time: "42m",
+  },
+];
+
 export const getMarketBySlug = (slug: string) =>
   markets.find((market) => market.slug === slug);

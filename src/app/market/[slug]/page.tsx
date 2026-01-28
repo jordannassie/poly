@@ -4,6 +4,9 @@ import { CategoryTabs } from "@/components/CategoryTabs";
 import { OutcomeRow } from "@/components/OutcomeRow";
 import { TopNav } from "@/components/TopNav";
 import { TradePanel } from "@/components/TradePanel";
+import { StatsPanel } from "@/components/StatsPanel";
+import { CommentsPanel } from "@/components/CommentsPanel";
+import { MainFooter } from "@/components/MainFooter";
 import { getMarketBySlug } from "@/lib/mockData";
 
 type MarketPageProps = {
@@ -45,12 +48,15 @@ export default function MarketPage({ params }: MarketPageProps) {
                 <OutcomeRow key={outcome.id} outcome={outcome} />
               ))}
             </div>
+            <StatsPanel title="Market stats" />
+            <CommentsPanel title="Trader comments" />
           </section>
           <aside className="lg:sticky lg:top-24 h-fit">
             <TradePanel market={market} />
           </aside>
         </div>
       </main>
+      <MainFooter />
     </div>
   );
 }

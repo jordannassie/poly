@@ -1,5 +1,8 @@
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { TopNav } from "@/components/TopNav";
+import { StatsPanel } from "@/components/StatsPanel";
+import { CommentsPanel } from "@/components/CommentsPanel";
+import { MainFooter } from "@/components/MainFooter";
 import { markets } from "@/lib/mockData";
 
 const movers = markets.slice(0, 5);
@@ -91,7 +94,12 @@ export default function BreakingPage() {
             </div>
           </aside>
         </div>
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <StatsPanel title="Breaking stats" />
+          <CommentsPanel title="User comments" />
+        </div>
       </main>
+      <MainFooter />
     </div>
   );
 }
