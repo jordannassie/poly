@@ -12,6 +12,7 @@ import { TodayGames } from "@/components/sports/TodayGames";
 import { UpcomingGames } from "@/components/sports/UpcomingGames";
 import { TeamLogoGrid } from "@/components/sports/TeamLogoGrid";
 import { sportsGames } from "@/lib/mockData";
+import { TeamOutcomeButton } from "@/components/market/TeamOutcomeButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -239,9 +240,18 @@ function SportsPageContent() {
                                 <div className="text-xs text-[color:var(--text-subtle)]">{game.team1.record}</div>
                               </div>
                             </div>
-                            <Button className="bg-green-600 hover:bg-green-700 text-white h-8 px-3 text-xs">
-                              Yes {game.team1.odds}¢
-                            </Button>
+                            <TeamOutcomeButton
+                              team={{
+                                name: game.team1.name,
+                                abbr: game.team1.abbr,
+                                logoUrl: getTeamLogo(game.team1.abbr),
+                                color: game.team1.color,
+                              }}
+                              priceCents={game.team1.odds}
+                              onClick={() => setSelectedGame(game)}
+                              compact
+                              className="h-8"
+                            />
                           </div>
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -266,9 +276,18 @@ function SportsPageContent() {
                                 <div className="text-xs text-[color:var(--text-subtle)]">{game.team2.record}</div>
                               </div>
                             </div>
-                            <Button className="bg-red-600 hover:bg-red-700 text-white h-8 px-3 text-xs">
-                              No {game.team2.odds}¢
-                            </Button>
+                            <TeamOutcomeButton
+                              team={{
+                                name: game.team2.name,
+                                abbr: game.team2.abbr,
+                                logoUrl: getTeamLogo(game.team2.abbr),
+                                color: game.team2.color,
+                              }}
+                              priceCents={game.team2.odds}
+                              onClick={() => setSelectedGame(game)}
+                              compact
+                              className="h-8"
+                            />
                           </div>
                           {/* Mobile Spreads/Totals */}
                           {showSpreads && (game.spread || game.total) && (
@@ -317,9 +336,18 @@ function SportsPageContent() {
                             </div>
 
                             {/* Moneyline */}
-                            <Button className="bg-green-600 hover:bg-green-700 text-white px-6">
-                              Yes {game.team1.odds}¢
-                            </Button>
+                            <TeamOutcomeButton
+                              team={{
+                                name: game.team1.name,
+                                abbr: game.team1.abbr,
+                                logoUrl: getTeamLogo(game.team1.abbr),
+                                color: game.team1.color,
+                              }}
+                              priceCents={game.team1.odds}
+                              onClick={() => setSelectedGame(game)}
+                              compact
+                              className="w-32"
+                            />
 
                             {/* Spread */}
                             {showSpreads && game.spread && (
@@ -364,9 +392,18 @@ function SportsPageContent() {
                             </div>
 
                             {/* Moneyline */}
-                            <Button className="bg-red-600 hover:bg-red-700 text-white px-6">
-                              No {game.team2.odds}¢
-                            </Button>
+                            <TeamOutcomeButton
+                              team={{
+                                name: game.team2.name,
+                                abbr: game.team2.abbr,
+                                logoUrl: getTeamLogo(game.team2.abbr),
+                                color: game.team2.color,
+                              }}
+                              priceCents={game.team2.odds}
+                              onClick={() => setSelectedGame(game)}
+                              compact
+                              className="w-32"
+                            />
 
                             {/* Spread */}
                             {showSpreads && game.spread && (
@@ -517,7 +554,21 @@ function SportsPageContent() {
               </div>
             </div>
 
-            <TradePanel market={formattedMarket} />
+            <TradePanel 
+              market={formattedMarket}
+              teamA={{
+                name: selectedGame.team1.name,
+                abbr: selectedGame.team1.abbr,
+                logoUrl: getTeamLogo(selectedGame.team1.abbr),
+                color: selectedGame.team1.color,
+              }}
+              teamB={{
+                name: selectedGame.team2.name,
+                abbr: selectedGame.team2.abbr,
+                logoUrl: getTeamLogo(selectedGame.team2.abbr),
+                color: selectedGame.team2.color,
+              }}
+            />
           </div>
         </div>
       </div>

@@ -15,12 +15,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { addDemoBet } from "@/lib/demoAuth";
 import { ChevronDown, Target, PartyPopper, Flame } from "lucide-react";
+import { TeamOutcomeButtonPair } from "./market/TeamOutcomeButton";
+
+interface TeamData {
+  name: string;
+  abbr: string;
+  logoUrl?: string | null;
+  color?: string;
+}
 
 type TradePanelProps = {
   market: Market;
+  teamA?: TeamData;
+  teamB?: TeamData;
 };
 
-export function TradePanel({ market }: TradePanelProps) {
+export function TradePanel({ market, teamA, teamB }: TradePanelProps) {
   const [side, setSide] = useState("buy");
   const [selectedOutcomeId, setSelectedOutcomeId] = useState(
     market.outcomes[0]?.id ?? "",
@@ -33,6 +43,12 @@ export function TradePanel({ market }: TradePanelProps) {
     () => market.outcomes.find((outcome) => outcome.id === selectedOutcomeId),
     [market.outcomes, selectedOutcomeId],
   );
+
+  // Check if we have team data for sports display
+  const hasSportsTeams = teamA && teamB;
+  
+  // Get selected team data for display
+  const selectedTeam = position === "yes" ? teamA : teamB;
 
   const initials = selectedOutcome?.name
     .split(" ")
@@ -87,28 +103,50 @@ export function TradePanel({ market }: TradePanelProps) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <div className="grid grid-cols-2 gap-2">
-        <Button
-          className={`h-12 font-semibold ${
-            position === "yes"
-              ? "bg-green-600 hover:bg-green-700 text-white"
-              : "bg-green-100 hover:bg-green-200 text-green-700 dark:bg-green-900/30 dark:hover:bg-green-900/50 dark:text-green-400"
-          }`}
-          onClick={() => setPosition("yes")}
-        >
-          YES {selectedOutcome?.yesPrice ?? "--"}¢
-        </Button>
-        <Button
-          className={`h-12 font-semibold ${
-            position === "no"
-              ? "bg-red-600 hover:bg-red-700 text-white"
-              : "bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-400"
-          }`}
-          onClick={() => setPosition("no")}
-        >
-          NO {selectedOutcome?.noPrice ?? "--"}¢
-        </Button>
-      </div>
+      {hasSportsTeams ? (
+        <TeamOutcomeButtonPair
+          teamA={{
+            name: teamA.name,
+            abbr: teamA.abbr,
+            logoUrl: teamA.logoUrl,
+            color: teamA.color,
+          }}
+          teamB={{
+            name: teamB.name,
+            abbr: teamB.abbr,
+            logoUrl: teamB.logoUrl,
+            color: teamB.color,
+          }}
+          priceA={selectedOutcome?.yesPrice ?? 50}
+          priceB={selectedOutcome?.noPrice ?? 50}
+          selectedTeam={position === "yes" ? "teamA" : "teamB"}
+          onSelectTeam={(team) => setPosition(team === "teamA" ? "yes" : "no")}
+          compact
+        />
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            className={`h-12 font-semibold ${
+              position === "yes"
+                ? "bg-green-600 hover:bg-green-700 text-white"
+                : "bg-green-100 hover:bg-green-200 text-green-700 dark:bg-green-900/30 dark:hover:bg-green-900/50 dark:text-green-400"
+            }`}
+            onClick={() => setPosition("yes")}
+          >
+            YES {selectedOutcome?.yesPrice ?? "--"}¢
+          </Button>
+          <Button
+            className={`h-12 font-semibold ${
+              position === "no"
+                ? "bg-red-600 hover:bg-red-700 text-white"
+                : "bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-400"
+            }`}
+            onClick={() => setPosition("no")}
+          >
+            NO {selectedOutcome?.noPrice ?? "--"}¢
+          </Button>
+        </div>
+      )}
 
       <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface-2)] p-4 space-y-3">
         <div className="flex items-center justify-between text-sm text-[color:var(--text-muted)]">

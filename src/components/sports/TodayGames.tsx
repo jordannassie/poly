@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Loader2, AlertCircle, Calendar } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { TeamOutcomeButtonPair } from "@/components/market/TeamOutcomeButton";
 
 interface Team {
   TeamID: number;
@@ -272,13 +272,26 @@ function GameCard({ game }: { game: Game }) {
         </div>
 
         {/* Pick Buttons */}
-        <div className="mt-4 flex gap-2">
-          <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm">
-            Pick Yes
-          </Button>
-          <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white text-sm">
-            Pick No
-          </Button>
+        <div className="mt-4">
+          <TeamOutcomeButtonPair
+            teamA={{
+              name: awayTeam?.Name || game.AwayTeam,
+              abbr: game.AwayTeam,
+              logoUrl: awayTeam?.WikipediaLogoUrl,
+              color: awayTeam?.PrimaryColor ? `#${awayTeam.PrimaryColor}` : "#6366f1",
+            }}
+            teamB={{
+              name: homeTeam?.Name || game.HomeTeam,
+              abbr: game.HomeTeam,
+              logoUrl: homeTeam?.WikipediaLogoUrl,
+              color: homeTeam?.PrimaryColor ? `#${homeTeam.PrimaryColor}` : "#6366f1",
+            }}
+            priceA={50}
+            priceB={50}
+            selectedTeam={null}
+            onSelectTeam={() => {}}
+            compact
+          />
         </div>
       </div>
   );
