@@ -40,6 +40,14 @@ interface UpcomingGamesProps {
   days?: number;
 }
 
+// Filter options for date range
+const DATE_FILTERS = [
+  { label: "7D", days: 7 },
+  { label: "30D", days: 30 },
+  { label: "90D", days: 90 },
+  { label: "365D", days: 365 },
+];
+
 // Get game detail route based on league
 function getGameRoute(league: string, gameId: string): string {
   // NFL has a dedicated route, others use the sports page for now
@@ -50,7 +58,10 @@ function getGameRoute(league: string, gameId: string): string {
   return `/sports?league=${league}`;
 }
 
-export function UpcomingGames({ league = "nfl", days = 7 }: UpcomingGamesProps) {
+export function UpcomingGames({ league = "nfl", days: initialDays }: UpcomingGamesProps) {
+  // Default to 365 days for NFL (cached), 7 days for others
+  const defaultDays = league === "nfl" ? 365 : 7;
+  const [selectedDays, setSelectedDays] = useState(initialDays || defaultDays);
   const [data, setData] = useState<UpcomingResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +72,7 @@ export function UpcomingGames({ league = "nfl", days = 7 }: UpcomingGamesProps) 
         setLoading(true);
         setError(null);
         
-        const res = await fetch(`/api/sports/upcoming?league=${league}&days=${days}`);
+        const res = await fetch(`/api/sports/upcoming?league=${league}&days=${selectedDays}`);
         
         if (!res.ok) {
           const errData = await res.json();
@@ -78,7 +89,7 @@ export function UpcomingGames({ league = "nfl", days = 7 }: UpcomingGamesProps) 
     }
 
     fetchGames();
-  }, [league, days]);
+  }, [league, selectedDays]);
 
   if (loading) {
     return (
@@ -99,14 +110,36 @@ export function UpcomingGames({ league = "nfl", days = 7 }: UpcomingGamesProps) 
 
   if (!data || data.games.length === 0) {
     return (
-      <div className="text-center py-12 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl">
-        <Calendar className="h-12 w-12 mx-auto mb-4 text-[color:var(--text-muted)]" />
-        <p className="text-[color:var(--text-muted)]">
-          No upcoming {league.toUpperCase()} games in the next {days} days
-        </p>
-        <p className="text-sm text-[color:var(--text-subtle)] mt-1">
-          Check back when the season is active
-        </p>
+      <div className="space-y-4">
+        {/* Filter Buttons - Show for NFL */}
+        {league === "nfl" && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm text-[color:var(--text-muted)]">Show:</span>
+            {DATE_FILTERS.map((filter) => (
+              <Button
+                key={filter.days}
+                variant={selectedDays === filter.days ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedDays(filter.days)}
+                className={selectedDays === filter.days ? "bg-orange-500 hover:bg-orange-600" : ""}
+              >
+                {filter.label}
+              </Button>
+            ))}
+          </div>
+        )}
+        
+        <div className="text-center py-12 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl">
+          <Calendar className="h-12 w-12 mx-auto mb-4 text-[color:var(--text-muted)]" />
+          <p className="text-[color:var(--text-muted)]">
+            No cached {league.toUpperCase()} games in the next {selectedDays} days
+          </p>
+          <p className="text-sm text-[color:var(--text-subtle)] mt-2 max-w-md mx-auto">
+            {league === "nfl" 
+              ? "Sync more games in Admin → API Sports (NFL) using \"Sync Next 365 Days\"."
+              : "Check back when the season is active."}
+          </p>
+        </div>
       </div>
     );
   }
@@ -126,6 +159,29 @@ export function UpcomingGames({ league = "nfl", days = 7 }: UpcomingGamesProps) 
 
   return (
     <div className="space-y-6">
+      {/* Filter Buttons - Show for NFL */}
+      {league === "nfl" && (
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-[color:var(--text-muted)]">Show:</span>
+            {DATE_FILTERS.map((filter) => (
+              <Button
+                key={filter.days}
+                variant={selectedDays === filter.days ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedDays(filter.days)}
+                className={selectedDays === filter.days ? "bg-orange-500 hover:bg-orange-600" : ""}
+              >
+                {filter.label}
+              </Button>
+            ))}
+          </div>
+          <span className="text-sm text-[color:var(--text-muted)]">
+            {data.count} matchup{data.count !== 1 ? "s" : ""} found
+          </span>
+        </div>
+      )}
+
       {sortedDates.map((dateKey) => {
         const games = gamesByDate.get(dateKey)!;
         const dateObj = new Date(dateKey + "T12:00:00");

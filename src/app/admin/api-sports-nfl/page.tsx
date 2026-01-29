@@ -24,6 +24,10 @@ type ApiResponse = {
   fromDate?: string;
   toDate?: string;
   dates?: string[];
+  chunks?: number;
+  totalFetched?: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  chunkDetails?: any[];
 };
 
 export default function AdminApiSportsNflPage() {
@@ -119,6 +123,26 @@ export default function AdminApiSportsNflPage() {
     
     try {
       const res = await fetch("/api/admin/api-sports-nfl/sync/live", {
+        method: "POST",
+      });
+      const data: ApiResponse = await res.json();
+      setResult(data);
+    } catch (error) {
+      setResult({
+        ok: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const syncNextYear = async () => {
+    setLoading("syncNextYear");
+    setResult(null);
+    
+    try {
+      const res = await fetch("/api/admin/api-sports-nfl/sync/next-year", {
         method: "POST",
       });
       const data: ApiResponse = await res.json();
@@ -251,9 +275,25 @@ export default function AdminApiSportsNflPage() {
             )}
             Update Live Scores (DB)
           </Button>
+
+          <Button
+            onClick={syncNextYear}
+            disabled={loading !== null}
+            className="bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white"
+          >
+            {loading === "syncNextYear" ? (
+              <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Calendar className="h-4 w-4 mr-2" />
+            )}
+            Sync Next 365 Days
+          </Button>
         </div>
         <p className="text-xs text-gray-500">
           Uses date range above: {date} to {toDate}
+        </p>
+        <p className="text-xs text-gray-500">
+          <strong>Sync Next 365 Days</strong>: Fetches all NFL games for the next year in monthly chunks. May take 1-2 minutes.
         </p>
       </div>
 
@@ -276,8 +316,20 @@ export default function AdminApiSportsNflPage() {
           </div>
 
           {/* Sync Stats */}
-          {(result.inserted !== undefined || result.updated !== undefined || result.count !== undefined) && (
-            <div className="px-4 py-3 bg-green-500/10 border-b border-[#30363d] flex gap-6">
+          {(result.inserted !== undefined || result.updated !== undefined || result.count !== undefined || result.chunks !== undefined) && (
+            <div className="px-4 py-3 bg-green-500/10 border-b border-[#30363d] flex flex-wrap gap-6">
+              {result.chunks !== undefined && (
+                <div>
+                  <span className="text-gray-400 text-sm">Chunks: </span>
+                  <span className="text-purple-400 font-bold">{result.chunks}</span>
+                </div>
+              )}
+              {result.totalFetched !== undefined && (
+                <div>
+                  <span className="text-gray-400 text-sm">Fetched: </span>
+                  <span className="text-cyan-400 font-bold">{result.totalFetched}</span>
+                </div>
+              )}
               {result.count !== undefined && (
                 <div>
                   <span className="text-gray-400 text-sm">Total: </span>
@@ -348,6 +400,7 @@ export default function AdminApiSportsNflPage() {
             {loading === "syncTeams" ? "Syncing teams to database..." :
              loading === "syncGames" ? "Syncing games to database..." :
              loading === "syncLive" ? "Fetching live scores..." :
+             loading === "syncNextYear" ? "Syncing next 365 days (this may take 1-2 minutes)..." :
              "Fetching..."}
           </p>
         </div>

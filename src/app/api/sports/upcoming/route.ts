@@ -151,7 +151,12 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const leagueParam = url.searchParams.get("league")?.toLowerCase() || "nfl";
     const daysParam = url.searchParams.get("days");
-    const days = Math.min(Math.max(parseInt(daysParam || "7", 10) || 7, 1), 14);
+    
+    // NFL uses cache so we can support longer ranges (up to 365 days)
+    // Other leagues use SportsDataIO which is limited to 14 days
+    const maxDays = usesApiSportsCache(leagueParam) ? 365 : 14;
+    const defaultDays = usesApiSportsCache(leagueParam) ? 365 : 7;
+    const days = Math.min(Math.max(parseInt(daysParam || String(defaultDays), 10) || defaultDays, 1), maxDays);
 
     // Validate league
     if (!SUPPORTED_LEAGUES.includes(leagueParam as League)) {
