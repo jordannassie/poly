@@ -582,12 +582,16 @@ export default function SettingsPage() {
     }
   };
 
+  // Upload error state
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
   // Handle avatar upload
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
     setUploadingAvatar(true);
+    setUploadError(null);
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -601,9 +605,12 @@ export default function SettingsPage() {
       const data = await res.json();
       if (data.success && data.url) {
         setAvatarUrl(data.url);
+      } else {
+        setUploadError(data.error || "Failed to upload avatar");
       }
     } catch (error) {
       console.error("Avatar upload error:", error);
+      setUploadError("Network error. Please try again.");
     } finally {
       setUploadingAvatar(false);
     }
@@ -615,6 +622,7 @@ export default function SettingsPage() {
     if (!file) return;
     
     setUploadingBanner(true);
+    setUploadError(null);
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -628,9 +636,12 @@ export default function SettingsPage() {
       const data = await res.json();
       if (data.success && data.url) {
         setBannerUrl(data.url);
+      } else {
+        setUploadError(data.error || "Failed to upload banner");
       }
     } catch (error) {
       console.error("Banner upload error:", error);
+      setUploadError("Network error. Please try again.");
     } finally {
       setUploadingBanner(false);
     }
@@ -769,6 +780,14 @@ export default function SettingsPage() {
                         />
                       </label>
                     </div>
+
+                    {/* Upload Error */}
+                    {uploadError && (
+                      <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-sm flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        {uploadError}
+                      </div>
+                    )}
 
                     {/* Name */}
                     <div className="space-y-2">

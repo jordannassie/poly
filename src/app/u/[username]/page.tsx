@@ -26,13 +26,26 @@ import {
   MessageCircle,
   Heart,
   Reply,
-  MoreHorizontal
+  MoreHorizontal,
+  Loader2,
+  AlertCircle
 } from "lucide-react";
 import Link from "next/link";
 
 type Props = {
   params: { username: string };
 };
+
+// Profile data from API
+interface ProfileData {
+  username: string;
+  display_name: string | null;
+  bio: string | null;
+  website: string | null;
+  avatar_url: string | null;
+  banner_url: string | null;
+  created_at: string;
+}
 
 // Team data with colors and abbreviations
 const teams: Record<string, { name: string; abbr: string; color: string; textColor: string }> = {
@@ -220,6 +233,9 @@ export default function PublicProfilePage({ params }: Props) {
   const { username } = params;
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [activeTab, setActiveTab] = useState<"picks" | "activity" | "stats" | "achievements">("picks");
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [profileData, setProfileData] = useState<ProfileData | null>(null);
 
   useEffect(() => {
     const demoUser = getDemoUser();
@@ -227,9 +243,85 @@ export default function PublicProfilePage({ params }: Props) {
       const demoHandle = demoUser.handle.replace("@", "").toLowerCase();
       setIsOwnProfile(username.toLowerCase() === demoHandle || username.toLowerCase() === "demo");
     }
+    
+    // Fetch real profile data
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch(`/api/profile/${encodeURIComponent(username)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setProfileData(data.profile);
+        } else if (res.status === 404) {
+          // Only set not found if not the demo user
+          if (username.toLowerCase() !== "demo") {
+            setNotFound(true);
+          }
+        }
+      } catch {
+        // Use demo fallback
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
   }, [username]);
 
-  const profile = demoProfile;
+  // Build profile object - merge real data with demo stats
+  const profile = {
+    ...demoProfile,
+    username: profileData?.username || demoProfile.username,
+    displayName: profileData?.display_name || demoProfile.displayName,
+    bio: profileData?.bio || demoProfile.bio,
+    website: profileData?.website || demoProfile.website,
+    avatarUrl: profileData?.avatar_url || demoProfile.avatarUrl,
+    bannerUrl: profileData?.banner_url || demoProfile.bannerUrl,
+    joinedDate: profileData?.created_at 
+      ? new Date(profileData.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+      : demoProfile.joinedDate,
+  };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
+        <TopNav />
+        <CategoryTabs activeLabel="Trending" />
+        <main className="mx-auto w-full max-w-4xl px-4 py-6">
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          </div>
+        </main>
+        <MainFooter />
+      </div>
+    );
+  }
+
+  // Show not found state
+  if (notFound) {
+    return (
+      <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
+        <TopNav />
+        <CategoryTabs activeLabel="Trending" />
+        <main className="mx-auto w-full max-w-4xl px-4 py-6">
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="rounded-full bg-[color:var(--surface-2)] p-6 mb-6">
+              <AlertCircle className="h-12 w-12 text-[color:var(--text-muted)]" />
+            </div>
+            <h1 className="text-2xl font-bold mb-2">User not found</h1>
+            <p className="text-[color:var(--text-muted)] mb-6">
+              The user @{username} doesn&apos;t exist.
+            </p>
+            <Link href="/">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                Go Home
+              </Button>
+            </Link>
+          </div>
+        </main>
+        <MainFooter />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
