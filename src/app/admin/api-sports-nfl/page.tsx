@@ -2,21 +2,31 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Zap, Calendar, ArrowLeft } from "lucide-react";
+import { RefreshCw, Zap, Calendar, ArrowLeft, Database, Users } from "lucide-react";
 import Link from "next/link";
 
 type ApiResponse = {
   ok: boolean;
-  status: number;
-  ms: number;
+  status?: number;
+  ms?: number;
   date?: string;
   endpoint?: string;
-  data?: unknown;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data?: any;
   error?: string;
+  message?: string;
+  fetched?: number;
+  synced?: number;
+  fromDate?: string;
+  toDate?: string;
+  dates?: string[];
 };
 
 export default function AdminApiSportsNflPage() {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [toDate, setToDate] = useState(
+    new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+  );
   const [loading, setLoading] = useState<string | null>(null);
   const [result, setResult] = useState<ApiResponse | null>(null);
 
@@ -60,6 +70,46 @@ export default function AdminApiSportsNflPage() {
     }
   };
 
+  const syncTeams = async () => {
+    setLoading("syncTeams");
+    setResult(null);
+    
+    try {
+      const res = await fetch("/api/admin/api-sports-nfl/sync/teams", {
+        method: "POST",
+      });
+      const data: ApiResponse = await res.json();
+      setResult(data);
+    } catch (error) {
+      setResult({
+        ok: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const syncGames = async () => {
+    setLoading("syncGames");
+    setResult(null);
+    
+    try {
+      const res = await fetch(`/api/admin/api-sports-nfl/sync/games?from=${date}&to=${toDate}`, {
+        method: "POST",
+      });
+      const data: ApiResponse = await res.json();
+      setResult(data);
+    } catch (error) {
+      setResult({
+        ok: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    } finally {
+      setLoading(null);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -69,16 +119,20 @@ export default function AdminApiSportsNflPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-white">API Sports (NFL)</h1>
-          <p className="text-gray-400 text-sm">Test NFL endpoints from API-Sports</p>
+          <p className="text-gray-400 text-sm">Test NFL endpoints and sync to Supabase</p>
         </div>
       </div>
 
-      {/* Controls */}
+      {/* Test Controls */}
       <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6 space-y-4">
+        <h3 className="text-white font-semibold flex items-center gap-2">
+          <Zap className="h-4 w-4 text-blue-400" />
+          Test API Endpoints
+        </h3>
         <div className="flex flex-wrap gap-4 items-end">
           {/* Date Input */}
           <div>
-            <label className="block text-sm text-gray-400 mb-2">Date</label>
+            <label className="block text-sm text-gray-400 mb-2">From Date</label>
             <input
               type="date"
               value={date}
@@ -87,7 +141,17 @@ export default function AdminApiSportsNflPage() {
             />
           </div>
 
-          {/* Action Buttons */}
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">To Date</label>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="px-3 py-2 bg-[#21262d] border border-[#30363d] rounded-lg text-white focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          {/* Test Buttons */}
           <Button
             onClick={checkStatus}
             disabled={loading !== null}
@@ -116,6 +180,47 @@ export default function AdminApiSportsNflPage() {
         </div>
       </div>
 
+      {/* Sync Controls */}
+      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6 space-y-4">
+        <h3 className="text-white font-semibold flex items-center gap-2">
+          <Database className="h-4 w-4 text-purple-400" />
+          Sync to Supabase
+        </h3>
+        <p className="text-gray-400 text-sm">
+          Fetch data from API-Sports and cache it in your Supabase database.
+        </p>
+        <div className="flex flex-wrap gap-4">
+          <Button
+            onClick={syncTeams}
+            disabled={loading !== null}
+            className="bg-purple-600 hover:bg-purple-700 text-white"
+          >
+            {loading === "syncTeams" ? (
+              <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Users className="h-4 w-4 mr-2" />
+            )}
+            Sync Teams to DB
+          </Button>
+          
+          <Button
+            onClick={syncGames}
+            disabled={loading !== null}
+            className="bg-orange-600 hover:bg-orange-700 text-white"
+          >
+            {loading === "syncGames" ? (
+              <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Calendar className="h-4 w-4 mr-2" />
+            )}
+            Sync Games Range to DB
+          </Button>
+        </div>
+        <p className="text-xs text-gray-500">
+          Uses date range above: {date} to {toDate}
+        </p>
+      </div>
+
       {/* Result */}
       {result && (
         <div className="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden">
@@ -125,12 +230,39 @@ export default function AdminApiSportsNflPage() {
               <span className={`font-medium ${result.ok ? "text-green-400" : "text-red-400"}`}>
                 {result.ok ? "✓ Success" : "✗ Error"}
               </span>
-              <span className="text-gray-400">|</span>
-              <span className="text-gray-400">Status: {result.status}</span>
-              <span className="text-gray-400">|</span>
-              <span className="text-gray-400">{result.ms}ms</span>
+              {result.ms !== undefined && (
+                <>
+                  <span className="text-gray-400">|</span>
+                  <span className="text-gray-400">{result.ms}ms</span>
+                </>
+              )}
             </div>
           </div>
+
+          {/* Sync Stats */}
+          {(result.fetched !== undefined || result.synced !== undefined) && (
+            <div className="px-4 py-3 bg-green-500/10 border-b border-[#30363d] flex gap-6">
+              {result.fetched !== undefined && (
+                <div>
+                  <span className="text-gray-400 text-sm">Fetched: </span>
+                  <span className="text-green-400 font-bold">{result.fetched}</span>
+                </div>
+              )}
+              {result.synced !== undefined && (
+                <div>
+                  <span className="text-gray-400 text-sm">Synced: </span>
+                  <span className="text-green-400 font-bold">{result.synced}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Message */}
+          {result.message ? (
+            <div className="px-4 py-2 bg-blue-500/10 border-b border-[#30363d]">
+              <span className="text-blue-400 text-sm">{result.message}</span>
+            </div>
+          ) : null}
 
           {/* Error Message */}
           {result.error && (
@@ -148,11 +280,13 @@ export default function AdminApiSportsNflPage() {
           )}
 
           {/* JSON Preview */}
-          <div className="p-4 max-h-[600px] overflow-auto">
-            <pre className="text-sm text-gray-300 whitespace-pre-wrap font-mono">
-              {JSON.stringify(result.data, null, 2)}
-            </pre>
-          </div>
+          {result.data && (
+            <div className="p-4 max-h-[400px] overflow-auto">
+              <pre className="text-sm text-gray-300 whitespace-pre-wrap font-mono">
+                {JSON.stringify(result.data, null, 2)}
+              </pre>
+            </div>
+          )}
         </div>
       )}
 
@@ -160,7 +294,7 @@ export default function AdminApiSportsNflPage() {
       {!result && !loading && (
         <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-12 text-center">
           <Zap className="h-12 w-12 mx-auto mb-4 text-gray-600" />
-          <p className="text-gray-400">Click a button above to test the API-Sports NFL endpoints</p>
+          <p className="text-gray-400">Click a button above to test or sync data</p>
         </div>
       )}
 
@@ -168,7 +302,11 @@ export default function AdminApiSportsNflPage() {
       {loading && (
         <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-12 text-center">
           <RefreshCw className="h-12 w-12 mx-auto mb-4 text-blue-500 animate-spin" />
-          <p className="text-gray-400">Fetching...</p>
+          <p className="text-gray-400">
+            {loading === "syncTeams" ? "Syncing teams to database..." :
+             loading === "syncGames" ? "Syncing games to database..." :
+             "Fetching..."}
+          </p>
         </div>
       )}
 
@@ -183,6 +321,10 @@ export default function AdminApiSportsNflPage() {
           <div>
             <code className="bg-[#21262d] px-2 py-1 rounded text-orange-400">API_SPORTS_BASE_URL</code>
             <span className="text-gray-400 ml-2">- Default: https://v1.american-football.api-sports.io</span>
+          </div>
+          <div>
+            <code className="bg-[#21262d] px-2 py-1 rounded text-orange-400">SUPABASE_SERVICE_ROLE_KEY</code>
+            <span className="text-gray-400 ml-2">- Required for syncing to database</span>
           </div>
         </div>
       </div>
