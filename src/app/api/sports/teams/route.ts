@@ -35,13 +35,18 @@ export async function GET(request: NextRequest) {
       const cachedTeams = await getNflTeamsFromCache();
       const simplifiedTeams = cachedTeams.map(transformCachedTeamToLegacyFormat);
       
-      const teamsWithLogos = simplifiedTeams.filter(t => t.logoUrl).length;
-      console.log(`[/api/sports/teams] ${league.toUpperCase()} (cache): ${simplifiedTeams.length} teams, ${teamsWithLogos} with logos`);
+      // NFL has 32 teams
+      const expectedCount = 32;
+      const isMissingTeams = simplifiedTeams.length < expectedCount;
+      
+      console.log(`[/api/sports/teams] ${league.toUpperCase()} (cache): ${simplifiedTeams.length}/${expectedCount} teams`);
 
       return NextResponse.json({
         league,
         source: "api-sports-cache",
         count: simplifiedTeams.length,
+        expectedCount,
+        isMissingTeams,
         teams: simplifiedTeams,
       });
     }

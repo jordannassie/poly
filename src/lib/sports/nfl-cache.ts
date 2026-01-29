@@ -42,10 +42,46 @@ export interface CachedNflGame {
   away_score: number | null;
 }
 
+// Conference/group names to filter out (not real teams)
+const CONFERENCE_NAMES = [
+  "afc",
+  "nfc",
+  "american football conference",
+  "national football conference",
+  "all-stars",
+  "all stars",
+];
+
 /**
- * Get all NFL teams from cache
+ * Check if a team entry is a real NFL team (not a conference)
  */
-export async function getNflTeamsFromCache(): Promise<CachedNflTeam[]> {
+export function isRealNflTeam(team: CachedNflTeam): boolean {
+  // Must have a valid logo URL
+  if (!team.logo || team.logo.trim() === "") {
+    return false;
+  }
+  
+  // Filter out conference entries by name
+  const nameLower = team.name.toLowerCase();
+  if (CONFERENCE_NAMES.some(conf => nameLower.includes(conf))) {
+    return false;
+  }
+  
+  // Code should be 2-3 characters for real NFL teams
+  if (team.code && team.code.length > 3) {
+    return false;
+  }
+  
+  // Prefer logos from the official API-Sports path
+  // But don't require it - some valid teams might have different URLs
+  
+  return true;
+}
+
+/**
+ * Get all NFL teams from cache (raw, unfiltered)
+ */
+export async function getNflTeamsFromCacheRaw(): Promise<CachedNflTeam[]> {
   const client = getClient();
   if (!client) {
     console.warn("[nfl-cache] Supabase client not available");
@@ -63,6 +99,14 @@ export async function getNflTeamsFromCache(): Promise<CachedNflTeam[]> {
   }
 
   return data || [];
+}
+
+/**
+ * Get all NFL teams from cache (filtered to real teams only)
+ */
+export async function getNflTeamsFromCache(): Promise<CachedNflTeam[]> {
+  const allTeams = await getNflTeamsFromCacheRaw();
+  return allTeams.filter(isRealNflTeam);
 }
 
 /**

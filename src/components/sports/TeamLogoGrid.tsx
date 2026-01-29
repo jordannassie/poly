@@ -19,7 +19,10 @@ interface Team {
 
 interface TeamsResponse {
   league: string;
+  source?: string;
   count: number;
+  expectedCount?: number;
+  isMissingTeams?: boolean;
   teams: Team[];
 }
 
@@ -31,6 +34,8 @@ export function TeamLogoGrid({ league = "nfl" }: TeamLogoGridProps) {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [source, setSource] = useState<string>("sportsdataio");
+  const [isMissingTeams, setIsMissingTeams] = useState(false);
 
   useEffect(() => {
     async function fetchTeams() {
@@ -47,6 +52,8 @@ export function TeamLogoGrid({ league = "nfl" }: TeamLogoGridProps) {
         
         const data: TeamsResponse = await res.json();
         setTeams(data.teams);
+        setSource(data.source || "sportsdataio");
+        setIsMissingTeams(data.isMissingTeams || false);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load teams");
       } finally {
@@ -131,9 +138,17 @@ export function TeamLogoGrid({ league = "nfl" }: TeamLogoGridProps) {
         </div>
       ))}
 
+      {/* Missing Teams Warning */}
+      {isMissingTeams && (
+        <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-sm text-yellow-600 dark:text-yellow-400">
+          <AlertCircle className="h-4 w-4 inline mr-2" />
+          Some teams may be missing from the cache. Re-sync teams in Admin → API Sports (NFL).
+        </div>
+      )}
+
       {/* Data Source */}
       <div className="mt-6 text-center text-xs text-[color:var(--text-subtle)]">
-        Data provided by SportsDataIO
+        Data provided by {source === "api-sports-cache" ? "API-Sports (cached)" : "SportsDataIO"}
       </div>
     </div>
   );
