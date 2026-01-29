@@ -707,7 +707,17 @@ export default function SettingsPage() {
               <>
                 {activeSection === "profile" && (
                   <div className="space-y-8">
-                    <h1 className="text-2xl font-bold">Profile Settings</h1>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <h1 className="text-2xl font-bold">Profile Settings</h1>
+                      {username && (
+                        <a
+                          href={`/u/${username}`}
+                          className="text-sm text-blue-500 hover:underline flex items-center gap-1"
+                        >
+                          View profile → /u/{username}
+                        </a>
+                      )}
+                    </div>
 
                     {/* Banner */}
                     <div className="space-y-2">
@@ -903,20 +913,6 @@ export default function SettingsPage() {
                       </Button>
                     </div>
 
-                    {/* Profile Preview */}
-                    {username && (
-                      <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-4">
-                        <p className="text-sm text-[color:var(--text-muted)]">
-                          Your public profile will be available at:{" "}
-                          <a
-                            href={`/u/${username}`}
-                            className="text-blue-500 hover:underline"
-                          >
-                            /u/{username}
-                          </a>
-                        </p>
-                      </div>
-                    )}
                   </div>
                 )}
 
