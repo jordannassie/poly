@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getDemoUser, DemoUser } from "@/lib/demoAuth";
 import { validateUsername } from "@/lib/profiles";
-import { Upload, Check, AlertCircle, Loader2, Wallet, X } from "lucide-react";
+import { Upload, Check, AlertCircle, Loader2, Wallet, X, User } from "lucide-react";
 
 const sidebarItems = [
   { id: "profile", label: "Profile" },
@@ -712,9 +712,11 @@ export default function SettingsPage() {
                       {username && (
                         <a
                           href={`/u/${username}`}
-                          className="text-sm text-blue-500 hover:underline flex items-center gap-1"
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white text-sm font-medium shadow-lg shadow-purple-500/25 transition-all hover:shadow-purple-500/40 hover:scale-105"
                         >
-                          View profile → /u/{username}
+                          <User className="h-4 w-4" />
+                          View Profile
+                          <span className="text-white/70">@{username}</span>
                         </a>
                       )}
                     </div>
