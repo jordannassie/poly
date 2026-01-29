@@ -1,7 +1,120 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Zap, Lock, ArrowRight, Trophy, Users, TrendingUp, ChevronDown, Check, Flame, Clock, DollarSign, Activity } from "lucide-react";
+import { Zap, Lock, ArrowRight, Trophy, Users, TrendingUp, ChevronDown, Check, Flame, Clock, DollarSign, Activity, X, Minus } from "lucide-react";
+
+// Competitor logos
+const competitors = [
+  {
+    name: "ProvePicks",
+    logo: null, // We'll use our own logo component
+    isProvePicks: true,
+  },
+  {
+    name: "DraftKings",
+    logo: "https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/sign/SPORTS/logos/DraftKings-brand-strategy-positioning.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8wOTc3NzFmYi1jYzJjLTQxNGItOTNjYi1jZjk5OGVhNGMyZGMiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJTUE9SVFMvbG9nb3MvRHJhZnRLaW5ncy1icmFuZC1zdHJhdGVneS1wb3NpdGlvbmluZy5qcGciLCJpYXQiOjE3Njk3MTg5OTksImV4cCI6MzE1NTM2OTcxODk5OX0.EgRmMPUC7V_u_WjRRr1Ub7oe8-zIL-GzzJuat1Wh16k",
+  },
+  {
+    name: "Underdog",
+    logo: "https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/sign/SPORTS/logos/underdog_image-and-text_vertical.webp?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8wOTc3NzFmYi1jYzJjLTQxNGItOTNjYi1jZjk5OGVhNGMyZGMiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJTUE9SVFMvbG9nb3MvdW5kZXJkb2dfaW1hZ2UtYW5kLXRleHRfdmVydGljYWwud2VicCIsImlhdCI6MTc2OTcxODk2MywiZXhwIjozMTU1MzY5NzE4OTYzfQ.byCy-G9c2c8OceODC7zvZuM2kN5fq_-UH36XzzHi06Q",
+  },
+  {
+    name: "PrizePicks",
+    logo: "https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/sign/SPORTS/logos/images.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8wOTc3NzFmYi1jYzJjLTQxNGItOTNjYi1jZjk5OGVhNGMyZGMiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJTUE9SVFMvbG9nb3MvaW1hZ2VzLnBuZyIsImlhdCI6MTc2OTcxODk3NSwiZXhwIjozMTU1MzY5NzE4OTc1fQ.NorLJzpTYuJykb1jtwVkHCcmr1dsAXkAESfBwyg5XZU",
+  },
+  {
+    name: "Sleeper",
+    logo: "https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/sign/SPORTS/logos/images-1.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8wOTc3NzFmYi1jYzJjLTQxNGItOTNjYi1jZjk5OGVhNGMyZGMiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJTUE9SVFMvbG9nb3MvaW1hZ2VzLTEucG5nIiwiaWF0IjoxNzY5NzE4OTg3LCJleHAiOjMxNzEyOTcxODk4N30.rAyYOqsID2i8JxasvnMa-mrBtdUGyYDkrDxpQpzeuOU",
+  },
+];
+
+// Comparison features - "yes" = has feature, "no" = doesn't have, "partial" = partial support
+type FeatureStatus = "yes" | "no" | "partial";
+
+interface ComparisonFeature {
+  feature: string;
+  description: string;
+  provePicks: FeatureStatus;
+  draftkings: FeatureStatus;
+  underdog: FeatureStatus;
+  prizepicks: FeatureStatus;
+  sleeper: FeatureStatus;
+}
+
+const comparisonFeatures: ComparisonFeature[] = [
+  {
+    feature: "Social Trading & Following",
+    description: "Follow traders, see their picks",
+    provePicks: "yes",
+    draftkings: "no",
+    underdog: "no",
+    prizepicks: "no",
+    sleeper: "partial",
+  },
+  {
+    feature: "Verified Track Record",
+    description: "On-chain proof of all picks",
+    provePicks: "yes",
+    draftkings: "no",
+    underdog: "no",
+    prizepicks: "no",
+    sleeper: "no",
+  },
+  {
+    feature: "Public Leaderboards",
+    description: "See top performers ranked",
+    provePicks: "yes",
+    draftkings: "no",
+    underdog: "partial",
+    prizepicks: "no",
+    sleeper: "yes",
+  },
+  {
+    feature: "Copy Trading",
+    description: "Mirror successful traders",
+    provePicks: "yes",
+    draftkings: "no",
+    underdog: "no",
+    prizepicks: "no",
+    sleeper: "no",
+  },
+  {
+    feature: "Transparent P&L Stats",
+    description: "Real profit/loss visibility",
+    provePicks: "yes",
+    draftkings: "no",
+    underdog: "no",
+    prizepicks: "no",
+    sleeper: "no",
+  },
+  {
+    feature: "Real-time Activity Feed",
+    description: "Live bets and wins feed",
+    provePicks: "yes",
+    draftkings: "no",
+    underdog: "no",
+    prizepicks: "no",
+    sleeper: "partial",
+  },
+  {
+    feature: "No Hidden Fees",
+    description: "Transparent pricing",
+    provePicks: "yes",
+    draftkings: "no",
+    underdog: "partial",
+    prizepicks: "partial",
+    sleeper: "yes",
+  },
+  {
+    feature: "Crypto Wallet Login",
+    description: "Web3 native authentication",
+    provePicks: "yes",
+    draftkings: "no",
+    underdog: "no",
+    prizepicks: "no",
+    sleeper: "no",
+  },
+];
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
@@ -485,6 +598,202 @@ export function CodeGate({ children }: CodeGateProps) {
               </div>
               <h3 className="text-lg font-semibold mb-2">Transparent Stats</h3>
               <p className="text-gray-400 text-sm">Win rates, streaks, and P&L - all verifiable.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Comparison Matrix Section */}
+      <div className="py-16 px-4">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-2xl md:text-3xl font-bold text-center mb-4">
+            How We Compare
+          </h2>
+          <p className="text-gray-400 text-center mb-12 max-w-2xl mx-auto">
+            ProvePicks is built different. See how we stack up against traditional fantasy and betting platforms.
+          </p>
+
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-800">
+                  <th className="text-left py-4 px-4 text-gray-400 font-medium">Feature</th>
+                  {competitors.map((comp) => (
+                    <th key={comp.name} className="py-4 px-3 text-center">
+                      {comp.isProvePicks ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
+                            <Zap className="h-4 w-4 text-white" />
+                          </div>
+                          <span className="font-bold text-orange-400">ProvePicks</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1">
+                          <div className="h-10 w-10 rounded-lg bg-white/10 overflow-hidden flex items-center justify-center">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img 
+                              src={comp.logo || ''} 
+                              alt={comp.name} 
+                              className="h-8 w-8 object-contain"
+                            />
+                          </div>
+                          <span className="text-xs text-gray-500">{comp.name}</span>
+                        </div>
+                      )}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {comparisonFeatures.map((row, i) => (
+                  <tr key={i} className="border-b border-gray-800/50 hover:bg-white/5">
+                    <td className="py-4 px-4">
+                      <div>
+                        <p className="font-medium text-white">{row.feature}</p>
+                        <p className="text-xs text-gray-500">{row.description}</p>
+                      </div>
+                    </td>
+                    <td className="py-4 px-3 text-center">
+                      {row.provePicks === "yes" ? (
+                        <div className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-green-500/20">
+                          <Check className="h-5 w-5 text-green-400" />
+                        </div>
+                      ) : row.provePicks === "partial" ? (
+                        <div className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-yellow-500/20">
+                          <Minus className="h-5 w-5 text-yellow-400" />
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-red-500/20">
+                          <X className="h-5 w-5 text-red-400" />
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-4 px-3 text-center">
+                      {row.draftkings === "yes" ? (
+                        <div className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-green-500/20">
+                          <Check className="h-5 w-5 text-green-400" />
+                        </div>
+                      ) : row.draftkings === "partial" ? (
+                        <div className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-yellow-500/20">
+                          <Minus className="h-5 w-5 text-yellow-400" />
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-red-500/20">
+                          <X className="h-5 w-5 text-red-400" />
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-4 px-3 text-center">
+                      {row.underdog === "yes" ? (
+                        <div className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-green-500/20">
+                          <Check className="h-5 w-5 text-green-400" />
+                        </div>
+                      ) : row.underdog === "partial" ? (
+                        <div className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-yellow-500/20">
+                          <Minus className="h-5 w-5 text-yellow-400" />
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-red-500/20">
+                          <X className="h-5 w-5 text-red-400" />
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-4 px-3 text-center">
+                      {row.prizepicks === "yes" ? (
+                        <div className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-green-500/20">
+                          <Check className="h-5 w-5 text-green-400" />
+                        </div>
+                      ) : row.prizepicks === "partial" ? (
+                        <div className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-yellow-500/20">
+                          <Minus className="h-5 w-5 text-yellow-400" />
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-red-500/20">
+                          <X className="h-5 w-5 text-red-400" />
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-4 px-3 text-center">
+                      {row.sleeper === "yes" ? (
+                        <div className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-green-500/20">
+                          <Check className="h-5 w-5 text-green-400" />
+                        </div>
+                      ) : row.sleeper === "partial" ? (
+                        <div className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-yellow-500/20">
+                          <Minus className="h-5 w-5 text-yellow-400" />
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-red-500/20">
+                          <X className="h-5 w-5 text-red-400" />
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden space-y-4">
+            {comparisonFeatures.map((row, i) => (
+              <div key={i} className="bg-[#111111] rounded-xl border border-gray-800 p-4">
+                <div className="mb-3">
+                  <p className="font-medium text-white">{row.feature}</p>
+                  <p className="text-xs text-gray-500">{row.description}</p>
+                </div>
+                <div className="grid grid-cols-5 gap-2">
+                  {[
+                    { name: "PP", value: row.provePicks, highlight: true },
+                    { name: "DK", value: row.draftkings },
+                    { name: "UD", value: row.underdog },
+                    { name: "PZ", value: row.prizepicks },
+                    { name: "SL", value: row.sleeper },
+                  ].map((item, j) => (
+                    <div key={j} className="flex flex-col items-center gap-1">
+                      <span className={`text-xs ${item.highlight ? "text-orange-400 font-bold" : "text-gray-500"}`}>
+                        {item.name}
+                      </span>
+                      {item.value === "yes" ? (
+                        <div className="h-6 w-6 rounded-full bg-green-500/20 flex items-center justify-center">
+                          <Check className="h-4 w-4 text-green-400" />
+                        </div>
+                      ) : item.value === "partial" ? (
+                        <div className="h-6 w-6 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                          <Minus className="h-4 w-4 text-yellow-400" />
+                        </div>
+                      ) : (
+                        <div className="h-6 w-6 rounded-full bg-red-500/20 flex items-center justify-center">
+                          <X className="h-4 w-4 text-red-400" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Legend */}
+          <div className="flex justify-center gap-6 mt-8 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="h-5 w-5 rounded-full bg-green-500/20 flex items-center justify-center">
+                <Check className="h-3 w-3 text-green-400" />
+              </div>
+              <span className="text-gray-400">Full Support</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-5 w-5 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                <Minus className="h-3 w-3 text-yellow-400" />
+              </div>
+              <span className="text-gray-400">Partial</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-5 w-5 rounded-full bg-red-500/20 flex items-center justify-center">
+                <X className="h-3 w-3 text-red-400" />
+              </div>
+              <span className="text-gray-400">Not Available</span>
             </div>
           </div>
         </div>
