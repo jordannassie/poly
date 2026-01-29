@@ -128,6 +128,9 @@ export function TopNav() {
                     </DropdownMenuTrigger>
                   <DropdownMenuContent className="bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] w-48">
                     <DropdownMenuItem asChild>
+                      <Link href={`/u/${demoUser.handle.replace("@", "").toLowerCase()}`}>Profile</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
                       <Link href="/portfolio">Portfolio</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
@@ -136,8 +139,6 @@ export function TopNav() {
                     <DropdownMenuItem asChild>
                       <Link href="/leaderboard">Leaderboard</Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem>Rewards</DropdownMenuItem>
-                    <DropdownMenuItem>APIs</DropdownMenuItem>
                     <DropdownMenuSeparator className="bg-[color:var(--border-soft)]" />
                     <DropdownMenuItem
                       className="flex items-center justify-between"
@@ -151,7 +152,6 @@ export function TopNav() {
                       )}
                     </DropdownMenuItem>
                     <DropdownMenuItem>Support</DropdownMenuItem>
-                    <DropdownMenuItem>Documentation</DropdownMenuItem>
                     <DropdownMenuItem>Terms of Use</DropdownMenuItem>
                     <DropdownMenuSeparator className="bg-[color:var(--border-soft)]" />
                     <DropdownMenuItem
@@ -240,6 +240,14 @@ export function TopNav() {
                     </Link>
                     {demoUser && (
                       <>
+                        <Link
+                          href={`/u/${demoUser.handle.replace("@", "").toLowerCase()}`}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex items-center gap-3 px-3 py-3 rounded-lg text-[color:var(--text-muted)] hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-strong)] transition"
+                        >
+                          <div className="h-5 w-5 rounded-full bg-gradient-to-br from-purple-500 to-pink-500" />
+                          <span className="font-medium">Profile</span>
+                        </Link>
                         <Link
                           href="/portfolio"
                           onClick={() => setMobileMenuOpen(false)}
