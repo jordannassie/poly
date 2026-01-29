@@ -34,6 +34,17 @@ import {
   type HotMarket,
 } from "@/lib/marketHelpers";
 
+// Helper to get the correct game page URL based on league
+function getMarketHref(market: HotMarket): string {
+  const league = market.league.toLowerCase();
+  // For sports leagues with dedicated game pages
+  if (["nfl", "nba", "mlb", "nhl"].includes(league)) {
+    return `/${league}/game/${market.id}`;
+  }
+  // Fallback to market page for other leagues
+  return `/market/${market.id}`;
+}
+
 export default function HomeClient() {
   const searchParams = useSearchParams();
   const view = searchParams.get("view") || "hot";
@@ -144,7 +155,7 @@ export default function HomeClient() {
                 return (
                   <Link
                     key={market.id}
-                    href={`/market/${market.id}`}
+                    href={getMarketHref(market)}
                     className="block bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4 hover:border-[color:var(--border-strong)] transition group relative"
                   >
                     {/* Badge */}
@@ -250,13 +261,14 @@ export default function HomeClient() {
                       </div>
                     </div>
 
-                    {/* Bet Button */}
+                    {/* View Matchup Button */}
                     <div className="mt-3">
                       <Button
                         size="sm"
-                        className="w-full bg-green-600 hover:bg-green-700 text-white opacity-0 group-hover:opacity-100 transition"
+                        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white md:opacity-0 md:group-hover:opacity-100 transition"
                       >
-                        Bet Now
+                        View Matchup
+                        <ChevronRight className="h-4 w-4 ml-1" />
                       </Button>
                     </div>
                   </Link>
