@@ -27,11 +27,17 @@ function isAuthorized(request: NextRequest): boolean {
   return false;
 }
 
+// API-Sports game response structure
 interface ApiSportsGame {
   game: {
     id: number;
-    date: string;
-    status: { short: string; long: string };
+    date: {
+      timezone: string;
+      date: string;
+      time: string;
+      timestamp: string | number;
+    };
+    status: { short: string; long: string } | string;
   };
   league: { id: number; season: number };
   teams: {
@@ -39,9 +45,54 @@ interface ApiSportsGame {
     away: { id: number; name: string };
   };
   scores: {
-    home: { total: number | null };
-    away: { total: number | null };
+    home: { total: number | string | null };
+    away: { total: number | string | null };
   };
+  // Allow additional fields
+  id?: number;
+  date?: {
+    timezone: string;
+    date: string;
+    time: string;
+    timestamp: string | number;
+  };
+  status?: { short: string; long: string } | string;
+}
+
+// Helper to safely convert timestamp to ISO string
+function parseGameDate(dateObj: ApiSportsGame["game"]["date"] | undefined): string | null {
+  if (!dateObj) return null;
+  
+  const ts = Number(dateObj.timestamp);
+  if (Number.isFinite(ts)) {
+    // API-Sports timestamp is in seconds, convert to milliseconds
+    return new Date(ts * 1000).toISOString();
+  }
+  
+  // Fallback: try to parse date + time string
+  if (dateObj.date && dateObj.time) {
+    try {
+      return new Date(`${dateObj.date}T${dateObj.time}:00Z`).toISOString();
+    } catch {
+      return null;
+    }
+  }
+  
+  return null;
+}
+
+// Helper to safely parse score
+function parseScore(score: number | string | null | undefined): number | null {
+  if (score === null || score === undefined) return null;
+  const num = Number(score);
+  return Number.isFinite(num) ? num : null;
+}
+
+// Helper to get status string
+function parseStatus(status: { short?: string; long?: string } | string | undefined): string | null {
+  if (!status) return null;
+  if (typeof status === "string") return status;
+  return status.long ?? status.short ?? null;
 }
 
 export async function POST(request: NextRequest) {
@@ -107,7 +158,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get existing games to track inserted vs updated
-    const gameIds = allGames.map(g => g.game.id);
+    const gameIds = allGames.map(g => g.game?.id ?? g.id).filter(Boolean) as number[];
     const { data: existingGames } = await adminClient
       .from("api_sports_nfl_games")
       .select("game_id")
@@ -115,20 +166,28 @@ export async function POST(request: NextRequest) {
     
     const existingGameIds = new Set(existingGames?.map(g => g.game_id) || []);
 
-    // Transform and upsert games
-    const games = allGames.map((game) => ({
-      game_id: game.game.id,
-      game_date: game.game.date,
-      status: game.game.status?.short || null,
-      league_id: game.league?.id || null,
-      season: game.league?.season || null,
-      home_team_id: game.teams?.home?.id || null,
-      away_team_id: game.teams?.away?.id || null,
-      home_score: game.scores?.home?.total ?? null,
-      away_score: game.scores?.away?.total ?? null,
-      raw: game,
-      updated_at: new Date().toISOString(),
-    }));
+    // Transform and upsert games with proper type handling
+    const games = allGames.map((game) => {
+      // Handle both nested and flat response structures
+      const gameData = game.game ?? game;
+      const gameId = game.game?.id ?? game.id;
+      const dateObj = game.game?.date ?? game.date;
+      const statusObj = game.game?.status ?? game.status;
+      
+      return {
+        game_id: gameId,
+        game_date: parseGameDate(dateObj as ApiSportsGame["game"]["date"]),
+        status: parseStatus(statusObj as { short?: string; long?: string } | string),
+        league_id: game.league?.id ?? 1,
+        season: game.league?.season ?? null,
+        home_team_id: game.teams?.home?.id ?? null,
+        away_team_id: game.teams?.away?.id ?? null,
+        home_score: parseScore(game.scores?.home?.total),
+        away_score: parseScore(game.scores?.away?.total),
+        raw: game,
+        updated_at: new Date().toISOString(),
+      };
+    }).filter(g => g.game_id != null);
 
     const { error: upsertError } = await adminClient
       .from("api_sports_nfl_games")
