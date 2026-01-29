@@ -21,7 +21,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { 
   getTeams, 
   getGamesByDate, 
-  getTeamLogoUrl, 
+  getTeamLogoUrl,
+  getGameId,
   SUPPORTED_LEAGUES,
   type Score, 
   type Team,
@@ -111,7 +112,7 @@ function getGameName(score: Score, league: string): string {
 
 function createGameDetails(score: Score, teamMap: Map<string, Team>, league: string): GameDetails {
   return {
-    gameId: score.GameKey,
+    gameId: getGameId(score),
     name: getGameName(score, league),
     startTime: score.Date,
     status: getGameStatus(score),
@@ -120,7 +121,7 @@ function createGameDetails(score: Score, teamMap: Map<string, Team>, league: str
     homeScore: score.HomeScore,
     awayScore: score.AwayScore,
     venue: null,
-    week: score.Week,
+    week: score.Week || 0,
     channel: score.Channel,
     quarter: score.Quarter,
     timeRemaining: score.TimeRemaining,
@@ -182,7 +183,7 @@ export async function GET(request: NextRequest) {
     for (const date of dates) {
       try {
         const scores = await getGamesByDate(league, date);
-        const match = scores.find((s) => s.GameKey === gameId);
+        const match = scores.find((s) => getGameId(s) === gameId);
         if (match) {
           foundGame = match;
           break;

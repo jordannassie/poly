@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { TopNav } from "@/components/TopNav";
 import { CategoryTabs } from "@/components/CategoryTabs";
@@ -15,7 +15,7 @@ import { sportsGames } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, ToggleRight, ChevronDown, MoreHorizontal, Heart } from "lucide-react";
+import { Settings, ToggleRight, ChevronDown, MoreHorizontal, Heart, Loader2 } from "lucide-react";
 
 // Valid leagues
 const VALID_LEAGUES = ["nfl", "nba", "mlb", "nhl"] as const;
@@ -36,7 +36,8 @@ interface TeamInfo {
   primaryColor: string | null;
 }
 
-export default function SportsPage() {
+// Inner component that uses useSearchParams
+function SportsPageContent() {
   const searchParams = useSearchParams();
   
   // Parse and validate league from URL
@@ -529,5 +530,24 @@ export default function SportsPage() {
 
       <MainFooter />
     </div>
+  );
+}
+
+// Loading fallback for Suspense
+function SportsPageLoading() {
+  return (
+    <div className="min-h-screen bg-[color:var(--app-bg)] flex items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-[color:var(--text-muted)]" />
+      <span className="ml-3 text-[color:var(--text-muted)]">Loading...</span>
+    </div>
+  );
+}
+
+// Main export with Suspense boundary for useSearchParams
+export default function SportsPage() {
+  return (
+    <Suspense fallback={<SportsPageLoading />}>
+      <SportsPageContent />
+    </Suspense>
   );
 }

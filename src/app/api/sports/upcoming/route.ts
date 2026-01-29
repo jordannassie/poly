@@ -23,7 +23,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { 
   getTeams, 
   getGamesByDate, 
-  getTeamLogoUrl, 
+  getTeamLogoUrl,
+  getGameId,
   SUPPORTED_LEAGUES,
   type Score, 
   type Team,
@@ -96,7 +97,7 @@ function normalizeGameStatus(score: Score): NormalizedGame["status"] {
 
 function normalizeGame(score: Score, teamMap: Map<string, Team>): NormalizedGame {
   return {
-    gameId: score.GameKey,
+    gameId: getGameId(score),
     status: normalizeGameStatus(score),
     startTime: score.Date,
     homeTeam: normalizeTeam(teamMap.get(score.HomeTeam), score.HomeTeam),
@@ -105,7 +106,7 @@ function normalizeGame(score: Score, teamMap: Map<string, Team>): NormalizedGame
     awayScore: score.AwayScore,
     venue: null, // Could be fetched from Stadium endpoint if needed
     channel: score.Channel,
-    week: score.Week,
+    week: score.Week || 0,
   };
 }
 

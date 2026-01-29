@@ -123,8 +123,25 @@ export function getTeamLogoUrl(team: Team): string | null {
   return null;
 }
 
+/**
+ * Get the normalized game ID from a score
+ * NFL uses GameKey (string), NBA/MLB/NHL use GameID (number)
+ */
+export function getGameId(score: Score): string {
+  if (score.GameKey) {
+    return score.GameKey;
+  }
+  if (score.GameID !== undefined) {
+    return String(score.GameID);
+  }
+  // Fallback: generate an ID from date and teams
+  return `${score.Date}-${score.AwayTeam}-${score.HomeTeam}`.replace(/[^a-zA-Z0-9-]/g, "");
+}
+
 export interface Score {
-  GameKey: string;
+  // NFL uses GameKey, NBA/MLB/NHL use GameID
+  GameKey?: string;
+  GameID?: number;
   SeasonType: number;
   Season: number;
   Week: number;
@@ -175,8 +192,8 @@ export interface Score {
   ForecastWindSpeed: number | null;
   AwayTeamMoneyLine: number | null;
   HomeTeamMoneyLine: number | null;
-  Canceled: boolean;
-  Closed: boolean;
+  Canceled?: boolean;
+  Closed?: boolean;
   LastPlay: string | null;
 }
 

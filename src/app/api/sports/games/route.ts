@@ -14,6 +14,7 @@ import {
   getTeams,
   getGamesByDate,
   getTeamLogoUrl,
+  getGameId,
   SUPPORTED_LEAGUES,
   type League,
   type Team,
@@ -57,9 +58,17 @@ export async function GET(request: NextRequest) {
       teamMap.set(team.Key, team);
     }
 
-    // Join team data to games
+    // Join team data to games and normalize game ID
     const gamesWithTeams = scores.map((score: Score) => ({
       ...score,
+      // Normalize GameKey for all leagues
+      GameKey: getGameId(score),
+      // Provide defaults for fields that may not exist in all leagues
+      Week: score.Week || 0,
+      HasStarted: score.HasStarted ?? false,
+      IsInProgress: score.IsInProgress ?? false,
+      IsOver: score.IsOver ?? false,
+      Canceled: score.Canceled ?? false,
       AwayTeamData: teamMap.get(score.AwayTeam) ? {
         ...teamMap.get(score.AwayTeam),
         WikipediaLogoUrl: getTeamLogoUrl(teamMap.get(score.AwayTeam)!),

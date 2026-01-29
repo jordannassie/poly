@@ -25,7 +25,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { 
   getTeams, 
   getGamesByDate, 
-  getTeamLogoUrl, 
+  getTeamLogoUrl,
+  getGameId,
   SUPPORTED_LEAGUES,
   type Score, 
   type Team,
@@ -128,7 +129,7 @@ function getGameName(score: Score, league: string, isChampionship: boolean): str
 function createFeaturedGame(score: Score, teamMap: Map<string, Team>, league: string): FeaturedGame {
   const isChampionship = isChampionshipGame(score, league);
   return {
-    gameId: score.GameKey,
+    gameId: getGameId(score),
     name: getGameName(score, league, isChampionship),
     startTime: score.Date,
     status: getGameStatus(score),
@@ -137,7 +138,7 @@ function createFeaturedGame(score: Score, teamMap: Map<string, Team>, league: st
     homeScore: score.HomeScore,
     awayScore: score.AwayScore,
     venue: null,
-    week: score.Week,
+    week: score.Week || 0,
     channel: score.Channel,
     isChampionship,
   };
