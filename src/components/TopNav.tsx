@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
-import { Search, ChevronDown, Moon, Sun, Bell, Zap, Menu, X, Home, Trophy, Settings, Wallet, Radio, BarChart3 } from "lucide-react";
-import { Input } from "./ui/input";
+import { ChevronDown, Moon, Sun, Bell, Zap, Menu, X, Home, Trophy, Settings, Wallet, Radio, BarChart3 } from "lucide-react";
 import { Button } from "./ui/button";
 import { AuthModal } from "./AuthModal";
 import { HowItWorksModal } from "./HowItWorksModal";
@@ -142,21 +141,14 @@ export function TopNav() {
     <>
       <div className="bg-gradient-to-r from-orange-500 to-amber-500">
         <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-4 py-4">
-          <Link href="/" className="flex items-center gap-3 text-white">
-            <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
-              <Zap className="h-6 w-6 text-white" />
+          <Link href="/" className="flex items-center gap-2 text-white">
+            <div className="h-9 w-9 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
+              <Zap className="h-5 w-5 text-white" />
             </div>
-            <span className="hidden text-lg font-bold sm:block text-white">
+            <span className="text-lg font-bold text-white">
               ProvePicks
             </span>
           </Link>
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-white/60" />
-            <Input
-              placeholder="Search markets"
-              className="pl-9 bg-white/20 border-white/30 text-white placeholder:text-white/60 focus:bg-white/30"
-            />
-          </div>
           <div className="ml-auto flex items-center gap-2">
             <Button
               variant="ghost"
@@ -270,6 +262,45 @@ export function TopNav() {
                 </>
               )}
             </div>
+            {/* Mobile User Avatar */}
+            {isLoggedIn && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="md:hidden flex items-center gap-1 rounded-full p-1 text-white/80 hover:text-white">
+                    {realUser?.avatar_url ? (
+                      <img 
+                        src={realUser.avatar_url} 
+                        alt="Profile" 
+                        className="h-8 w-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-xs font-semibold text-white">
+                        {initials}
+                      </span>
+                    )}
+                    <ChevronDown className="h-3 w-3 text-white/70" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] w-48">
+                  <DropdownMenuItem asChild>
+                    <Link href={profileLink}>Profile</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/portfolio">Portfolio</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings">Settings</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-[color:var(--border-soft)]" />
+                  <DropdownMenuItem
+                    className="text-red-500 focus:text-red-500"
+                    onSelect={handleLogout}
+                  >
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             {/* Mobile Menu Button */}
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
