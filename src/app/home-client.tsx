@@ -6,7 +6,6 @@ import { useSearchParams } from "next/navigation";
 import { TopNav } from "@/components/TopNav";
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { SportsSidebar } from "@/components/SportsSidebar";
-import { HeadToHeadChart } from "@/components/HeadToHeadChart";
 import { Leaderboard } from "@/components/Leaderboard";
 import { UserLevel } from "@/components/UserLevel";
 import { MainFooter } from "@/components/MainFooter";
@@ -22,58 +21,126 @@ import {
   Users,
   Activity,
   Radio,
+  Loader2,
 } from "lucide-react";
-import {
-  getHotMarkets,
-  getLiveMarkets,
-  getStartingSoonMarkets,
-  getBigVolumeMarkets,
-  locksInLabel,
-  formatVolume,
-  getMarketBadge,
-  type HotMarket,
-} from "@/lib/marketHelpers";
+
+// Hot game type from API
+interface HotGame {
+  id: string;
+  title: string;
+  league: string;
+  team1: {
+    abbr: string;
+    name: string;
+    odds: number;
+    color: string;
+    logoUrl: string | null;
+  };
+  team2: {
+    abbr: string;
+    name: string;
+    odds: number;
+    color: string;
+    logoUrl: string | null;
+  };
+  startTime: string;
+  status: string;
+  isLive: boolean;
+  volumeToday: number;
+  volume10m: number;
+  activeBettors: number;
+}
 
 // Helper to get the correct game page URL based on league
-function getMarketHref(market: HotMarket): string {
-  const league = market.league.toLowerCase();
+function getGameHref(game: HotGame): string {
+  const league = game.league.toLowerCase();
   // For sports leagues with dedicated game pages
   if (["nfl", "nba", "mlb", "nhl"].includes(league)) {
-    return `/${league}/game/${market.id}`;
+    return `/${league}/game/${game.id}`;
   }
   // Fallback to market page for other leagues
-  return `/market/${market.id}`;
+  return `/market/${game.id}`;
+}
+
+// Format volume for display
+function formatVolume(volume: number): string {
+  if (volume >= 1000000) {
+    return `$${(volume / 1000000).toFixed(1)}m`;
+  }
+  if (volume >= 1000) {
+    return `$${(volume / 1000).toFixed(0)}k`;
+  }
+  return `$${volume}`;
+}
+
+// Calculate "locks in" label from start time
+function locksInLabel(startTime: string): string {
+  const now = new Date();
+  const start = new Date(startTime);
+  const diff = start.getTime() - now.getTime();
+
+  if (diff <= 0) return "Live now";
+
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+  if (hours > 24) {
+    const days = Math.floor(hours / 24);
+    return `${days}d ${hours % 24}h`;
+  }
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+
+  return `${minutes}m`;
 }
 
 export default function HomeClient() {
   const searchParams = useSearchParams();
   const view = searchParams.get("view") || "hot";
 
-  const [markets, setMarkets] = useState<HotMarket[]>([]);
-  const [featuredMarket, setFeaturedMarket] = useState<HotMarket | null>(null);
+  const [games, setGames] = useState<HotGame[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let selectedMarkets: HotMarket[];
-
-    switch (view) {
-      case "live":
-        selectedMarkets = getLiveMarkets();
-        break;
-      case "starting-soon":
-        selectedMarkets = getStartingSoonMarkets();
-        break;
-      case "big-volume":
-        selectedMarkets = getBigVolumeMarkets();
-        break;
-      default:
-        selectedMarkets = getHotMarkets();
+    async function fetchHotGames() {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch("/api/sports/hot");
+        if (!res.ok) throw new Error("Failed to fetch games");
+        const data = await res.json();
+        
+        let filteredGames = data.games || [];
+        
+        // Filter based on view
+        switch (view) {
+          case "live":
+            filteredGames = filteredGames.filter((g: HotGame) => g.isLive);
+            break;
+          case "starting-soon":
+            filteredGames = filteredGames.filter((g: HotGame) => {
+              const diff = new Date(g.startTime).getTime() - Date.now();
+              return diff > 0 && diff < 2 * 60 * 60 * 1000; // Within 2 hours
+            });
+            break;
+          default:
+            // "hot" - show all
+            break;
+        }
+        
+        setGames(filteredGames);
+      } catch (err) {
+        console.error("Failed to fetch hot games:", err);
+        setError("Failed to load games");
+      } finally {
+        setLoading(false);
+      }
     }
 
-    setMarkets(selectedMarkets);
-
-    // Featured market is always the #1 hot market
-    const hotMarkets = getHotMarkets();
-    setFeaturedMarket(hotMarkets[0] || null);
+    fetchHotGames();
   }, [view]);
 
   const getViewTitle = () => {
@@ -142,148 +209,170 @@ export default function HomeClient() {
                 {viewInfo.text}
               </h2>
               <span className="text-sm text-[color:var(--text-muted)]">
-                {markets.length} markets
+                {games.length} games
               </span>
             </div>
 
-            {/* Markets Grid */}
-            <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
-              {markets.map((market) => {
-                const badge = getMarketBadge(market);
-                const isLive = market.isLive;
+            {/* Loading State */}
+            {loading && (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-[color:var(--accent)]" />
+                <span className="ml-3 text-[color:var(--text-muted)]">Loading games...</span>
+              </div>
+            )}
 
-                return (
-                  <Link
-                    key={market.id}
-                    href={getMarketHref(market)}
-                    className="block bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4 hover:border-[color:var(--border-strong)] transition group relative"
-                  >
-                    {/* Badge */}
-                    {badge && (
-                      <div
-                        className={`absolute -top-2 -right-2 px-2 py-1 rounded-full text-xs font-bold text-white flex items-center gap-1 ${
-                          badge === "LIVE"
-                            ? "bg-red-500 animate-pulse"
-                            : badge === "HOT"
-                            ? "bg-gradient-to-r from-orange-500 to-red-500"
-                            : "bg-gradient-to-r from-blue-500 to-purple-500"
-                        }`}
-                      >
-                        {badge === "LIVE" && <Radio className="h-3 w-3" />}
-                        {badge === "HOT" && <Flame className="h-3 w-3" />}
-                        {badge === "MOVING" && <TrendingUp className="h-3 w-3" />}
-                        {badge}
-                      </div>
-                    )}
+            {/* Error State */}
+            {error && !loading && (
+              <div className="text-center py-12">
+                <p className="text-red-500 mb-4">{error}</p>
+                <Button onClick={() => window.location.reload()}>Retry</Button>
+              </div>
+            )}
 
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs px-2 py-1 rounded bg-[color:var(--surface-2)] text-[color:var(--text-muted)]">
-                        {market.league}
-                      </span>
-                      <div className="flex items-center gap-3 text-xs text-[color:var(--text-subtle)]">
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {isLive ? "LIVE" : `Locks in ${locksInLabel(market.startTime)}`}
+            {/* Games Grid */}
+            {!loading && !error && (
+              <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
+                {games.map((game) => {
+                  const isLive = game.isLive;
+
+                  return (
+                    <Link
+                      key={game.id}
+                      href={getGameHref(game)}
+                      className="block bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4 hover:border-[color:var(--border-strong)] transition group relative"
+                    >
+                      {/* Badge */}
+                      {isLive ? (
+                        <div className="absolute -top-2 -right-2 px-2 py-1 rounded-full text-xs font-bold text-white flex items-center gap-1 bg-red-500 animate-pulse">
+                          <Radio className="h-3 w-3" />
+                          LIVE
+                        </div>
+                      ) : (
+                        <div className="absolute -top-2 -right-2 px-2 py-1 rounded-full text-xs font-bold text-white flex items-center gap-1 bg-gradient-to-r from-orange-500 to-red-500">
+                          <Flame className="h-3 w-3" />
+                          HOT
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs px-2 py-1 rounded bg-[color:var(--surface-2)] text-[color:var(--text-muted)]">
+                          {game.league}
                         </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                      {/* Team 1 */}
-                      <div className="flex items-center gap-2 flex-1">
-                        <div
-                          className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm"
-                          style={{ backgroundColor: market.team1.color }}
-                        >
-                          {market.team1.abbr}
-                        </div>
-                        <div>
-                          <div className="font-medium text-sm">{market.team1.name}</div>
+                        <div className="flex items-center gap-3 text-xs text-[color:var(--text-subtle)]">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {isLive ? "LIVE" : `Locks in ${locksInLabel(game.startTime)}`}
+                          </span>
                         </div>
                       </div>
 
-                      {/* VS */}
-                      <div className="text-[color:var(--text-subtle)] font-medium">vs</div>
-
-                      {/* Team 2 */}
-                      <div className="flex items-center gap-2 flex-1 justify-end">
-                        <div>
-                          <div className="font-medium text-sm text-right">{market.team2.name}</div>
-                        </div>
-                        <div
-                          className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm"
-                          style={{ backgroundColor: market.team2.color }}
-                        >
-                          {market.team2.abbr}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Odds Bar */}
-                    <div className="mt-4">
-                      <div className="flex items-center justify-between text-sm mb-1">
-                        <span className="font-medium">{market.team1.odds}%</span>
-                        <span className="font-medium">{market.team2.odds}%</span>
-                      </div>
-                      <div className="h-2 rounded-full overflow-hidden bg-[color:var(--surface-3)] flex">
-                        <div
-                          className="h-full transition-all"
-                          style={{
-                            width: `${market.team1.odds}%`,
-                            backgroundColor: market.team1.color,
-                          }}
-                        />
-                        <div
-                          className="h-full transition-all"
-                          style={{
-                            width: `${market.team2.odds}%`,
-                            backgroundColor: market.team2.color,
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Stats Row */}
-                    <div className="mt-3 flex items-center justify-between text-xs text-[color:var(--text-subtle)]">
                       <div className="flex items-center gap-4">
-                        <span className="flex items-center gap-1">
-                          <Zap className="h-3 w-3 text-yellow-500" />
-                          {formatVolume(market.volumeToday)} today
-                        </span>
-                        <span className="flex items-center gap-1 text-green-500">
-                          <Activity className="h-3 w-3" />
-                          {formatVolume(market.volume10m)} / 10m
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Users className="h-3 w-3" />
-                        {market.activeBettors}
-                      </div>
-                    </div>
+                        {/* Team 1 */}
+                        <div className="flex items-center gap-2 flex-1">
+                          <div
+                            className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm overflow-hidden"
+                            style={{ backgroundColor: game.team1.color }}
+                          >
+                            {game.team1.logoUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={game.team1.logoUrl} alt={game.team1.name} className="w-8 h-8 object-contain" />
+                            ) : (
+                              game.team1.abbr
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-medium text-sm">{game.team1.name}</div>
+                          </div>
+                        </div>
 
-                    {/* View Matchup Button */}
-                    <div className="mt-3">
-                      <Button
-                        size="sm"
-                        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white md:opacity-0 md:group-hover:opacity-100 transition"
-                      >
-                        View Matchup
-                        <ChevronRight className="h-4 w-4 ml-1" />
-                      </Button>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
+                        {/* VS */}
+                        <div className="text-[color:var(--text-subtle)] font-medium">vs</div>
+
+                        {/* Team 2 */}
+                        <div className="flex items-center gap-2 flex-1 justify-end">
+                          <div>
+                            <div className="font-medium text-sm text-right">{game.team2.name}</div>
+                          </div>
+                          <div
+                            className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm overflow-hidden"
+                            style={{ backgroundColor: game.team2.color }}
+                          >
+                            {game.team2.logoUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={game.team2.logoUrl} alt={game.team2.name} className="w-8 h-8 object-contain" />
+                            ) : (
+                              game.team2.abbr
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Odds Bar */}
+                      <div className="mt-4">
+                        <div className="flex items-center justify-between text-sm mb-1">
+                          <span className="font-medium">{game.team1.odds}%</span>
+                          <span className="font-medium">{game.team2.odds}%</span>
+                        </div>
+                        <div className="h-2 rounded-full overflow-hidden bg-[color:var(--surface-3)] flex">
+                          <div
+                            className="h-full transition-all"
+                            style={{
+                              width: `${game.team1.odds}%`,
+                              backgroundColor: game.team1.color,
+                            }}
+                          />
+                          <div
+                            className="h-full transition-all"
+                            style={{
+                              width: `${game.team2.odds}%`,
+                              backgroundColor: game.team2.color,
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Stats Row */}
+                      <div className="mt-3 flex items-center justify-between text-xs text-[color:var(--text-subtle)]">
+                        <div className="flex items-center gap-4">
+                          <span className="flex items-center gap-1">
+                            <Zap className="h-3 w-3 text-yellow-500" />
+                            {formatVolume(game.volumeToday)} today
+                          </span>
+                          <span className="flex items-center gap-1 text-green-500">
+                            <Activity className="h-3 w-3" />
+                            {formatVolume(game.volume10m)} / 10m
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          {game.activeBettors}
+                        </div>
+                      </div>
+
+                      {/* View Matchup Button */}
+                      <div className="mt-3">
+                        <Button
+                          size="sm"
+                          className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white md:opacity-0 md:group-hover:opacity-100 transition"
+                        >
+                          View Matchup
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Empty State */}
-            {markets.length === 0 && (
+            {!loading && !error && games.length === 0 && (
               <div className="text-center py-12">
                 <div className="text-[color:var(--text-muted)] mb-4">
-                  No markets found for this view
+                  No games found for today
                 </div>
-                <Link href="/">
-                  <Button>View Hot Markets</Button>
+                <Link href="/sports?league=nfl">
+                  <Button>Browse NFL Games</Button>
                 </Link>
               </div>
             )}
