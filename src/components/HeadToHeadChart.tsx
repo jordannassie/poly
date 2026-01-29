@@ -90,31 +90,31 @@ export function HeadToHeadChart({
         {/* Mobile: Exciting head-to-head matchup */}
         <div className="md:hidden">
           {/* Teams facing off */}
-          <div className="flex items-center justify-center gap-3 mb-4">
+          <div className="flex items-start justify-center gap-2 mb-4">
             {/* Team 1 */}
-            <div className="text-center flex-1">
-              <div className="mx-auto mb-2">
+            <div className="flex flex-col items-center flex-1 min-w-0">
+              <div className="flex justify-center mb-2">
                 <TeamBadge team={team1} size="md" />
               </div>
-              <div className="font-bold text-base text-[color:var(--text-strong)]">{team1.name}</div>
+              <div className="font-bold text-base text-[color:var(--text-strong)] text-center truncate w-full">{team1.name}</div>
               <div className="text-2xl font-bold mt-1" style={{ color: team1.color }}>
                 {team1Percent}%
               </div>
             </div>
 
             {/* VS Badge */}
-            <div className="flex flex-col items-center -mx-2">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg">
-                <span className="text-white font-black text-sm">VS</span>
+            <div className="flex flex-col items-center justify-center pt-4 flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg">
+                <span className="text-white font-black text-xs">VS</span>
               </div>
             </div>
 
             {/* Team 2 */}
-            <div className="text-center flex-1">
-              <div className="mx-auto mb-2">
+            <div className="flex flex-col items-center flex-1 min-w-0">
+              <div className="flex justify-center mb-2">
                 <TeamBadge team={team2} size="md" />
               </div>
-              <div className="font-bold text-base text-[color:var(--text-strong)]">{team2.name}</div>
+              <div className="font-bold text-base text-[color:var(--text-strong)] text-center truncate w-full">{team2.name}</div>
               <div className="text-2xl font-bold mt-1" style={{ color: team2.color }}>
                 {team2Percent}%
               </div>
