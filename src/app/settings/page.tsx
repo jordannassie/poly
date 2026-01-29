@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getDemoUser, DemoUser } from "@/lib/demoAuth";
 import { validateUsername } from "@/lib/profiles";
-import { Upload, Check, AlertCircle, Loader2 } from "lucide-react";
+import { Upload, Check, AlertCircle, Loader2, Wallet, X } from "lucide-react";
 
 const sidebarItems = [
   { id: "profile", label: "Profile" },
@@ -17,6 +17,107 @@ const sidebarItems = [
   { id: "notifications", label: "Notifications" },
   { id: "builder-codes", label: "Builder Codes" },
 ];
+
+// Phantom wallet connection stub component
+function AccountSection() {
+  const [showWalletModal, setShowWalletModal] = useState(false);
+
+  return (
+    <div className="space-y-8">
+      <h1 className="text-2xl font-bold">Account Settings</h1>
+      
+      {/* Wallet Connections */}
+      <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-6 space-y-4">
+        <h3 className="font-semibold">Wallet Connections</h3>
+        <p className="text-sm text-[color:var(--text-muted)]">
+          Connect your crypto wallet to deposit, withdraw, and verify ownership of your trading account.
+        </p>
+        
+        {/* Demo connected wallet */}
+        <div className="flex items-center justify-between p-4 rounded-lg bg-[color:var(--surface-2)]">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-600 to-blue-500 flex items-center justify-center">
+              <span className="text-white font-bold text-xs">SOL</span>
+            </div>
+            <div>
+              <div className="font-mono text-sm">8xK3...9fD2</div>
+              <div className="text-xs text-green-500">Verified • Primary</div>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" className="border-[color:var(--border-soft)]">
+            Disconnect
+          </Button>
+        </div>
+
+        {/* Connect Phantom Button */}
+        <Button 
+          onClick={() => setShowWalletModal(true)}
+          className="gap-2 bg-purple-600 hover:bg-purple-700 text-white"
+        >
+          <Wallet className="h-4 w-4" />
+          Connect Phantom Wallet
+        </Button>
+      </div>
+      
+      {/* Danger Zone */}
+      <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6 space-y-4">
+        <h3 className="font-semibold text-red-500">Danger Zone</h3>
+        <p className="text-sm text-[color:var(--text-muted)]">
+          Once you delete your account, there is no going back.
+        </p>
+        <Button variant="outline" className="border-red-500 text-red-500 hover:bg-red-500/10">
+          Delete Account
+        </Button>
+      </div>
+
+      {/* Phantom Wallet Modal (Stub) */}
+      {showWalletModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-2xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">Connect Phantom</h2>
+              <button 
+                onClick={() => setShowWalletModal(false)}
+                className="text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="text-center py-8">
+              <div className="mx-auto h-20 w-20 rounded-2xl bg-gradient-to-br from-purple-600 to-blue-500 flex items-center justify-center mb-4">
+                <Wallet className="h-10 w-10 text-white" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Coming Soon!</h3>
+              <p className="text-[color:var(--text-muted)] text-sm">
+                Phantom wallet connection will be available in the next update. 
+                You&apos;ll be able to connect your Solana wallet, verify ownership via signature, 
+                and use it for deposits and withdrawals.
+              </p>
+            </div>
+
+            {/* TODO: Implement actual Phantom wallet connection
+              * 1. Detect if Phantom is installed (window.solana)
+              * 2. Request connection: window.solana.connect()
+              * 3. Get public key: window.solana.publicKey.toString()
+              * 4. Request signature for verification message
+              * 5. Send signature to backend for verification
+              * 6. Create wallet_connection record in Supabase
+              * 7. Set as primary if first wallet
+            */}
+
+            <Button 
+              onClick={() => setShowWalletModal(false)}
+              className="w-full mt-4 bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              Got it!
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState("profile");
@@ -273,30 +374,7 @@ export default function SettingsPage() {
                 )}
 
                 {activeSection === "account" && (
-                  <div className="space-y-8">
-                    <h1 className="text-2xl font-bold">Account Settings</h1>
-                    <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-6 space-y-4">
-                      <h3 className="font-semibold">Wallet</h3>
-                      <div className="flex items-center justify-between p-4 rounded-lg bg-[color:var(--surface-2)]">
-                        <div>
-                          <div className="font-mono text-sm">0x1234...5678</div>
-                          <div className="text-xs text-[color:var(--text-muted)]">Connected</div>
-                        </div>
-                        <Button variant="outline" size="sm" className="border-[color:var(--border-soft)]">
-                          Disconnect
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6 space-y-4">
-                      <h3 className="font-semibold text-red-500">Danger Zone</h3>
-                      <p className="text-sm text-[color:var(--text-muted)]">
-                        Once you delete your account, there is no going back.
-                      </p>
-                      <Button variant="outline" className="border-red-500 text-red-500 hover:bg-red-500/10">
-                        Delete Account
-                      </Button>
-                    </div>
-                  </div>
+                  <AccountSection />
                 )}
 
                 {activeSection === "trading" && (
