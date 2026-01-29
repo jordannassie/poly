@@ -7,7 +7,6 @@ import { TopNav } from "@/components/TopNav";
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { SportsSidebar } from "@/components/SportsSidebar";
 import { Leaderboard } from "@/components/Leaderboard";
-import { UserLevel } from "@/components/UserLevel";
 import { MainFooter } from "@/components/MainFooter";
 import { FeaturedGameHero } from "@/components/home/FeaturedGameHero";
 import { Button } from "@/components/ui/button";
@@ -400,10 +399,7 @@ export default function HomeClient() {
 
         {/* Right Sidebar */}
         <aside className="w-80 flex-shrink-0 p-6 border-l border-[color:var(--border-soft)] hidden xl:block">
-          <UserLevel />
-          <div className="mt-6">
-            <Leaderboard />
-          </div>
+          <Leaderboard />
         </aside>
       </div>
 
