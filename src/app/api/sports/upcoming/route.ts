@@ -25,6 +25,10 @@ import {
   getGamesByDate, 
   getTeamLogoUrl,
   getGameId,
+  getGameStatus,
+  getAwayScore,
+  getHomeScore,
+  getGameDate,
   SUPPORTED_LEAGUES,
   type Score, 
   type Team,
@@ -88,24 +92,17 @@ function normalizeTeam(team: Team | undefined, abbr: string): NormalizedTeam {
   };
 }
 
-function normalizeGameStatus(score: Score): NormalizedGame["status"] {
-  if (score.Canceled) return "canceled";
-  if (score.IsOver) return "final";
-  if (score.IsInProgress) return "in_progress";
-  return "scheduled";
-}
-
 function normalizeGame(score: Score, teamMap: Map<string, Team>): NormalizedGame {
   return {
     gameId: getGameId(score),
-    status: normalizeGameStatus(score),
-    startTime: score.Date,
+    status: getGameStatus(score),
+    startTime: getGameDate(score),
     homeTeam: normalizeTeam(teamMap.get(score.HomeTeam), score.HomeTeam),
     awayTeam: normalizeTeam(teamMap.get(score.AwayTeam), score.AwayTeam),
-    homeScore: score.HomeScore,
-    awayScore: score.AwayScore,
+    homeScore: getHomeScore(score),
+    awayScore: getAwayScore(score),
     venue: null, // Could be fetched from Stadium endpoint if needed
-    channel: score.Channel,
+    channel: score.Channel || null,
     week: score.Week || 0,
   };
 }

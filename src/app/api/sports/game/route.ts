@@ -23,6 +23,10 @@ import {
   getGamesByDate, 
   getTeamLogoUrl,
   getGameId,
+  getGameStatus,
+  getAwayScore,
+  getHomeScore,
+  getGameDate,
   SUPPORTED_LEAGUES,
   type Score, 
   type Team,
@@ -83,13 +87,6 @@ function normalizeTeam(team: Team | undefined, abbr: string): GameTeam {
   };
 }
 
-function getGameStatus(score: Score): GameDetails["status"] {
-  if (score.Canceled) return "canceled";
-  if (score.IsOver) return "final";
-  if (score.IsInProgress) return "in_progress";
-  return "scheduled";
-}
-
 function getGameName(score: Score, league: string): string {
   // NFL-specific playoff naming
   if (league === "nfl" && score.SeasonType === 3) {
@@ -114,18 +111,18 @@ function createGameDetails(score: Score, teamMap: Map<string, Team>, league: str
   return {
     gameId: getGameId(score),
     name: getGameName(score, league),
-    startTime: score.Date,
+    startTime: getGameDate(score),
     status: getGameStatus(score),
     homeTeam: normalizeTeam(teamMap.get(score.HomeTeam), score.HomeTeam),
     awayTeam: normalizeTeam(teamMap.get(score.AwayTeam), score.AwayTeam),
-    homeScore: score.HomeScore,
-    awayScore: score.AwayScore,
+    homeScore: getHomeScore(score),
+    awayScore: getAwayScore(score),
     venue: null,
     week: score.Week || 0,
-    channel: score.Channel,
-    quarter: score.Quarter,
-    timeRemaining: score.TimeRemaining,
-    possession: score.Possession,
+    channel: score.Channel || null,
+    quarter: score.Quarter || null,
+    timeRemaining: score.TimeRemaining || null,
+    possession: score.Possession || null,
     isPlayoffs: score.SeasonType === 3,
   };
 }

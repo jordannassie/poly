@@ -15,6 +15,10 @@ import {
   getGamesByDate,
   getTeamLogoUrl,
   getGameId,
+  getGameStatus,
+  getAwayScore,
+  getHomeScore,
+  getGameDate,
   SUPPORTED_LEAGUES,
   type League,
   type Team,
@@ -58,26 +62,34 @@ export async function GET(request: NextRequest) {
       teamMap.set(team.Key, team);
     }
 
-    // Join team data to games and normalize game ID
-    const gamesWithTeams = scores.map((score: Score) => ({
-      ...score,
-      // Normalize GameKey for all leagues
-      GameKey: getGameId(score),
-      // Provide defaults for fields that may not exist in all leagues
-      Week: score.Week || 0,
-      HasStarted: score.HasStarted ?? false,
-      IsInProgress: score.IsInProgress ?? false,
-      IsOver: score.IsOver ?? false,
-      Canceled: score.Canceled ?? false,
-      AwayTeamData: teamMap.get(score.AwayTeam) ? {
-        ...teamMap.get(score.AwayTeam),
-        WikipediaLogoUrl: getTeamLogoUrl(teamMap.get(score.AwayTeam)!),
-      } : undefined,
-      HomeTeamData: teamMap.get(score.HomeTeam) ? {
-        ...teamMap.get(score.HomeTeam),
-        WikipediaLogoUrl: getTeamLogoUrl(teamMap.get(score.HomeTeam)!),
-      } : undefined,
-    }));
+    // Join team data to games and normalize fields for frontend
+    const gamesWithTeams = scores.map((score: Score) => {
+      const status = getGameStatus(score);
+      return {
+        ...score,
+        // Normalize GameKey for all leagues
+        GameKey: getGameId(score),
+        // Normalize date
+        Date: getGameDate(score),
+        // Normalize scores
+        AwayScore: getAwayScore(score),
+        HomeScore: getHomeScore(score),
+        // Provide consistent status booleans for frontend
+        Week: score.Week || 0,
+        HasStarted: status === "in_progress" || status === "final",
+        IsInProgress: status === "in_progress",
+        IsOver: status === "final",
+        Canceled: status === "canceled",
+        AwayTeamData: teamMap.get(score.AwayTeam) ? {
+          ...teamMap.get(score.AwayTeam),
+          WikipediaLogoUrl: getTeamLogoUrl(teamMap.get(score.AwayTeam)!),
+        } : undefined,
+        HomeTeamData: teamMap.get(score.HomeTeam) ? {
+          ...teamMap.get(score.HomeTeam),
+          WikipediaLogoUrl: getTeamLogoUrl(teamMap.get(score.HomeTeam)!),
+        } : undefined,
+      };
+    });
 
     console.log(`[/api/sports/games] ${league.toUpperCase()} ${date}: ${gamesWithTeams.length} games`);
 

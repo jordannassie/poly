@@ -27,6 +27,10 @@ import {
   getGamesByDate, 
   getTeamLogoUrl,
   getGameId,
+  getGameStatus,
+  getAwayScore,
+  getHomeScore,
+  getGameDate,
   SUPPORTED_LEAGUES,
   type Score, 
   type Team,
@@ -91,17 +95,10 @@ function normalizeTeam(team: Team | undefined, abbr: string): FeaturedTeam {
   };
 }
 
-function getGameStatus(score: Score): FeaturedGame["status"] {
-  if (score.Canceled) return "canceled";
-  if (score.IsOver) return "final";
-  if (score.IsInProgress) return "in_progress";
-  return "scheduled";
-}
-
 function isChampionshipGame(score: Score, league: string): boolean {
   // NFL: Super Bowl is SeasonType 3 and Week 4
   if (league === "nfl") {
-    return score.Week >= 4 && score.SeasonType === 3;
+    return (score.Week || 0) >= 4 && score.SeasonType === 3;
   }
   // Other leagues: no special championship detection for now
   return false;
@@ -119,7 +116,7 @@ function getGameName(score: Score, league: string, isChampionship: boolean): str
         default: return "Playoff Game";
       }
     }
-    return `Week ${score.Week}`;
+    return `Week ${score.Week || 0}`;
   }
   
   // Generic naming for other leagues
@@ -131,15 +128,15 @@ function createFeaturedGame(score: Score, teamMap: Map<string, Team>, league: st
   return {
     gameId: getGameId(score),
     name: getGameName(score, league, isChampionship),
-    startTime: score.Date,
+    startTime: getGameDate(score),
     status: getGameStatus(score),
     homeTeam: normalizeTeam(teamMap.get(score.HomeTeam), score.HomeTeam),
     awayTeam: normalizeTeam(teamMap.get(score.AwayTeam), score.AwayTeam),
-    homeScore: score.HomeScore,
-    awayScore: score.AwayScore,
+    homeScore: getHomeScore(score),
+    awayScore: getAwayScore(score),
     venue: null,
     week: score.Week || 0,
-    channel: score.Channel,
+    channel: score.Channel || null,
     isChampionship,
   };
 }
@@ -200,13 +197,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Filter to upcoming/live games only
-    const upcomingGames = allScores.filter(
-      (s) => !s.IsOver && !s.Canceled
-    );
+    const upcomingGames = allScores.filter((s) => {
+      const status = getGameStatus(s);
+      return status === "scheduled" || status === "in_progress";
+    });
 
     // Sort by start time
     upcomingGames.sort((a, b) => 
-      new Date(a.Date).getTime() - new Date(b.Date).getTime()
+      new Date(getGameDate(a)).getTime() - new Date(getGameDate(b)).getTime()
     );
 
     let response: FeaturedResponse;

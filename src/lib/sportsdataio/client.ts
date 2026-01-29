@@ -139,62 +139,119 @@ export function getGameId(score: Score): string {
 }
 
 export interface Score {
-  // NFL uses GameKey, NBA/MLB/NHL use GameID
+  // Game identifiers - NFL uses GameKey, NBA/MLB/NHL use GameID
   GameKey?: string;
   GameID?: number;
-  SeasonType: number;
-  Season: number;
-  Week: number;
+  
+  // Common fields across all leagues
+  SeasonType?: number;
+  Season?: number;
+  Week?: number;
   Date: string;
+  DateTime?: string; // NBA/NHL use DateTime
+  Day?: string; // Some leagues use Day
   AwayTeam: string;
   HomeTeam: string;
-  AwayScore: number | null;
-  HomeScore: number | null;
-  Channel: string | null;
-  PointSpread: number | null;
-  OverUnder: number | null;
-  Quarter: string | null;
-  TimeRemaining: string | null;
-  Possession: string | null;
-  Down: number | null;
-  Distance: number | null;
-  YardLine: number | null;
-  YardLineTerritory: string | null;
-  RedZone: boolean | null;
-  AwayScoreQuarter1: number | null;
-  AwayScoreQuarter2: number | null;
-  AwayScoreQuarter3: number | null;
-  AwayScoreQuarter4: number | null;
-  AwayScoreOvertime: number | null;
-  HomeScoreQuarter1: number | null;
-  HomeScoreQuarter2: number | null;
-  HomeScoreQuarter3: number | null;
-  HomeScoreQuarter4: number | null;
-  HomeScoreOvertime: number | null;
-  HasStarted: boolean;
-  IsInProgress: boolean;
-  IsOver: boolean;
-  Has1stQuarterStarted: boolean;
-  Has2ndQuarterStarted: boolean;
-  Has3rdQuarterStarted: boolean;
-  Has4thQuarterStarted: boolean;
-  IsOvertime: boolean;
-  DownAndDistance: string | null;
-  QuarterDescription: string | null;
-  StadiumID: number | null;
-  LastUpdated: string | null;
-  GeoLat: number | null;
-  GeoLong: number | null;
-  ForecastTempLow: number | null;
-  ForecastTempHigh: number | null;
-  ForecastDescription: string | null;
-  ForecastWindChill: number | null;
-  ForecastWindSpeed: number | null;
-  AwayTeamMoneyLine: number | null;
-  HomeTeamMoneyLine: number | null;
+  AwayScore?: number | null;
+  HomeScore?: number | null;
+  AwayTeamScore?: number | null; // NBA/NHL use this
+  HomeTeamScore?: number | null; // NBA/NHL use this
+  Channel?: string | null;
+  
+  // Status fields - varies by league
+  Status?: string; // NBA/NHL use Status: "Scheduled", "InProgress", "Final", etc.
+  IsClosed?: boolean; // NBA/NHL use IsClosed instead of IsOver
+  HasStarted?: boolean;
+  IsInProgress?: boolean;
+  IsOver?: boolean;
   Canceled?: boolean;
   Closed?: boolean;
-  LastPlay: string | null;
+  
+  // NFL-specific fields (optional for other leagues)
+  PointSpread?: number | null;
+  OverUnder?: number | null;
+  Quarter?: string | null;
+  TimeRemaining?: string | null;
+  Possession?: string | null;
+  Down?: number | null;
+  Distance?: number | null;
+  YardLine?: number | null;
+  YardLineTerritory?: string | null;
+  RedZone?: boolean | null;
+  AwayScoreQuarter1?: number | null;
+  AwayScoreQuarter2?: number | null;
+  AwayScoreQuarter3?: number | null;
+  AwayScoreQuarter4?: number | null;
+  AwayScoreOvertime?: number | null;
+  HomeScoreQuarter1?: number | null;
+  HomeScoreQuarter2?: number | null;
+  HomeScoreQuarter3?: number | null;
+  HomeScoreQuarter4?: number | null;
+  HomeScoreOvertime?: number | null;
+  Has1stQuarterStarted?: boolean;
+  Has2ndQuarterStarted?: boolean;
+  Has3rdQuarterStarted?: boolean;
+  Has4thQuarterStarted?: boolean;
+  IsOvertime?: boolean;
+  DownAndDistance?: string | null;
+  QuarterDescription?: string | null;
+  StadiumID?: number | null;
+  LastUpdated?: string | null;
+  GeoLat?: number | null;
+  GeoLong?: number | null;
+  ForecastTempLow?: number | null;
+  ForecastTempHigh?: number | null;
+  ForecastDescription?: string | null;
+  ForecastWindChill?: number | null;
+  ForecastWindSpeed?: number | null;
+  AwayTeamMoneyLine?: number | null;
+  HomeTeamMoneyLine?: number | null;
+  LastPlay?: string | null;
+}
+
+/**
+ * Normalize game status across all leagues
+ * NFL uses IsOver/IsInProgress/Canceled booleans
+ * NBA/NHL use Status string: "Scheduled", "InProgress", "Final", "Canceled", "Postponed"
+ */
+export function getGameStatus(score: Score): "scheduled" | "in_progress" | "final" | "postponed" | "canceled" {
+  // Check Status string first (NBA/NHL)
+  if (score.Status) {
+    const status = score.Status.toLowerCase();
+    if (status === "canceled") return "canceled";
+    if (status === "postponed") return "postponed";
+    if (status === "final" || status === "f" || status === "f/ot") return "final";
+    if (status === "inprogress" || status === "in progress") return "in_progress";
+    if (status === "scheduled") return "scheduled";
+  }
+  
+  // Check boolean fields (NFL/MLB)
+  if (score.Canceled) return "canceled";
+  if (score.IsOver || score.IsClosed) return "final";
+  if (score.IsInProgress) return "in_progress";
+  
+  return "scheduled";
+}
+
+/**
+ * Get the normalized away team score
+ */
+export function getAwayScore(score: Score): number | null {
+  return score.AwayScore ?? score.AwayTeamScore ?? null;
+}
+
+/**
+ * Get the normalized home team score
+ */
+export function getHomeScore(score: Score): number | null {
+  return score.HomeScore ?? score.HomeTeamScore ?? null;
+}
+
+/**
+ * Get the normalized game date
+ */
+export function getGameDate(score: Score): string {
+  return score.DateTime || score.Date || score.Day || "";
 }
 
 export interface GameWithTeams extends Score {
