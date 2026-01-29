@@ -15,7 +15,6 @@ const sidebarItems = [
   { id: "account", label: "Account" },
   { id: "trading", label: "Trading" },
   { id: "notifications", label: "Notifications" },
-  { id: "builder-codes", label: "Builder Codes" },
 ];
 
 // Phantom wallet connection stub component
@@ -434,19 +433,6 @@ export default function SettingsPage() {
                   </div>
                 )}
 
-                {activeSection === "builder-codes" && (
-                  <div className="space-y-8">
-                    <h1 className="text-2xl font-bold">Builder Codes</h1>
-                    <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-6 space-y-4">
-                      <p className="text-[color:var(--text-muted)]">
-                        Generate API keys and referral codes for building on ProvePicks.
-                      </p>
-                      <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                        Generate API Key
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </>
             )}
           </div>
