@@ -58,6 +58,9 @@ export const categoryTabs: CategoryConfig[] = [
   { label: "Starting Soon", href: "/?view=starting-soon", enabled: true },
   { label: "Big Volume", href: "/?view=big-volume", enabled: true },
   
+  // NFL Schedule (cached games from API-Sports)
+  { label: "NFL Schedule", href: "/markets/nfl", enabled: true, isSport: true },
+  
   // Enabled sports
   { label: "NFL", href: "/sports?league=nfl", enabled: true, isSport: true },
   { label: "NBA", href: "/sports?league=nba", enabled: true, isSport: true },

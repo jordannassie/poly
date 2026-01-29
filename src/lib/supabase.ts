@@ -61,3 +61,18 @@ export async function signOut() {
     throw error;
   }
 }
+
+// Get untyped client for tables not in Database type definitions
+// Use this for api_sports_nfl_teams, api_sports_nfl_games, etc.
+let _untypedSupabase: SupabaseClient | null = null;
+
+export const getUntypedSupabaseClient = (): SupabaseClient | null => {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn('Supabase environment variables not configured');
+    return null;
+  }
+  if (!_untypedSupabase) {
+    _untypedSupabase = createClient(supabaseUrl, supabaseAnonKey);
+  }
+  return _untypedSupabase;
+};
