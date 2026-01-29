@@ -17,9 +17,133 @@ const sidebarItems = [
   { id: "notifications", label: "Notifications" },
 ];
 
-// Phantom wallet connection stub component
+// Phantom wallet types
+interface PhantomProvider {
+  isPhantom?: boolean;
+  connect: () => Promise<{ publicKey: { toString: () => string } }>;
+  disconnect: () => Promise<void>;
+  signMessage: (message: Uint8Array, encoding: string) => Promise<{ signature: Uint8Array }>;
+  publicKey?: { toString: () => string };
+  isConnected?: boolean;
+}
+
+declare global {
+  interface Window {
+    solana?: PhantomProvider;
+  }
+}
+
+// Phantom wallet connection component
 function AccountSection() {
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [walletStatus, setWalletStatus] = useState<"idle" | "connecting" | "signing" | "verifying" | "success" | "error">("idle");
+  const [walletError, setWalletError] = useState<string | null>(null);
+  const [connectedWallet, setConnectedWallet] = useState<string | null>(null);
+  const [hasPhantom, setHasPhantom] = useState<boolean | null>(null);
+
+  // Check for Phantom on mount
+  useEffect(() => {
+    const checkPhantom = () => {
+      const isPhantom = window.solana?.isPhantom;
+      setHasPhantom(!!isPhantom);
+    };
+    
+    // Wait for window to load
+    if (document.readyState === "complete") {
+      checkPhantom();
+    } else {
+      window.addEventListener("load", checkPhantom);
+      return () => window.removeEventListener("load", checkPhantom);
+    }
+  }, []);
+
+  const handleConnectWallet = async () => {
+    setWalletError(null);
+    setWalletStatus("connecting");
+
+    try {
+      // Check if Phantom is installed
+      const provider = window.solana;
+      if (!provider?.isPhantom) {
+        setWalletError("Phantom wallet not detected. Please install it first.");
+        setWalletStatus("error");
+        return;
+      }
+
+      // Connect to Phantom
+      const response = await provider.connect();
+      const walletAddress = response.publicKey.toString();
+
+      // Get nonce from server
+      setWalletStatus("signing");
+      const nonceRes = await fetch("/api/wallet/nonce", { method: "POST" });
+      const nonceData = await nonceRes.json();
+
+      if (!nonceRes.ok) {
+        throw new Error(nonceData.error || "Failed to get nonce");
+      }
+
+      // Sign the message
+      const message = nonceData.message;
+      const encodedMessage = new TextEncoder().encode(message);
+      const signedMessage = await provider.signMessage(encodedMessage, "utf8");
+
+      // Convert signature to base58
+      const signatureArray = Array.from(signedMessage.signature);
+      const bs58Chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+      let signatureBase58 = "";
+      let num = BigInt(0);
+      for (const byte of signatureArray) {
+        num = num * BigInt(256) + BigInt(byte);
+      }
+      while (num > 0) {
+        signatureBase58 = bs58Chars[Number(num % BigInt(58))] + signatureBase58;
+        num = num / BigInt(58);
+      }
+      // Add leading zeros for leading zero bytes
+      for (const byte of signatureArray) {
+        if (byte === 0) signatureBase58 = "1" + signatureBase58;
+        else break;
+      }
+
+      // Verify signature with server
+      setWalletStatus("verifying");
+      const verifyRes = await fetch("/api/wallet/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          walletAddress,
+          signature: signatureBase58,
+          message,
+        }),
+      });
+
+      const verifyData = await verifyRes.json();
+
+      if (!verifyRes.ok) {
+        throw new Error(verifyData.error || "Failed to verify signature");
+      }
+
+      // Success!
+      setConnectedWallet(walletAddress);
+      setWalletStatus("success");
+      
+      // Close modal after delay
+      setTimeout(() => {
+        setShowWalletModal(false);
+        setWalletStatus("idle");
+      }, 2000);
+
+    } catch (error) {
+      console.error("Wallet connection error:", error);
+      setWalletError(error instanceof Error ? error.message : "Connection failed");
+      setWalletStatus("error");
+    }
+  };
+
+  const formatAddress = (address: string) => {
+    return `${address.slice(0, 4)}...${address.slice(-4)}`;
+  };
 
   return (
     <div className="space-y-8">
@@ -32,21 +156,23 @@ function AccountSection() {
           Connect your crypto wallet to deposit, withdraw, and verify ownership of your trading account.
         </p>
         
-        {/* Demo connected wallet */}
-        <div className="flex items-center justify-between p-4 rounded-lg bg-[color:var(--surface-2)]">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-600 to-blue-500 flex items-center justify-center">
-              <span className="text-white font-bold text-xs">SOL</span>
+        {/* Show connected wallet if exists */}
+        {connectedWallet && (
+          <div className="flex items-center justify-between p-4 rounded-lg bg-[color:var(--surface-2)]">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-600 to-blue-500 flex items-center justify-center">
+                <span className="text-white font-bold text-xs">SOL</span>
+              </div>
+              <div>
+                <div className="font-mono text-sm">{formatAddress(connectedWallet)}</div>
+                <div className="text-xs text-green-500">Verified • Primary</div>
+              </div>
             </div>
-            <div>
-              <div className="font-mono text-sm">8xK3...9fD2</div>
-              <div className="text-xs text-green-500">Verified • Primary</div>
-            </div>
+            <Button variant="outline" size="sm" className="border-[color:var(--border-soft)]">
+              Disconnect
+            </Button>
           </div>
-          <Button variant="outline" size="sm" className="border-[color:var(--border-soft)]">
-            Disconnect
-          </Button>
-        </div>
+        )}
 
         {/* Connect Phantom Button */}
         <Button 
@@ -54,7 +180,7 @@ function AccountSection() {
           className="gap-2 bg-purple-600 hover:bg-purple-700 text-white"
         >
           <Wallet className="h-4 w-4" />
-          Connect Phantom Wallet
+          {connectedWallet ? "Connect Another Wallet" : "Connect Phantom Wallet"}
         </Button>
       </div>
       
@@ -69,48 +195,136 @@ function AccountSection() {
         </Button>
       </div>
 
-      {/* Phantom Wallet Modal (Stub) */}
+      {/* Phantom Wallet Modal */}
       {showWalletModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-2xl p-6 max-w-md w-full mx-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold">Connect Phantom</h2>
               <button 
-                onClick={() => setShowWalletModal(false)}
+                onClick={() => {
+                  setShowWalletModal(false);
+                  setWalletStatus("idle");
+                  setWalletError(null);
+                }}
                 className="text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
             
-            <div className="text-center py-8">
+            <div className="text-center py-6">
               <div className="mx-auto h-20 w-20 rounded-2xl bg-gradient-to-br from-purple-600 to-blue-500 flex items-center justify-center mb-4">
                 <Wallet className="h-10 w-10 text-white" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">Coming Soon!</h3>
-              <p className="text-[color:var(--text-muted)] text-sm">
-                Phantom wallet connection will be available in the next update. 
-                You&apos;ll be able to connect your Solana wallet, verify ownership via signature, 
-                and use it for deposits and withdrawals.
-              </p>
+              
+              {/* Phantom not installed */}
+              {hasPhantom === false && (
+                <>
+                  <h3 className="text-lg font-semibold mb-2">Phantom Not Detected</h3>
+                  <p className="text-[color:var(--text-muted)] text-sm mb-4">
+                    Please install Phantom wallet to continue.
+                  </p>
+                  <a 
+                    href="https://phantom.app/" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="inline-block px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg"
+                  >
+                    Install Phantom
+                  </a>
+                </>
+              )}
+
+              {/* Idle state - ready to connect */}
+              {hasPhantom !== false && walletStatus === "idle" && (
+                <>
+                  <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
+                  <p className="text-[color:var(--text-muted)] text-sm mb-4">
+                    Connect your Phantom wallet and sign a message to verify ownership.
+                  </p>
+                  <Button 
+                    onClick={handleConnectWallet}
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    Connect Phantom
+                  </Button>
+                </>
+              )}
+
+              {/* Connecting state */}
+              {walletStatus === "connecting" && (
+                <>
+                  <h3 className="text-lg font-semibold mb-2">Connecting...</h3>
+                  <p className="text-[color:var(--text-muted)] text-sm">
+                    Please approve the connection in Phantom.
+                  </p>
+                  <div className="mt-4">
+                    <div className="animate-spin h-8 w-8 border-4 border-purple-600 border-t-transparent rounded-full mx-auto"></div>
+                  </div>
+                </>
+              )}
+
+              {/* Signing state */}
+              {walletStatus === "signing" && (
+                <>
+                  <h3 className="text-lg font-semibold mb-2">Sign Message</h3>
+                  <p className="text-[color:var(--text-muted)] text-sm">
+                    Please sign the verification message in Phantom.
+                  </p>
+                  <div className="mt-4">
+                    <div className="animate-spin h-8 w-8 border-4 border-purple-600 border-t-transparent rounded-full mx-auto"></div>
+                  </div>
+                </>
+              )}
+
+              {/* Verifying state */}
+              {walletStatus === "verifying" && (
+                <>
+                  <h3 className="text-lg font-semibold mb-2">Verifying...</h3>
+                  <p className="text-[color:var(--text-muted)] text-sm">
+                    Verifying your signature with the server.
+                  </p>
+                  <div className="mt-4">
+                    <div className="animate-spin h-8 w-8 border-4 border-purple-600 border-t-transparent rounded-full mx-auto"></div>
+                  </div>
+                </>
+              )}
+
+              {/* Success state */}
+              {walletStatus === "success" && (
+                <>
+                  <h3 className="text-lg font-semibold mb-2 text-green-500">Connected!</h3>
+                  <p className="text-[color:var(--text-muted)] text-sm">
+                    Your wallet has been successfully connected.
+                  </p>
+                  <div className="mt-4 text-green-500">
+                    <svg className="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                </>
+              )}
+
+              {/* Error state */}
+              {walletStatus === "error" && (
+                <>
+                  <h3 className="text-lg font-semibold mb-2 text-red-500">Connection Failed</h3>
+                  <p className="text-red-400 text-sm mb-4">
+                    {walletError}
+                  </p>
+                  <Button 
+                    onClick={() => {
+                      setWalletStatus("idle");
+                      setWalletError(null);
+                    }}
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    Try Again
+                  </Button>
+                </>
+              )}
             </div>
-
-            {/* TODO: Implement actual Phantom wallet connection
-              * 1. Detect if Phantom is installed (window.solana)
-              * 2. Request connection: window.solana.connect()
-              * 3. Get public key: window.solana.publicKey.toString()
-              * 4. Request signature for verification message
-              * 5. Send signature to backend for verification
-              * 6. Create wallet_connection record in Supabase
-              * 7. Set as primary if first wallet
-            */}
-
-            <Button 
-              onClick={() => setShowWalletModal(false)}
-              className="w-full mt-4 bg-purple-600 hover:bg-purple-700 text-white"
-            >
-              Got it!
-            </Button>
           </div>
         </div>
       )}
