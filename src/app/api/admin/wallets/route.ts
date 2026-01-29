@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         chain,
         wallet_address,
         verified,
-        primary,
+        is_primary,
         created_at,
         last_seen_at
       `)
