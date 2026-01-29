@@ -38,6 +38,7 @@ type Props = {
 
 // Profile data from API
 interface ProfileData {
+  id: string;
   username: string;
   display_name: string | null;
   bio: string | null;
@@ -236,6 +237,12 @@ export default function PublicProfilePage({ params }: Props) {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  
+  // Follow state
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
     // Check if this is the current user's profile
@@ -290,6 +297,67 @@ export default function PublicProfilePage({ params }: Props) {
     };
     fetchProfile();
   }, [username]);
+
+  // Fetch follow status
+  useEffect(() => {
+    if (!profileData?.id) return;
+    
+    const fetchFollowStatus = async () => {
+      try {
+        const res = await fetch(`/api/follow?user_id=${profileData.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setFollowersCount(data.followers_count || 0);
+          setFollowingCount(data.following_count || 0);
+          setIsFollowing(data.is_following || false);
+        }
+      } catch {
+        // Ignore errors
+      }
+    };
+    fetchFollowStatus();
+  }, [profileData?.id]);
+
+  // Handle follow/unfollow
+  const handleFollow = async () => {
+    if (!profileData?.id || followLoading) return;
+    
+    setFollowLoading(true);
+    try {
+      if (isFollowing) {
+        // Unfollow
+        const res = await fetch("/api/follow", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: profileData.id }),
+        });
+        if (res.ok) {
+          setIsFollowing(false);
+          setFollowersCount(prev => Math.max(0, prev - 1));
+        }
+      } else {
+        // Follow
+        const res = await fetch("/api/follow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: profileData.id }),
+        });
+        if (res.ok) {
+          setIsFollowing(true);
+          setFollowersCount(prev => prev + 1);
+        } else {
+          const data = await res.json();
+          if (data.error === "AUTH_REQUIRED") {
+            alert("Please sign in to follow users");
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Follow error:", error);
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   // Build profile object - merge real data with demo stats
   const profile = {
@@ -425,8 +493,16 @@ export default function PublicProfilePage({ params }: Props) {
                         <Link href="/settings">Edit Profile</Link>
                       </Button>
                     ) : (
-                      <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
-                        Follow
+                      <Button 
+                        size="sm" 
+                        className={isFollowing 
+                          ? "bg-[color:var(--surface-2)] hover:bg-red-500/20 text-[color:var(--text-strong)] hover:text-red-500 border border-[color:var(--border-soft)]" 
+                          : "bg-blue-600 hover:bg-blue-700 text-white"
+                        }
+                        onClick={handleFollow}
+                        disabled={followLoading}
+                      >
+                        {followLoading ? "..." : isFollowing ? "Following" : "Follow"}
                       </Button>
                     )}
                   </div>
@@ -459,6 +535,18 @@ export default function PublicProfilePage({ params }: Props) {
               <div className="flex items-center gap-1">
                 <Flame className="h-4 w-4 text-orange-500" />
                 {profile.stats.streak} win streak
+              </div>
+            </div>
+            
+            {/* Follower Stats */}
+            <div className="flex items-center gap-4 mt-4 pt-4 border-t border-[color:var(--border-soft)]">
+              <div className="text-center">
+                <div className="font-bold text-lg">{followersCount}</div>
+                <div className="text-xs text-[color:var(--text-muted)]">Followers</div>
+              </div>
+              <div className="text-center">
+                <div className="font-bold text-lg">{followingCount}</div>
+                <div className="text-xs text-[color:var(--text-muted)]">Following</div>
               </div>
             </div>
           </CardContent>
