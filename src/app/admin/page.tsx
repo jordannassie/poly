@@ -11,7 +11,8 @@ import {
   CheckCircle,
   Clock,
   Activity,
-  Loader2
+  Loader2,
+  Mail
 } from "lucide-react";
 import Link from "next/link";
 
@@ -20,6 +21,7 @@ interface DashboardData {
   wallets: { total: number };
   markets: { open: number; live: number; settled: number };
   payouts: { queued: number; failed: number };
+  waitlist: { total: number };
   recentLogs: Array<{
     id: string;
     event_type: string;
@@ -39,12 +41,13 @@ export default function AdminDashboard() {
     async function fetchData() {
       try {
         // Fetch all data in parallel
-        const [usersRes, walletsRes, marketsRes, payoutsRes, logsRes] = await Promise.all([
+        const [usersRes, walletsRes, marketsRes, payoutsRes, logsRes, waitlistRes] = await Promise.all([
           fetch("/api/admin/users"),
           fetch("/api/admin/wallets"),
           fetch("/api/admin/markets"),
           fetch("/api/admin/payouts"),
           fetch("/api/admin/logs?limit=5"),
+          fetch("/api/admin/waitlist"),
         ]);
 
         // Check for service key error
@@ -57,12 +60,13 @@ export default function AdminDashboard() {
           }
         }
 
-        const [users, wallets, markets, payouts, logs] = await Promise.all([
+        const [users, wallets, markets, payouts, logs, waitlist] = await Promise.all([
           usersRes.json(),
           walletsRes.json(),
           marketsRes.json(),
           payoutsRes.json(),
           logsRes.json(),
+          waitlistRes.ok ? waitlistRes.json() : { total: 0 },
         ]);
 
         setData({
@@ -70,6 +74,7 @@ export default function AdminDashboard() {
           wallets: { total: wallets.wallets?.length || 0 },
           markets: markets.counts || { open: 0, live: 0, settled: 0 },
           payouts: payouts.counts || { queued: 0, failed: 0 },
+          waitlist: { total: waitlist.total || 0 },
           recentLogs: logs.logs || [],
         });
       } catch (err) {
@@ -151,7 +156,7 @@ export default function AdminDashboard() {
       )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <Link href="/admin/users">
           <Card className="bg-[#161b22] border-[#30363d] hover:border-blue-500/50 transition cursor-pointer">
             <CardContent className="p-6">
@@ -222,6 +227,22 @@ export default function AdminDashboard() {
                 </div>
                 <div className="h-12 w-12 rounded-lg bg-yellow-500/20 flex items-center justify-center">
                   <CreditCard className="h-6 w-6 text-yellow-500" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/admin/waitlist">
+          <Card className="bg-[#161b22] border-[#30363d] hover:border-orange-500/50 transition cursor-pointer">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm">Waitlist Signups</p>
+                  <p className="text-3xl font-bold text-white">{data?.waitlist.total.toLocaleString() || 0}</p>
+                </div>
+                <div className="h-12 w-12 rounded-lg bg-orange-500/20 flex items-center justify-center">
+                  <Mail className="h-6 w-6 text-orange-500" />
                 </div>
               </div>
             </CardContent>

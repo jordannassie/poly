@@ -98,10 +98,18 @@ export function CodeGate({ children }: CodeGateProps) {
     }
   };
 
-  const handleEmailSubmit = (e: React.FormEvent) => {
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (email && email.includes("@")) {
-      // TODO: Send to backend/email service
+      try {
+        await fetch("/api/waitlist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+      } catch {
+        // Silently continue even if API fails
+      }
       setEmailSubmitted(true);
     }
   };
