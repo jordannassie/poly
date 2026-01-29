@@ -150,15 +150,18 @@ export async function POST(request: NextRequest) {
 
       userId = newUser.user.id;
 
-      // Create profile for new user
+      // Create profile for new user with wallet-specific defaults
       const username = `wallet_${walletPrefix.toLowerCase()}`;
+      const displayName = `Trader ${walletPrefix.slice(0, 4)}…${walletSuffix.slice(-4)}`;
       const { error: profileError } = await adminClient
         .from("profiles")
         .upsert({
           id: userId,
           username: username,
-          display_name: `Wallet ${walletPrefix}...${walletSuffix}`,
+          display_name: displayName,
           is_public: true,
+          auth_provider: "wallet",
+          email_visible: false,
         }, {
           onConflict: "id",
         });

@@ -239,7 +239,16 @@ export default function PublicProfilePage({ params }: Props) {
         {/* Profile Header Card */}
         <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] overflow-hidden mb-6">
           {/* Banner */}
-          <div className="bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 h-32 relative group">
+          <div className="h-32 relative group overflow-hidden">
+            {profile.bannerUrl ? (
+              <img 
+                src={profile.bannerUrl} 
+                alt="Profile banner" 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400" />
+            )}
             <div className="absolute inset-0 bg-black/20" />
             {/* Rank Badge */}
             <div className="absolute top-4 right-4 bg-black/40 backdrop-blur-sm rounded-full px-3 py-1 flex items-center gap-2">
@@ -259,11 +268,19 @@ export default function PublicProfilePage({ params }: Props) {
             <div className="flex flex-col sm:flex-row gap-4">
               {/* Avatar with Edit Button */}
               <div className="relative group">
-                <div className="h-32 w-32 rounded-full border-4 border-[color:var(--surface)] bg-gradient-to-br from-purple-500 via-pink-500 to-yellow-500 flex items-center justify-center shadow-xl">
-                  <span className="text-4xl font-bold text-white">
-                    {profile.displayName.split(" ").map(n => n[0]).join("")}
-                  </span>
-                </div>
+                {profile.avatarUrl ? (
+                  <img 
+                    src={profile.avatarUrl} 
+                    alt={profile.displayName}
+                    className="h-32 w-32 rounded-full border-4 border-[color:var(--surface)] object-cover shadow-xl"
+                  />
+                ) : (
+                  <div className="h-32 w-32 rounded-full border-4 border-[color:var(--surface)] bg-gradient-to-br from-purple-500 via-pink-500 to-yellow-500 flex items-center justify-center shadow-xl">
+                    <span className="text-4xl font-bold text-white">
+                      {(profile.displayName || profile.username || "U").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+                    </span>
+                  </div>
+                )}
                 {/* Online indicator */}
                 <div className="absolute bottom-2 right-2 h-5 w-5 rounded-full bg-green-500 border-4 border-[color:var(--surface)]" />
                 {/* Edit Photo Button */}
@@ -278,7 +295,7 @@ export default function PublicProfilePage({ params }: Props) {
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h1 className="text-2xl font-bold">{profile.displayName}</h1>
+                      <h1 className="text-2xl font-bold">{profile.displayName || `@${profile.username}`}</h1>
                       {profile.isVerified && (
                         <CheckCircle className="h-5 w-5 text-blue-500 fill-blue-500" />
                       )}

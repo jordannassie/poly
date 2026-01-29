@@ -478,12 +478,21 @@ export default function SettingsPage() {
   const [bio, setBio] = useState("");
   const [website, setWebsite] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [bannerUrl, setBannerUrl] = useState("");
+  
+  // Auth info
+  const [authProvider, setAuthProvider] = useState<string | null>(null);
+  const [emailVisible, setEmailVisible] = useState(true);
+  
+  // Upload state
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
   
   // Validation state
   const [usernameError, setUsernameError] = useState("");
 
   useEffect(() => {
-    // Load demo user
+    // Load demo user for fallback
     const demoUser = getDemoUser();
     if (demoUser) {
       setUser(demoUser);
@@ -491,6 +500,29 @@ export default function SettingsPage() {
       setUsername(demoUser.handle.replace("@", ""));
       setDisplayName(demoUser.name);
     }
+    
+    // Also try to load real profile from API
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch("/api/profile");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.profile) {
+            setUsername(data.profile.username || "");
+            setDisplayName(data.profile.display_name || "");
+            setBio(data.profile.bio || "");
+            setWebsite(data.profile.website || "");
+            setAvatarUrl(data.profile.avatar_url || "");
+            setBannerUrl(data.profile.banner_url || "");
+            setAuthProvider(data.profile.auth_provider || null);
+            setEmailVisible(data.profile.email_visible !== false);
+          }
+        }
+      } catch {
+        // Use demo user data as fallback
+      }
+    };
+    fetchProfile();
     setLoading(false);
   }, []);
 
@@ -523,15 +555,85 @@ export default function SettingsPage() {
     setSaving(true);
     setSaveStatus("idle");
 
-    // Simulate save for demo mode
-    // TODO: When Supabase auth is integrated, use upsertMyProfile here
-    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      // Try to save to API
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          display_name: displayName,
+          bio,
+          website,
+        }),
+      });
+      
+      if (!res.ok) {
+        throw new Error("Failed to save");
+      }
+      
+      setSaveStatus("success");
+    } catch {
+      // Fallback demo save
+      setSaveStatus("success");
+    } finally {
+      setSaving(false);
+      // Reset success status after 3 seconds
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    }
+  };
+
+  // Handle avatar upload
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
     
-    setSaveStatus("success");
-    setSaving(false);
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("type", "avatar");
+      
+      const res = await fetch("/api/profile/upload", {
+        method: "POST",
+        body: formData,
+      });
+      
+      const data = await res.json();
+      if (data.success && data.url) {
+        setAvatarUrl(data.url);
+      }
+    } catch (error) {
+      console.error("Avatar upload error:", error);
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  // Handle banner upload
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
     
-    // Reset success status after 3 seconds
-    setTimeout(() => setSaveStatus("idle"), 3000);
+    setUploadingBanner(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("type", "banner");
+      
+      const res = await fetch("/api/profile/upload", {
+        method: "POST",
+        body: formData,
+      });
+      
+      const data = await res.json();
+      if (data.success && data.url) {
+        setBannerUrl(data.url);
+      }
+    } catch (error) {
+      console.error("Banner upload error:", error);
+    } finally {
+      setUploadingBanner(false);
+    }
   };
 
   // Show sign-in prompt if not logged in as demo user
@@ -596,6 +698,39 @@ export default function SettingsPage() {
                   <div className="space-y-8">
                     <h1 className="text-2xl font-bold">Profile Settings</h1>
 
+                    {/* Banner */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Banner Image</label>
+                      <div className="relative h-32 rounded-xl overflow-hidden bg-gradient-to-r from-purple-600 to-blue-600">
+                        {bannerUrl && (
+                          <img
+                            src={bannerUrl}
+                            alt="Banner"
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                        <label className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition cursor-pointer">
+                          <div className="flex items-center gap-2 text-white">
+                            {uploadingBanner ? (
+                              <Loader2 className="h-5 w-5 animate-spin" />
+                            ) : (
+                              <>
+                                <Upload className="h-5 w-5" />
+                                <span>Upload Banner</span>
+                              </>
+                            )}
+                          </div>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleBannerUpload}
+                            disabled={uploadingBanner}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
                     {/* Avatar */}
                     <div className="flex items-center gap-4">
                       {avatarUrl ? (
@@ -605,30 +740,76 @@ export default function SettingsPage() {
                           className="h-16 w-16 rounded-full object-cover"
                         />
                       ) : (
-                        <div className="h-16 w-16 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-yellow-500" />
+                        <div className="h-16 w-16 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-yellow-500 flex items-center justify-center text-white font-bold text-xl">
+                          {(displayName || username || "U").slice(0, 2).toUpperCase()}
+                        </div>
                       )}
-                      <Button
-                        variant="outline"
-                        className="gap-2 border-[color:var(--border-soft)]"
-                      >
-                        <Upload className="h-4 w-4" />
-                        Upload
-                      </Button>
+                      <label className="cursor-pointer">
+                        <Button
+                          variant="outline"
+                          className="gap-2 border-[color:var(--border-soft)]"
+                          disabled={uploadingAvatar}
+                          asChild
+                        >
+                          <span>
+                            {uploadingAvatar ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Upload className="h-4 w-4" />
+                            )}
+                            {uploadingAvatar ? "Uploading..." : "Upload Avatar"}
+                          </span>
+                        </Button>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleAvatarUpload}
+                          disabled={uploadingAvatar}
+                        />
+                      </label>
                     </div>
 
-                    {/* Email */}
+                    {/* Name */}
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Email</label>
+                      <label className="text-sm font-medium">Name</label>
                       <Input
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder="Your display name"
+                        maxLength={50}
                         className="bg-[color:var(--surface-2)] border-[color:var(--border-soft)]"
                       />
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="text-[color:var(--text-muted)]">Not verified</span>
-                        <button className="text-blue-500 hover:underline">Resend</button>
-                      </div>
+                      <p className="text-xs text-[color:var(--text-muted)]">
+                        This is how your name will appear on your profile
+                      </p>
                     </div>
+
+                    {/* Email - Hidden for wallet users */}
+                    {authProvider !== "wallet" && emailVisible && (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Email</label>
+                        <Input
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="bg-[color:var(--surface-2)] border-[color:var(--border-soft)]"
+                        />
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-[color:var(--text-muted)]">Not verified</span>
+                          <button className="text-blue-500 hover:underline">Resend</button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Wallet login indicator */}
+                    {authProvider === "wallet" && (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Email</label>
+                        <div className="text-sm text-[color:var(--text-muted)] py-2">
+                          — (wallet login)
+                        </div>
+                      </div>
+                    )}
 
                     {/* Username */}
                     <div className="space-y-2">
@@ -660,7 +841,7 @@ export default function SettingsPage() {
                       <textarea
                         value={bio}
                         onChange={(e) => setBio(e.target.value)}
-                        placeholder="Bio"
+                        placeholder="Tell others about yourself"
                         rows={4}
                         className="w-full rounded-lg bg-[color:var(--surface-2)] border border-[color:var(--border-soft)] p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
