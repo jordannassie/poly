@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Zap, Calendar, ArrowLeft, Database, Users } from "lucide-react";
+import { RefreshCw, Zap, Calendar, ArrowLeft, Database, Users, Radio } from "lucide-react";
 import Link from "next/link";
 
 type ApiResponse = {
@@ -11,6 +11,7 @@ type ApiResponse = {
   ms?: number;
   date?: string;
   endpoint?: string;
+  endpointUsed?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data?: any;
   error?: string;
@@ -98,6 +99,26 @@ export default function AdminApiSportsNflPage() {
     
     try {
       const res = await fetch(`/api/admin/api-sports-nfl/sync/games?from=${date}&to=${toDate}`, {
+        method: "POST",
+      });
+      const data: ApiResponse = await res.json();
+      setResult(data);
+    } catch (error) {
+      setResult({
+        ok: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const syncLive = async () => {
+    setLoading("syncLive");
+    setResult(null);
+    
+    try {
+      const res = await fetch("/api/admin/api-sports-nfl/sync/live", {
         method: "POST",
       });
       const data: ApiResponse = await res.json();
@@ -217,6 +238,19 @@ export default function AdminApiSportsNflPage() {
             )}
             Sync Games Range to DB
           </Button>
+
+          <Button
+            onClick={syncLive}
+            disabled={loading !== null}
+            className="bg-red-600 hover:bg-red-700 text-white"
+          >
+            {loading === "syncLive" ? (
+              <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Radio className="h-4 w-4 mr-2" />
+            )}
+            Update Live Scores (DB)
+          </Button>
         </div>
         <p className="text-xs text-gray-500">
           Uses date range above: {date} to {toDate}
@@ -280,10 +314,10 @@ export default function AdminApiSportsNflPage() {
           )}
 
           {/* Endpoint Info */}
-          {result.endpoint && (
+          {(result.endpoint || result.endpointUsed) && (
             <div className="px-4 py-2 bg-[#0d1117] border-b border-[#30363d]">
               <span className="text-gray-500 text-sm">Endpoint: </span>
-              <code className="text-blue-400 text-sm">{result.endpoint}</code>
+              <code className="text-blue-400 text-sm">{result.endpoint || result.endpointUsed}</code>
             </div>
           )}
 
@@ -313,6 +347,7 @@ export default function AdminApiSportsNflPage() {
           <p className="text-gray-400">
             {loading === "syncTeams" ? "Syncing teams to database..." :
              loading === "syncGames" ? "Syncing games to database..." :
+             loading === "syncLive" ? "Fetching live scores..." :
              "Fetching..."}
           </p>
         </div>
