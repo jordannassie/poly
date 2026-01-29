@@ -12,12 +12,14 @@ import {
   FileText, 
   Database,
   LogOut,
-  Zap
+  Zap,
+  Mail
 } from "lucide-react";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/waitlist", label: "Waitlist", icon: Mail },
   { href: "/admin/wallets", label: "Wallets", icon: Wallet },
   { href: "/admin/markets", label: "Markets", icon: TrendingUp },
   { href: "/admin/settlements", label: "Settlements", icon: Scale },
