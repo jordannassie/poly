@@ -13,7 +13,8 @@ import {
   Database,
   LogOut,
   Zap,
-  Mail
+  Mail,
+  Globe
 } from "lucide-react";
 
 const navItems = [
@@ -26,6 +27,7 @@ const navItems = [
   { href: "/admin/payouts", label: "Payouts", icon: CreditCard },
   { href: "/admin/logs", label: "System Logs", icon: FileText },
   { href: "/admin/sports", label: "SportsDataIO", icon: Database },
+  { href: "/admin/api-sports", label: "API Sports", icon: Globe },
 ];
 
 export default function AdminLayout({
