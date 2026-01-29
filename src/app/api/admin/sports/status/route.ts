@@ -9,20 +9,30 @@ import { getAllStatuses, getProviderHealth, getGamesInProgress } from "@/lib/spo
 import { getAllCacheInfo, getCacheStats } from "@/lib/sportsdataio/cache";
 import { getAllLeagues, getEnabledLeagueKeys, type LeagueConfig } from "@/config/leagues";
 
+import { cookies } from "next/headers";
+
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
+const COOKIE_NAME = "pp_admin";
 
 function isAuthorized(request: NextRequest): boolean {
   if (!ADMIN_TOKEN) {
     return false; // No token configured = deny all
   }
 
-  // Check header first
+  // Check cookie first (set by /admin/login)
+  const cookieStore = cookies();
+  const adminCookie = cookieStore.get(COOKIE_NAME);
+  if (adminCookie?.value === ADMIN_TOKEN) {
+    return true;
+  }
+
+  // Check header
   const headerToken = request.headers.get("x-admin-token");
   if (headerToken === ADMIN_TOKEN) {
     return true;
   }
 
-  // Check query param
+  // Check query param (backward compatibility)
   const url = new URL(request.url);
   const queryToken = url.searchParams.get("token");
   if (queryToken === ADMIN_TOKEN) {

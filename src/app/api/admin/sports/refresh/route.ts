@@ -12,6 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { 
   refreshTeams, 
   refreshGamesByDate, 
@@ -26,17 +27,27 @@ import { setGamesInProgress } from "@/lib/sportsdataio/status";
 import { getEnabledLeagueKeys, isLeagueEnabled, LEAGUES } from "@/config/leagues";
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
+const COOKIE_NAME = "pp_admin";
 
 function isAuthorized(request: NextRequest): boolean {
   if (!ADMIN_TOKEN) {
     return false;
   }
 
+  // Check cookie first (set by /admin/login)
+  const cookieStore = cookies();
+  const adminCookie = cookieStore.get(COOKIE_NAME);
+  if (adminCookie?.value === ADMIN_TOKEN) {
+    return true;
+  }
+
+  // Check header
   const headerToken = request.headers.get("x-admin-token");
   if (headerToken === ADMIN_TOKEN) {
     return true;
   }
 
+  // Check query param (backward compatibility)
   const url = new URL(request.url);
   const queryToken = url.searchParams.get("token");
   if (queryToken === ADMIN_TOKEN) {
