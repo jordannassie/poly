@@ -259,7 +259,7 @@ export function CodeGate({ children }: CodeGateProps) {
       {/* Hero Section */}
       <div className="relative overflow-hidden">
         {/* Background image */}
-        <div className="absolute inset-0 bg-[url('https://phhczohqidgrvcmszets.supabase.co/storage/v1/object/public/Sports%20Bet/image/alluring_swan_07128_Seahawks_vs_patriots_football_--ar_169_--_71ef6a5c-e7d7-4a27-9f1a-cd6de9f2772d_0.png')] bg-cover bg-center opacity-15" />
+        <div className="absolute inset-0 bg-[url('https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/sign/SPORTS/images/alluring_swan_07128_Seahawks_vs_patriots_football_head_to_hea_5a48b8f5-1da9-4ce1-9a32-fc9be9199a22_2%20(1).png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8wOTc3NzFmYi1jYzJjLTQxNGItOTNjYi1jZjk5OGVhNGMyZGMiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJTUE9SVFMvaW1hZ2VzL2FsbHVyaW5nX3N3YW5fMDcxMjhfU2VhaGF3a3NfdnNfcGF0cmlvdHNfZm9vdGJhbGxfaGVhZF90b19oZWFfNWE0OGI4ZjUtMWRhOS00Y2UxLTlhMzItZmN5YmU5MTk5YTIyXzIgKDEpLnBuZyIsImlhdCI6MTc2OTcxOTY4MSwiZXhwIjozMTUzNzc2OTcxOTY4MX0.igkE8S8eahewVVTUjOGbImloCcUoPVh-t6iaUYs-nmI')] bg-cover bg-center opacity-30" />
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a]/60 via-[#0a0a0a]/80 to-[#0a0a0a]" />
         
