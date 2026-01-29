@@ -156,20 +156,22 @@ const demoMatchups = [
   },
 ];
 
+// Top Traders - different users from activity feed
 const demoTraders = [
-  { rank: 1, name: "bossoskill", avatar: "🏆", profit: "+$437k", winRate: "78%", streak: 12, picks: 234 },
-  { rank: 2, name: "alphatrader", avatar: "🔥", profit: "+$312k", winRate: "72%", streak: 8, picks: 189 },
-  { rank: 3, name: "sportsguru", avatar: "⚡", profit: "+$256k", winRate: "69%", streak: 6, picks: 312 },
-  { rank: 4, name: "pickmaster", avatar: "💎", profit: "+$198k", winRate: "67%", streak: 5, picks: 156 },
-  { rank: 5, name: "clutchking", avatar: "👑", profit: "+$145k", winRate: "65%", streak: 4, picks: 278 },
+  { rank: 1, name: "marcus_wins", avatar: "https://randomuser.me/api/portraits/men/32.jpg", profit: "+$437k", winRate: "78%", streak: 12, picks: 234 },
+  { rank: 2, name: "sarah_bets", avatar: "https://randomuser.me/api/portraits/women/44.jpg", profit: "+$312k", winRate: "72%", streak: 8, picks: 189 },
+  { rank: 3, name: "jay_picks", avatar: "https://randomuser.me/api/portraits/men/22.jpg", profit: "+$256k", winRate: "69%", streak: 6, picks: 312 },
+  { rank: 4, name: "emma_trades", avatar: "https://randomuser.me/api/portraits/women/68.jpg", profit: "+$198k", winRate: "67%", streak: 5, picks: 156 },
+  { rank: 5, name: "mike_clutch", avatar: "https://randomuser.me/api/portraits/men/75.jpg", profit: "+$145k", winRate: "65%", streak: 4, picks: 278 },
 ];
 
+// Live Activity - different users from top traders
 const demoActivity = [
-  { user: "bossoskill", action: "bet", team: "Chiefs", amount: "$5,000", time: "2m ago" },
-  { user: "alphatrader", action: "won", team: "Lakers", amount: "+$8,200", time: "5m ago" },
-  { user: "sportsguru", action: "bet", team: "Eagles", amount: "$3,500", time: "8m ago" },
-  { user: "pickmaster", action: "bet", team: "Celtics", amount: "$2,000", time: "12m ago" },
-  { user: "clutchking", action: "won", team: "Cowboys", amount: "+$4,100", time: "15m ago" },
+  { user: "alex_runner", avatar: "https://randomuser.me/api/portraits/men/45.jpg", action: "bet", team: "Chiefs", amount: "$5,000", time: "2m ago" },
+  { user: "nina_sports", avatar: "https://randomuser.me/api/portraits/women/28.jpg", action: "won", team: "Lakers", amount: "+$8,200", time: "5m ago" },
+  { user: "tyler_picks", avatar: "https://randomuser.me/api/portraits/men/51.jpg", action: "bet", team: "Eagles", amount: "$3,500", time: "8m ago" },
+  { user: "jessica_pro", avatar: "https://randomuser.me/api/portraits/women/63.jpg", action: "bet", team: "Celtics", amount: "$2,000", time: "12m ago" },
+  { user: "david_wins", avatar: "https://randomuser.me/api/portraits/men/67.jpg", action: "won", team: "Cowboys", amount: "+$4,100", time: "15m ago" },
 ];
 
 export function CodeGate({ children }: CodeGateProps) {
@@ -458,8 +460,9 @@ export function CodeGate({ children }: CodeGateProps) {
                   className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-white/5 to-transparent border border-white/5 hover:border-orange-500/30 transition"
                 >
                   <div className="text-lg font-bold text-gray-500 w-6">#{trader.rank}</div>
-                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-orange-500/30 to-amber-500/30 flex items-center justify-center text-lg">
-                    {trader.avatar}
+                  <div className="h-10 w-10 rounded-full overflow-hidden bg-gradient-to-br from-orange-500/30 to-amber-500/30">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={trader.avatar} alt={trader.name} className="h-full w-full object-cover" />
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold">@{trader.name}</p>
@@ -489,8 +492,9 @@ export function CodeGate({ children }: CodeGateProps) {
                   key={i}
                   className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-white/5 to-transparent border border-white/5"
                 >
-                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center text-sm font-bold">
-                    {activity.user.slice(0, 2).toUpperCase()}
+                  <div className="h-10 w-10 rounded-full overflow-hidden bg-gradient-to-br from-gray-700 to-gray-800">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={activity.avatar} alt={activity.user} className="h-full w-full object-cover" />
                   </div>
                   <div className="flex-1">
                     <p className="text-sm">
