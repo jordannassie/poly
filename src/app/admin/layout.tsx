@@ -14,7 +14,8 @@ import {
   LogOut,
   Zap,
   Mail,
-  Globe
+  Globe,
+  Trophy
 } from "lucide-react";
 
 const navItems = [
@@ -28,6 +29,7 @@ const navItems = [
   { href: "/admin/logs", label: "System Logs", icon: FileText },
   { href: "/admin/sports", label: "SportsDataIO", icon: Database },
   { href: "/admin/api-sports", label: "API Sports", icon: Globe },
+  { href: "/admin/api-sports-nfl", label: "API Sports (NFL)", icon: Trophy },
 ];
 
 export default function AdminLayout({
