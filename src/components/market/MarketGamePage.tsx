@@ -7,12 +7,14 @@ import { SportsSidebar } from "@/components/SportsSidebar";
 import { MainFooter } from "@/components/MainFooter";
 import { HeadToHeadChart } from "@/components/HeadToHeadChart";
 import { MobileBetBar } from "@/components/MobileBetBar";
+import { TeamOutcomeButton, TeamOutcomeButtonPair } from "@/components/market/TeamOutcomeButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { demoComments } from "@/lib/mockData";
 import { formatVolume, getWhyMovingReasons } from "@/lib/marketHelpers";
 import { MarketViewModel } from "@/lib/adapters/marketViewModel";
+import { mapMarketOutcomesToTeams, teamToYesNo } from "@/lib/market/outcomeMapping";
 import {
   Settings,
   Code,
@@ -49,9 +51,16 @@ interface MarketGamePageProps {
 export function MarketGamePage({ market }: MarketGamePageProps) {
   // Trade panel state
   const [tradeAmount, setTradeAmount] = useState(0);
-  const [selectedPosition, setSelectedPosition] = useState<"yes" | "no">("yes");
+  const [selectedTeam, setSelectedTeam] = useState<"teamA" | "teamB">("teamA");
 
   const { team1, team2, league, stats, lines, volume, locksInLabel: locksIn } = market;
+
+  // Map teams to consistent outcome format
+  const outcomes = mapMarketOutcomesToTeams(market);
+  
+  // Get selected team data
+  const selectedTeamData = selectedTeam === "teamA" ? team1 : team2;
+  const selectedPrice = selectedTeam === "teamA" ? team1.odds : team2.odds;
 
   // Get "Why moving" reasons
   const whyMovingReasons = getWhyMovingReasons(market.slug);
@@ -160,14 +169,14 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
                     <div className="text-xs md:text-sm text-[color:var(--text-subtle)]">{formatVolume(totalVolume * 0.4)} Vol.</div>
                   </div>
                 </div>
-                <div className="flex gap-2 md:gap-3">
-                  <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white h-10 md:h-12 text-sm md:text-base">
-                    Yes {team1.odds}¢
-                  </Button>
-                  <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white h-10 md:h-12 text-sm md:text-base">
-                    No {team2.odds}¢
-                  </Button>
-                </div>
+                <TeamOutcomeButtonPair
+                  teamA={outcomes.teamA}
+                  teamB={outcomes.teamB}
+                  priceA={outcomes.priceA}
+                  priceB={outcomes.priceB}
+                  selectedTeam={null}
+                  onSelectTeam={(team) => setSelectedTeam(team)}
+                />
               </div>
 
               {/* Spreads */}
@@ -383,28 +392,17 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
                 </Button>
               </div>
 
-              {/* Yes/No Selection */}
-              <div className="flex gap-2 mb-4">
-                <Button 
-                  onClick={() => setSelectedPosition("yes")}
-                  className={`flex-1 text-white transition-all ${
-                    selectedPosition === "yes" 
-                      ? "bg-green-600 hover:bg-green-700 ring-2 ring-green-400 ring-offset-2 ring-offset-[color:var(--surface)]" 
-                      : "bg-green-600/60 hover:bg-green-600"
-                  }`}
-                >
-                  Yes {team1.odds}¢
-                </Button>
-                <Button 
-                  onClick={() => setSelectedPosition("no")}
-                  className={`flex-1 text-white transition-all ${
-                    selectedPosition === "no" 
-                      ? "bg-red-600 hover:bg-red-700 ring-2 ring-red-400 ring-offset-2 ring-offset-[color:var(--surface)]" 
-                      : "bg-red-600/60 hover:bg-red-600"
-                  }`}
-                >
-                  No {team2.odds}¢
-                </Button>
+              {/* Team Selection */}
+              <div className="mb-4">
+                <TeamOutcomeButtonPair
+                  teamA={outcomes.teamA}
+                  teamB={outcomes.teamB}
+                  priceA={outcomes.priceA}
+                  priceB={outcomes.priceB}
+                  selectedTeam={selectedTeam}
+                  onSelectTeam={setSelectedTeam}
+                  compact
+                />
               </div>
 
               {/* Amount */}
@@ -438,18 +436,18 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
               {/* Odds and Payout */}
               <div className="space-y-3 mb-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-[color:var(--text-muted)]">Odds</span>
+                  <span className="text-sm text-[color:var(--text-muted)]">Implied chance</span>
                   <span className="text-sm font-semibold text-[color:var(--text-strong)]">
-                    {selectedPosition === "yes" ? team1.odds : team2.odds}% chance
+                    {selectedPrice}%
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1 text-sm text-[color:var(--text-muted)]">
-                    <span>Payout if {selectedPosition === "yes" ? "Yes" : "No"}</span>
+                    <span>Payout if {selectedTeamData.name} wins</span>
                     <ChevronDown className="h-3 w-3" />
                   </div>
                   <span className="text-xl font-bold text-green-500">
-                    ${formatCurrency(tradeAmount > 0 ? tradeAmount * (100 / (selectedPosition === "yes" ? team1.odds : team2.odds)) : 0)}
+                    ${formatCurrency(tradeAmount > 0 ? tradeAmount * (100 / selectedPrice) : 0)}
                   </span>
                 </div>
               </div>
@@ -473,13 +471,15 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
           name: team1.name, 
           abbr: team1.abbr, 
           odds: team1.odds, 
-          color: team1.color 
+          color: team1.color,
+          logoUrl: team1.logoUrl,
         }} 
         team2={{ 
           name: team2.name, 
           abbr: team2.abbr, 
           odds: team2.odds, 
-          color: team2.color 
+          color: team2.color,
+          logoUrl: team2.logoUrl,
         }} 
       />
 
