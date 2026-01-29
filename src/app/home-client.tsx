@@ -95,6 +95,24 @@ function locksInLabel(startTime: string): string {
   return `${minutes}m`;
 }
 
+// Social stats for hero strip
+// TODO: Wire to real data from /api/social/hero when available
+interface SocialStats {
+  liveTraders: string;
+  hotPicks: string;
+  topStreak: string;
+  bigWin: string;
+  bigWinUser: string | null;
+}
+
+const DEMO_SOCIAL_STATS: SocialStats = {
+  liveTraders: "589",
+  hotPicks: "$82k",
+  topStreak: "7 wins",
+  bigWin: "+$437k",
+  bigWinUser: "bossoskill",
+};
+
 export default function HomeClient() {
   const searchParams = useSearchParams();
   const view = searchParams.get("view") || "hot";
@@ -102,6 +120,10 @@ export default function HomeClient() {
   const [games, setGames] = useState<HotGame[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Social stats - using demo fallback for now
+  // TODO: Replace with fetch to /api/social/hero when endpoint is created
+  const [socialStats, setSocialStats] = useState<SocialStats>(DEMO_SOCIAL_STATS);
 
   useEffect(() => {
     async function fetchHotGames() {
@@ -169,7 +191,7 @@ export default function HomeClient() {
         {/* Main Content */}
         <main className="flex-1 p-4 md:p-6">
           <div className="max-w-5xl mx-auto">
-            {/* Hero Section */}
+            {/* Hero Section - Social Activity Strip */}
             <div className="mb-6 md:mb-8 p-4 md:p-6 rounded-2xl bg-gradient-to-r from-[color:var(--surface)] to-[color:var(--surface-2)] border border-[color:var(--border-soft)]">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div className="flex items-center gap-3 md:gap-4">
@@ -177,21 +199,41 @@ export default function HomeClient() {
                     <Trophy className="h-6 w-6 md:h-8 md:w-8 text-white" />
                   </div>
                   <div>
-                    <h1 className="text-xl md:text-3xl font-bold">ProvePicks Sports</h1>
+                    <h1 className="text-xl md:text-3xl font-bold">ProvePicks</h1>
                     <p className="text-sm md:text-base text-[color:var(--text-muted)]">
-                      Track matchups. Make your picks. Follow the action.
+                      The social prediction market. Follow traders. Track picks. Prove performance.
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 md:gap-3">
-                  <div className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-green-500/20 text-green-500 text-sm">
-                    <Zap className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                    <span className="font-medium">+500 XP</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-orange-500/20 text-orange-500 text-sm">
-                    <Flame className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                    <span className="font-medium">3 Day Streak</span>
-                  </div>
+                <div className="flex flex-wrap items-center gap-2 md:gap-2">
+                  {/* Live Traders */}
+                  <Link href="/leaderboard">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/20 text-blue-400 text-sm hover:bg-blue-500/30 transition cursor-pointer">
+                      <Users className="h-3.5 w-3.5" />
+                      <span className="font-medium">{socialStats.liveTraders} Live</span>
+                    </div>
+                  </Link>
+                  {/* Hot Picks */}
+                  <Link href="/">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/20 text-green-400 text-sm hover:bg-green-500/30 transition cursor-pointer">
+                      <TrendingUp className="h-3.5 w-3.5" />
+                      <span className="font-medium">{socialStats.hotPicks} picks</span>
+                    </div>
+                  </Link>
+                  {/* Top Streak */}
+                  <Link href="/leaderboard">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/20 text-orange-400 text-sm hover:bg-orange-500/30 transition cursor-pointer">
+                      <Flame className="h-3.5 w-3.5" />
+                      <span className="font-medium">{socialStats.topStreak} streak</span>
+                    </div>
+                  </Link>
+                  {/* Latest Big Win */}
+                  <Link href={socialStats.bigWinUser ? `/u/${socialStats.bigWinUser}` : "/leaderboard"}>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-500/20 text-purple-400 text-sm hover:bg-purple-500/30 transition cursor-pointer">
+                      <Zap className="h-3.5 w-3.5" />
+                      <span className="font-medium">{socialStats.bigWin}</span>
+                    </div>
+                  </Link>
                 </div>
               </div>
             </div>
