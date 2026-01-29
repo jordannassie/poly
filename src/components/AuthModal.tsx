@@ -100,7 +100,13 @@ export function AuthModal({
       const nonceData = await nonceRes.json();
 
       if (!nonceRes.ok) {
-        throw new Error(nonceData.error || "Failed to get nonce");
+        // Show details in dev mode for debugging
+        const errorMsg = nonceData.error === "NONCE_ERROR" 
+          ? (process.env.NODE_ENV === "development" && nonceData.details 
+              ? `Nonce error: ${nonceData.details}` 
+              : "Failed to generate login nonce")
+          : (nonceData.error || "Failed to get nonce");
+        throw new Error(errorMsg);
       }
 
       // Sign the message
