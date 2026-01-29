@@ -138,7 +138,17 @@ export function CommentsPanel({ title = "Discussion", marketSlug }: CommentsPane
   }, [marketSlug]);
 
   const handlePost = async () => {
-    if (!newComment.trim() || !marketSlug) return;
+    if (!newComment.trim()) return;
+    
+    if (!currentUser) {
+      alert("Please sign in to comment");
+      return;
+    }
+    
+    if (!marketSlug) {
+      alert("Comments are available on market pages");
+      return;
+    }
     
     setPosting(true);
     try {
@@ -161,10 +171,13 @@ export function CommentsPanel({ title = "Discussion", marketSlug }: CommentsPane
         const data = await res.json();
         if (data.error === "AUTH_REQUIRED") {
           alert("Please sign in to comment");
+        } else {
+          alert(data.error || "Failed to post comment");
         }
       }
     } catch (error) {
       console.error("Post error:", error);
+      alert("Failed to post comment. Please try again.");
     } finally {
       setPosting(false);
     }
@@ -193,19 +206,26 @@ export function CommentsPanel({ title = "Discussion", marketSlug }: CommentsPane
           )}
           <div className="flex-1 flex gap-2">
             <Input
-              placeholder={marketSlug ? "Add a comment..." : "Sign in to comment"}
+              placeholder={currentUser ? "Add a comment..." : "Sign in to comment"}
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handlePost()}
-              disabled={!marketSlug || posting}
+              onKeyDown={(e) => e.key === "Enter" && !posting && handlePost()}
+              disabled={!currentUser || posting}
               className="bg-[color:var(--surface-2)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] placeholder:text-[color:var(--text-subtle)]"
             />
             <Button 
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4"
-              disabled={!newComment.trim() || !marketSlug || posting}
+              className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold px-6 shadow-lg shadow-orange-500/25"
+              disabled={!newComment.trim() || !currentUser || posting}
               onClick={handlePost}
             >
-              {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {posting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <span className="hidden sm:inline">Post</span>
+                  <Send className="h-4 w-4 sm:ml-2" />
+                </>
+              )}
             </Button>
           </div>
         </div>
