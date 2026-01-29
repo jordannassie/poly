@@ -80,6 +80,12 @@ function AccountSection() {
       const nonceData = await nonceRes.json();
 
       if (!nonceRes.ok) {
+        // Handle AUTH_REQUIRED specially
+        if (nonceData.error === "AUTH_REQUIRED") {
+          setWalletError("Please sign in first to connect a wallet.");
+          setWalletStatus("error");
+          return;
+        }
         throw new Error(nonceData.error || "Failed to get nonce");
       }
 
