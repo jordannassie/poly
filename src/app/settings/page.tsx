@@ -511,7 +511,7 @@ export default function SettingsPage() {
             setUsername(data.profile.username || "");
             setDisplayName(data.profile.display_name || "");
             setBio(data.profile.bio || "");
-            setWebsite(data.profile.website || "");
+            setWebsite(data.profile.website || "provepicks.com");
             setAvatarUrl(data.profile.avatar_url || "");
             setBannerUrl(data.profile.banner_url || "");
             setAuthProvider(data.profile.auth_provider || null);
@@ -864,6 +864,20 @@ export default function SettingsPage() {
                         rows={4}
                         className="w-full rounded-lg bg-[color:var(--surface-2)] border border-[color:var(--border-soft)] p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
+                    </div>
+
+                    {/* Website */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Website</label>
+                      <Input
+                        value={website}
+                        onChange={(e) => setWebsite(e.target.value)}
+                        placeholder="provepicks.com"
+                        className="bg-[color:var(--surface-2)] border-[color:var(--border-soft)]"
+                      />
+                      <p className="text-xs text-[color:var(--text-muted)]">
+                        Your website or social profile link
+                      </p>
                     </div>
 
                     {/* Social Connections */}

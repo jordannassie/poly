@@ -388,9 +388,6 @@ export default function PublicProfilePage({ params }: Props) {
                   <div>
                     <div className="flex items-center gap-2">
                       <h1 className="text-2xl font-bold">{profile.displayName || `@${profile.username}`}</h1>
-                      {profile.isVerified && (
-                        <CheckCircle className="h-5 w-5 text-blue-500 fill-blue-500" />
-                      )}
                     </div>
                     <p className="text-[color:var(--text-muted)]">@{username}</p>
                   </div>
