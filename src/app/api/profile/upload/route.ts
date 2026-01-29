@@ -70,11 +70,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "File too large. Max 5MB" }, { status: 400 });
     }
     
-    // Determine bucket and path
-    const bucket = type === "avatar" ? "avatars" : "banners";
+    // Determine bucket and path - use existing SPORTS bucket
+    const bucket = "SPORTS";
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const filename = `${type}.${ext}`;
-    const filePath = `${userId}/${filename}`;
+    const filePath = `${type}s/${userId}/${filename}`; // avatars/{userId}/avatar.jpg or banners/{userId}/banner.jpg
     
     // Convert file to buffer
     const arrayBuffer = await file.arrayBuffer();
