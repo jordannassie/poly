@@ -3,11 +3,11 @@
  * Returns the featured game for a league.
  * 
  * Logic:
- * - If a game name includes "Super Bowl", return that game.
- * - Otherwise return the next upcoming game.
+ * - NFL: If a game name includes "Super Bowl", return that game. Otherwise return the next upcoming.
+ * - Other leagues: Return the next upcoming game.
  * 
  * Query params:
- * - league: "nfl" (required)
+ * - league: "nfl" | "nba" | "mlb" | "nhl" (required)
  * 
  * Response:
  * {
@@ -17,12 +17,20 @@
  *     awayTeam: { name, city, abbreviation, logoUrl, primaryColor },
  *     venue, week, channel
  *   } | null,
- *   reason: "super_bowl" | "next_game" | "no_games"
+ *   reason: "championship" | "next_game" | "no_games"
  * }
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getNflTeams, getNflScoresByDate, getTeamLogoUrl, type Score, type Team } from "@/lib/sportsdataio/client";
+import { 
+  getTeams, 
+  getGamesByDate, 
+  getTeamLogoUrl, 
+  SUPPORTED_LEAGUES,
+  type Score, 
+  type Team,
+  type League,
+} from "@/lib/sportsdataio/client";
 import { getFromCache, setInCache, getCacheKey } from "@/lib/sportsdataio/cache";
 
 // Cache TTL
@@ -51,12 +59,12 @@ interface FeaturedGame {
   venue: string | null;
   week: number;
   channel: string | null;
-  isSuperBowl: boolean;
+  isChampionship: boolean;
 }
 
 interface FeaturedResponse {
   featured: FeaturedGame | null;
-  reason: "super_bowl" | "next_game" | "no_games";
+  reason: "championship" | "next_game" | "no_games";
 }
 
 function normalizeTeam(team: Team | undefined, abbr: string): FeaturedTeam {
@@ -89,37 +97,39 @@ function getGameStatus(score: Score): FeaturedGame["status"] {
   return "scheduled";
 }
 
-function isSuperBowlGame(score: Score): boolean {
-  // Super Bowl is typically SeasonType 3 (Postseason) and Week 4 (Super Bowl week)
-  // Also check if it's in February and is a championship game
-  const isFinalWeek = score.Week >= 4 && score.SeasonType === 3;
-  return isFinalWeek;
+function isChampionshipGame(score: Score, league: string): boolean {
+  // NFL: Super Bowl is SeasonType 3 and Week 4
+  if (league === "nfl") {
+    return score.Week >= 4 && score.SeasonType === 3;
+  }
+  // Other leagues: no special championship detection for now
+  return false;
 }
 
-function getGameName(score: Score, isSuperBowl: boolean): string {
-  if (isSuperBowl) {
-    return "Super Bowl";
-  }
-  
-  // Playoff games
-  if (score.SeasonType === 3) {
-    switch (score.Week) {
-      case 1: return "Wild Card";
-      case 2: return "Divisional Round";
-      case 3: return "Conference Championship";
-      case 4: return "Super Bowl";
-      default: return "Playoff Game";
+function getGameName(score: Score, league: string, isChampionship: boolean): string {
+  if (league === "nfl") {
+    if (isChampionship) return "Super Bowl";
+    if (score.SeasonType === 3) {
+      switch (score.Week) {
+        case 1: return "Wild Card";
+        case 2: return "Divisional Round";
+        case 3: return "Conference Championship";
+        case 4: return "Super Bowl";
+        default: return "Playoff Game";
+      }
     }
+    return `Week ${score.Week}`;
   }
   
-  return `Week ${score.Week}`;
+  // Generic naming for other leagues
+  return score.Week ? `Week ${score.Week}` : "Regular Season";
 }
 
-function createFeaturedGame(score: Score, teamMap: Map<string, Team>): FeaturedGame {
-  const isSuperBowl = isSuperBowlGame(score);
+function createFeaturedGame(score: Score, teamMap: Map<string, Team>, league: string): FeaturedGame {
+  const isChampionship = isChampionshipGame(score, league);
   return {
     gameId: score.GameKey,
-    name: getGameName(score, isSuperBowl),
+    name: getGameName(score, league, isChampionship),
     startTime: score.Date,
     status: getGameStatus(score),
     homeTeam: normalizeTeam(teamMap.get(score.HomeTeam), score.HomeTeam),
@@ -129,7 +139,7 @@ function createFeaturedGame(score: Score, teamMap: Map<string, Team>): FeaturedG
     venue: null,
     week: score.Week,
     channel: score.Channel,
-    isSuperBowl,
+    isChampionship,
   };
 }
 
@@ -149,32 +159,27 @@ function getDateRange(days: number): string[] {
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const league = url.searchParams.get("league")?.toLowerCase();
+    const leagueParam = url.searchParams.get("league")?.toLowerCase() || "nfl";
 
     // Validate league
-    if (!league) {
+    if (!SUPPORTED_LEAGUES.includes(leagueParam as League)) {
       return NextResponse.json(
-        { error: "Missing required parameter: league" },
+        { error: `Invalid league. Must be one of: ${SUPPORTED_LEAGUES.join(", ")}` },
         { status: 400 }
       );
     }
 
-    if (league !== "nfl") {
-      return NextResponse.json(
-        { error: `League ${league} not yet implemented` },
-        { status: 501 }
-      );
-    }
+    const league = leagueParam as League;
 
     // Check cache
-    const cacheKey = getCacheKey("nfl", "featured", "main");
+    const cacheKey = getCacheKey(league, "featured", "main");
     const cached = getFromCache<FeaturedResponse>(cacheKey);
     if (cached) {
       return NextResponse.json(cached);
     }
 
     // Fetch teams for joining
-    const teams = await getNflTeams();
+    const teams = await getTeams(league);
     const teamMap = new Map<string, Team>();
     for (const team of teams) {
       teamMap.set(team.Key, team);
@@ -186,7 +191,7 @@ export async function GET(request: NextRequest) {
 
     for (const date of dates) {
       try {
-        const scores = await getNflScoresByDate(date);
+        const scores = await getGamesByDate(league, date);
         allScores.push(...scores);
       } catch {
         // Continue if a date fails
@@ -205,18 +210,18 @@ export async function GET(request: NextRequest) {
 
     let response: FeaturedResponse;
 
-    // Look for Super Bowl first
-    const superBowlGame = upcomingGames.find((s) => isSuperBowlGame(s));
+    // Look for championship game first (NFL only for now)
+    const championshipGame = upcomingGames.find((s) => isChampionshipGame(s, league));
     
-    if (superBowlGame) {
+    if (championshipGame) {
       response = {
-        featured: createFeaturedGame(superBowlGame, teamMap),
-        reason: "super_bowl",
+        featured: createFeaturedGame(championshipGame, teamMap, league),
+        reason: "championship",
       };
     } else if (upcomingGames.length > 0) {
       // Return next upcoming game
       response = {
-        featured: createFeaturedGame(upcomingGames[0], teamMap),
+        featured: createFeaturedGame(upcomingGames[0], teamMap, league),
         reason: "next_game",
       };
     } else {
@@ -231,6 +236,8 @@ export async function GET(request: NextRequest) {
     const hasUpcoming = response.featured && response.featured.status !== "final";
     const cacheTtl = hasUpcoming ? CACHE_TTL_LIVE : CACHE_TTL_NO_GAMES;
     setInCache(cacheKey, response, cacheTtl);
+
+    console.log(`[/api/sports/featured] ${league.toUpperCase()}: ${response.reason}`);
 
     return NextResponse.json(response);
   } catch (error) {

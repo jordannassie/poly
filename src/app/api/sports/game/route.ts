@@ -3,7 +3,7 @@
  * Returns a single game by ID with team data.
  * 
  * Query params:
- * - league: "nfl" (required)
+ * - league: "nfl" | "nba" | "mlb" | "nhl" (required)
  * - gameId: string (required) - The GameKey from SportsDataIO
  * 
  * Response:
@@ -18,7 +18,15 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getNflTeams, getNflScoresByDate, getTeamLogoUrl, type Score, type Team } from "@/lib/sportsdataio/client";
+import { 
+  getTeams, 
+  getGamesByDate, 
+  getTeamLogoUrl, 
+  SUPPORTED_LEAGUES,
+  type Score, 
+  type Team,
+  type League,
+} from "@/lib/sportsdataio/client";
 import { getFromCache, setInCache, getCacheKey } from "@/lib/sportsdataio/cache";
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -81,8 +89,9 @@ function getGameStatus(score: Score): GameDetails["status"] {
   return "scheduled";
 }
 
-function getGameName(score: Score): string {
-  if (score.SeasonType === 3) {
+function getGameName(score: Score, league: string): string {
+  // NFL-specific playoff naming
+  if (league === "nfl" && score.SeasonType === 3) {
     switch (score.Week) {
       case 1: return "Wild Card Round";
       case 2: return "Divisional Round";
@@ -91,13 +100,19 @@ function getGameName(score: Score): string {
       default: return "Playoff Game";
     }
   }
-  return `Week ${score.Week}`;
+  
+  // Generic week/game naming
+  if (score.Week) {
+    return `Week ${score.Week}`;
+  }
+  
+  return "Regular Season";
 }
 
-function createGameDetails(score: Score, teamMap: Map<string, Team>): GameDetails {
+function createGameDetails(score: Score, teamMap: Map<string, Team>, league: string): GameDetails {
   return {
     gameId: score.GameKey,
-    name: getGameName(score),
+    name: getGameName(score, league),
     startTime: score.Date,
     status: getGameStatus(score),
     homeTeam: normalizeTeam(teamMap.get(score.HomeTeam), score.HomeTeam),
@@ -117,13 +132,13 @@ function createGameDetails(score: Score, teamMap: Map<string, Team>): GameDetail
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const league = url.searchParams.get("league")?.toLowerCase();
+    const leagueParam = url.searchParams.get("league")?.toLowerCase() || "nfl";
     const gameId = url.searchParams.get("gameId");
 
     // Validate params
-    if (!league) {
+    if (!SUPPORTED_LEAGUES.includes(leagueParam as League)) {
       return NextResponse.json(
-        { error: "Missing required parameter: league" },
+        { error: `Invalid league. Must be one of: ${SUPPORTED_LEAGUES.join(", ")}` },
         { status: 400 }
       );
     }
@@ -135,23 +150,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (league !== "nfl") {
-      return NextResponse.json(
-        { error: `League ${league} not yet implemented` },
-        { status: 501 }
-      );
-    }
+    const league = leagueParam as League;
 
     // Check cache
-    const cacheKey = getCacheKey("nfl", "game", gameId);
+    const cacheKey = getCacheKey(league, "game", gameId);
     const cached = getFromCache<{ game: GameDetails }>(cacheKey);
     if (cached) {
       return NextResponse.json(cached);
     }
 
-    // Parse gameId to extract date (format: YYYYMMDDAWAYATHOME or similar)
-    // GameKey format varies, but we can try to search recent dates
-    const teams = await getNflTeams();
+    // Fetch teams for joining
+    const teams = await getTeams(league);
     const teamMap = new Map<string, Team>();
     for (const team of teams) {
       teamMap.set(team.Key, team);
@@ -172,7 +181,7 @@ export async function GET(request: NextRequest) {
     // Search for the game
     for (const date of dates) {
       try {
-        const scores = await getNflScoresByDate(date);
+        const scores = await getGamesByDate(league, date);
         const match = scores.find((s) => s.GameKey === gameId);
         if (match) {
           foundGame = match;
@@ -190,11 +199,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const gameDetails = createGameDetails(foundGame, teamMap);
+    const gameDetails = createGameDetails(foundGame, teamMap, league);
     const response = { game: gameDetails };
 
     // Cache the result
     setInCache(cacheKey, response, CACHE_TTL);
+
+    console.log(`[/api/sports/game] ${league.toUpperCase()} game ${gameId} found`);
 
     return NextResponse.json(response);
   } catch (error) {

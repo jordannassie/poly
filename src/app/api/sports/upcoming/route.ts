@@ -3,7 +3,7 @@
  * Returns upcoming games for the next N days.
  * 
  * Query params:
- * - league: "nfl" (required)
+ * - league: "nfl" | "nba" | "mlb" | "nhl" (required)
  * - days: number of days to look ahead (default: 7, max: 14)
  * 
  * Response:
@@ -20,8 +20,15 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getNflTeams, getNflScoresByDate, getTeamLogoUrl, type Score, type Team } from "@/lib/sportsdataio/client";
-import { getTodayIso } from "@/lib/sportsdataio/nflDate";
+import { 
+  getTeams, 
+  getGamesByDate, 
+  getTeamLogoUrl, 
+  SUPPORTED_LEAGUES,
+  type Score, 
+  type Team,
+  type League,
+} from "@/lib/sportsdataio/client";
 import { getFromCache, setInCache, getCacheKey } from "@/lib/sportsdataio/cache";
 
 // Cache TTL
@@ -118,27 +125,22 @@ function getDateRange(days: number): string[] {
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const league = url.searchParams.get("league")?.toLowerCase();
+    const leagueParam = url.searchParams.get("league")?.toLowerCase() || "nfl";
     const daysParam = url.searchParams.get("days");
     const days = Math.min(Math.max(parseInt(daysParam || "7", 10) || 7, 1), 14);
 
     // Validate league
-    if (!league) {
+    if (!SUPPORTED_LEAGUES.includes(leagueParam as League)) {
       return NextResponse.json(
-        { error: "Missing required parameter: league" },
+        { error: `Invalid league. Must be one of: ${SUPPORTED_LEAGUES.join(", ")}` },
         { status: 400 }
       );
     }
 
-    if (league !== "nfl") {
-      return NextResponse.json(
-        { error: `League ${league} not yet implemented` },
-        { status: 501 }
-      );
-    }
+    const league = leagueParam as League;
 
     // Check cache
-    const cacheKey = getCacheKey("nfl", "upcoming", `${days}`);
+    const cacheKey = getCacheKey(league, "upcoming", `${days}`);
     const cached = getFromCache<UpcomingResponse>(cacheKey);
     if (cached) {
       return NextResponse.json(cached);
@@ -150,7 +152,7 @@ export async function GET(request: NextRequest) {
     const endDate = dates[dates.length - 1];
 
     // Fetch teams first for joining
-    const teams = await getNflTeams();
+    const teams = await getTeams(league);
     const teamMap = new Map<string, Team>();
     for (const team of teams) {
       teamMap.set(team.Key, team);
@@ -158,7 +160,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch scores for each date in parallel
     const scoresPromises = dates.map((date) => 
-      getNflScoresByDate(date).catch(() => [] as Score[])
+      getGamesByDate(league, date).catch(() => [] as Score[])
     );
     const scoresArrays = await Promise.all(scoresPromises);
 
@@ -184,6 +186,8 @@ export async function GET(request: NextRequest) {
     // Cache the result
     const cacheTtl = allGames.length > 0 ? CACHE_TTL_WITH_GAMES : CACHE_TTL_NO_GAMES;
     setInCache(cacheKey, response, cacheTtl);
+
+    console.log(`[/api/sports/upcoming] ${league.toUpperCase()}: ${allGames.length} games in next ${days} days`);
 
     return NextResponse.json(response);
   } catch (error) {

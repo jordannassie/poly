@@ -3,43 +3,29 @@
  * Returns teams for a league with logo URLs.
  * 
  * Query params:
- * - league: "nfl" (required)
+ * - league: "nfl" | "nba" | "mlb" | "nhl" (required)
  * 
  * Response: { league, count, teams: [{teamId, name, city, abbreviation, logoUrl, primaryColor, secondaryColor}] }
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getNflTeams, getTeamLogoUrl, SUPPORTED_LEAGUES, type League } from "@/lib/sportsdataio/client";
+import { getTeams, getTeamLogoUrl, SUPPORTED_LEAGUES, type League } from "@/lib/sportsdataio/client";
 
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const league = url.searchParams.get("league")?.toLowerCase();
+    const leagueParam = url.searchParams.get("league")?.toLowerCase() || "nfl";
 
     // Validate league
-    if (!league) {
-      return NextResponse.json(
-        { error: "Missing required parameter: league" },
-        { status: 400 }
-      );
-    }
-
-    if (!SUPPORTED_LEAGUES.includes(league as League)) {
+    if (!SUPPORTED_LEAGUES.includes(leagueParam as League)) {
       return NextResponse.json(
         { error: `Invalid league. Must be one of: ${SUPPORTED_LEAGUES.join(", ")}` },
         { status: 400 }
       );
     }
 
-    // Currently only NFL is fully implemented
-    if (league !== "nfl") {
-      return NextResponse.json(
-        { error: `League ${league} not yet implemented` },
-        { status: 501 }
-      );
-    }
-
-    const teams = await getNflTeams();
+    const league = leagueParam as League;
+    const teams = await getTeams(league);
 
     // Transform to simplified format for frontend
     const simplifiedTeams = teams.map((team) => ({
@@ -57,7 +43,7 @@ export async function GET(request: NextRequest) {
     
     // Log for debugging
     const teamsWithLogos = simplifiedTeams.filter(t => t.logoUrl).length;
-    console.log(`[/api/sports/teams] Returning ${simplifiedTeams.length} teams, ${teamsWithLogos} with logos`);
+    console.log(`[/api/sports/teams] ${league.toUpperCase()}: ${simplifiedTeams.length} teams, ${teamsWithLogos} with logos`);
 
     return NextResponse.json({
       league,
