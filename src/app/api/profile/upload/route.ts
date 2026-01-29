@@ -73,8 +73,9 @@ export async function POST(request: NextRequest) {
     // Determine bucket and path - use existing SPORTS bucket
     const bucket = "SPORTS";
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-    const filename = `${type}.${ext}`;
-    const filePath = `${type}s/${userId}/${filename}`; // avatars/{userId}/avatar.jpg or banners/{userId}/banner.jpg
+    const timestamp = Date.now();
+    const filename = `${type}_${timestamp}.${ext}`;
+    const filePath = `${type}s/${userId}/${filename}`;
     
     // Convert file to buffer
     const arrayBuffer = await file.arrayBuffer();
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
       .from(bucket)
       .upload(filePath, buffer, {
         contentType: file.type,
-        upsert: true, // Overwrite if exists
+        upsert: true,
       });
     
     if (uploadError) {
@@ -93,12 +94,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: uploadError.message }, { status: 500 });
     }
     
-    // Get public URL
-    const { data: urlData } = adminClient.storage
+    // Get signed URL (works even if bucket is private) - valid for 1 year
+    const { data: signedData, error: signedError } = await adminClient.storage
       .from(bucket)
-      .getPublicUrl(filePath);
+      .createSignedUrl(filePath, 60 * 60 * 24 * 365); // 1 year expiry
     
-    const publicUrl = urlData.publicUrl;
+    let publicUrl: string;
+    if (signedError || !signedData?.signedUrl) {
+      // Fallback to public URL if signed URL fails
+      const { data: urlData } = adminClient.storage
+        .from(bucket)
+        .getPublicUrl(filePath);
+      publicUrl = urlData.publicUrl;
+    } else {
+      publicUrl = signedData.signedUrl;
+    }
     
     // Update profile with new URL
     const updateField = type === "avatar" ? "avatar_url" : "banner_url";
