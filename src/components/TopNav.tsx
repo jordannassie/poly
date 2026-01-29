@@ -121,18 +121,21 @@ export function TopNav() {
 
   // Handle logout
   const handleLogout = async () => {
-    // Clear demo user
+    // Clear demo user locally
     clearDemoUser();
     setDemoUserState(null);
-    
-    // Clear wallet session by calling a logout or just reloading
-    // For now, just clear local state and reload to clear cookies
     setRealUser(null);
     setAuthType("none");
     
-    // Clear wallet session cookie by reloading (cookie will be cleared by expiry or we can add logout endpoint)
-    document.cookie = "pp_wallet_session=; Max-Age=0; path=/";
-    window.location.reload();
+    // Call logout API to clear server-side cookies
+    try {
+      await fetch("/api/logout", { method: "POST" });
+    } catch (error) {
+      console.error("Logout API error:", error);
+    }
+    
+    // Hard redirect to home
+    window.location.href = "/";
   };
 
   return (

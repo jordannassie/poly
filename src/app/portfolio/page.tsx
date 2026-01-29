@@ -7,8 +7,8 @@ import { MainFooter } from "@/components/MainFooter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getDemoUser, getDemoBets, DemoBet } from "@/lib/demoAuth";
-import { Search, ArrowUpRight, ChevronDown, Wallet } from "lucide-react";
+import { getDemoBets, DemoBet } from "@/lib/demoAuth";
+import { Search, ArrowUpRight, ChevronDown, Wallet, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 const timeRanges = ["1D", "1W", "1M", "ALL"];
@@ -18,12 +18,37 @@ export default function PortfolioPage() {
   const [activeTab, setActiveTab] = useState("positions");
   const [bets, setBets] = useState<DemoBet[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const user = getDemoUser();
-    setIsLoggedIn(!!user);
+    // Check auth status via /api/me
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("/api/me");
+        const data = await res.json();
+        setIsLoggedIn(data.authType !== "none" && data.user !== null);
+      } catch {
+        setIsLoggedIn(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    checkAuth();
     setBets(getDemoBets());
   }, []);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
+        <TopNav />
+        <CategoryTabs activeLabel="Trending" />
+        <main className="mx-auto w-full max-w-4xl px-4 py-12 text-center">
+          <Loader2 className="h-8 w-8 mx-auto animate-spin text-[color:var(--text-muted)]" />
+        </main>
+        <MainFooter />
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     return (
@@ -36,7 +61,10 @@ export default function PortfolioPage() {
           <p className="text-[color:var(--text-muted)] mb-6">
             Track your positions, orders, and profit/loss
           </p>
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+          <Button 
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={() => window.location.href = "/"}
+          >
             Sign In
           </Button>
         </main>
