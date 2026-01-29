@@ -161,9 +161,9 @@ export function TopNav() {
                 <Moon className="h-4 w-4" />
               )}
             </Button>
-            {/* How it works - desktop only */}
+            {/* How it works */}
             <button
-              className="hidden md:block text-sm text-white/80 hover:text-white"
+              className="text-xs md:text-sm text-white/80 hover:text-white"
               onClick={() => setHowOpen(true)}
               type="button"
             >
@@ -246,16 +246,16 @@ export function TopNav() {
                 </DropdownMenu>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 md:gap-2">
                 <Button
                   variant="ghost"
-                  className="text-white/80 hover:text-white hover:bg-white/20 text-sm"
+                  className="text-white/80 hover:text-white hover:bg-white/20 text-xs md:text-sm px-2 md:px-4"
                   onClick={() => setAuthOpen(true)}
                 >
                   Log in
                 </Button>
                 <Button
-                  className="hidden md:inline-flex bg-white text-orange-600 hover:bg-white/90 font-semibold"
+                  className="bg-white text-orange-600 hover:bg-white/90 font-semibold text-xs md:text-sm px-3 md:px-4"
                   onClick={() => setAuthOpen(true)}
                 >
                   Sign up
