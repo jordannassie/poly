@@ -5,14 +5,13 @@ import {
   getTeamLogoUrl,
   getGameId,
   getGameStatus,
-  getAwayScore,
-  getHomeScore,
   getGameDate,
   SUPPORTED_LEAGUES,
-  type Score,
   type Team,
   type League,
 } from "@/lib/sportsdataio/client";
+import { usesApiSportsCache } from "@/lib/sports/providers";
+import { getNflGamesByDateFromCache, getNflTeamMap } from "@/lib/sports/nfl-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +65,56 @@ export async function GET() {
     // Fetch games from all enabled leagues
     for (const league of SUPPORTED_LEAGUES) {
       try {
+        // NFL uses API-Sports cache from Supabase
+        if (usesApiSportsCache(league)) {
+          const [cachedGames, teamMap] = await Promise.all([
+            getNflGamesByDateFromCache(todayStr),
+            getNflTeamMap(),
+          ]);
+
+          for (const game of cachedGames) {
+            const statusLower = (game.status || "").toLowerCase();
+            const isOver = statusLower.includes("final") || statusLower.includes("finished");
+            const isCanceled = statusLower.includes("cancel") || statusLower.includes("postpone");
+            
+            // Skip completed/canceled games
+            if (isOver || isCanceled) continue;
+
+            const awayTeam = game.away_team_id ? teamMap.get(game.away_team_id) : undefined;
+            const homeTeam = game.home_team_id ? teamMap.get(game.home_team_id) : undefined;
+            const isLive = statusLower.includes("progress") || statusLower.includes("live");
+
+            const [team1Odds, team2Odds] = generateOdds();
+            const activity = generateMockActivity();
+
+            allGames.push({
+              id: String(game.game_id),
+              title: `${awayTeam?.name || "Away"} vs ${homeTeam?.name || "Home"}`,
+              league: "NFL",
+              team1: {
+                abbr: awayTeam?.code || "",
+                name: awayTeam?.name || "",
+                odds: team1Odds,
+                color: "#6366f1",
+                logoUrl: awayTeam?.logo || null,
+              },
+              team2: {
+                abbr: homeTeam?.code || "",
+                name: homeTeam?.name || "",
+                odds: team2Odds,
+                color: "#6366f1",
+                logoUrl: homeTeam?.logo || null,
+              },
+              startTime: game.game_date || "",
+              status: isLive ? "in_progress" : "scheduled",
+              isLive,
+              ...activity,
+            });
+          }
+          continue; // Skip SportsDataIO for this league
+        }
+
+        // Other leagues use SportsDataIO
         // Get teams for logo lookup
         const teams = await getTeams(league);
         const teamMap = new Map<string, Team>();

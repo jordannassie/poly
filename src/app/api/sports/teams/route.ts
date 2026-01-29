@@ -6,10 +6,14 @@
  * - league: "nfl" | "nba" | "mlb" | "nhl" (required)
  * 
  * Response: { league, count, teams: [{teamId, name, city, abbreviation, logoUrl, primaryColor, secondaryColor}] }
+ * 
+ * NFL uses API-Sports cache (Supabase), other leagues use SportsDataIO.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { getTeams, getTeamLogoUrl, SUPPORTED_LEAGUES, type League } from "@/lib/sportsdataio/client";
+import { usesApiSportsCache } from "@/lib/sports/providers";
+import { getNflTeamsFromCache, transformCachedTeamToLegacyFormat } from "@/lib/sports/nfl-cache";
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,6 +29,24 @@ export async function GET(request: NextRequest) {
     }
 
     const league = leagueParam as League;
+
+    // NFL uses API-Sports cache from Supabase
+    if (usesApiSportsCache(league)) {
+      const cachedTeams = await getNflTeamsFromCache();
+      const simplifiedTeams = cachedTeams.map(transformCachedTeamToLegacyFormat);
+      
+      const teamsWithLogos = simplifiedTeams.filter(t => t.logoUrl).length;
+      console.log(`[/api/sports/teams] ${league.toUpperCase()} (cache): ${simplifiedTeams.length} teams, ${teamsWithLogos} with logos`);
+
+      return NextResponse.json({
+        league,
+        source: "api-sports-cache",
+        count: simplifiedTeams.length,
+        teams: simplifiedTeams,
+      });
+    }
+
+    // Other leagues use SportsDataIO
     const teams = await getTeams(league);
 
     // Transform to simplified format for frontend
@@ -47,6 +69,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       league,
+      source: "sportsdataio",
       count: simplifiedTeams.length,
       teams: simplifiedTeams,
     });

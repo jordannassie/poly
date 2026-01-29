@@ -7,6 +7,8 @@
  * - date: "YYYY-MM-DD" (optional, defaults to today)
  * 
  * Response includes team names and logos joined from Teams cache.
+ * 
+ * NFL uses API-Sports cache (Supabase), other leagues use SportsDataIO.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -25,6 +27,8 @@ import {
   type Score,
 } from "@/lib/sportsdataio/client";
 import { getTodayIso } from "@/lib/sportsdataio/nflDate";
+import { usesApiSportsCache } from "@/lib/sports/providers";
+import { getNflGamesByDateFromCache, getNflTeamMap, transformCachedGameToLegacyFormat } from "@/lib/sports/nfl-cache";
 
 export async function GET(request: NextRequest) {
   try {
@@ -50,6 +54,29 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // NFL uses API-Sports cache from Supabase
+    if (usesApiSportsCache(league)) {
+      const [cachedGames, teamMap] = await Promise.all([
+        getNflGamesByDateFromCache(date),
+        getNflTeamMap(),
+      ]);
+
+      const gamesWithTeams = cachedGames.map(game => 
+        transformCachedGameToLegacyFormat(game, teamMap)
+      );
+
+      console.log(`[/api/sports/games] ${league.toUpperCase()} ${date} (cache): ${gamesWithTeams.length} games`);
+
+      return NextResponse.json({
+        league,
+        date,
+        source: "api-sports-cache",
+        count: gamesWithTeams.length,
+        games: gamesWithTeams,
+      });
+    }
+
+    // Other leagues use SportsDataIO
     // Fetch teams and games in parallel
     const [teams, scores] = await Promise.all([
       getTeams(league),
@@ -96,6 +123,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       league,
       date,
+      source: "sportsdataio",
       count: gamesWithTeams.length,
       games: gamesWithTeams,
     });

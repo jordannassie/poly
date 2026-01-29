@@ -35,6 +35,8 @@ import {
   type League,
 } from "@/lib/sportsdataio/client";
 import { getFromCache, setInCache, getCacheKey } from "@/lib/sportsdataio/cache";
+import { usesApiSportsCache } from "@/lib/sports/providers";
+import { getNflGamesFromCache, getNflTeamMap, type CachedNflTeam } from "@/lib/sports/nfl-cache";
 
 // Cache TTL
 const CACHE_TTL_WITH_GAMES = 30 * 60 * 1000; // 30 minutes
@@ -120,6 +122,30 @@ function getDateRange(days: number): string[] {
   return dates;
 }
 
+// Helper to normalize cached NFL team to the expected format
+function normalizeCachedTeam(team: CachedNflTeam | undefined, abbr: string): NormalizedTeam {
+  if (!team) {
+    return {
+      teamId: 0,
+      abbreviation: abbr,
+      name: abbr,
+      city: "",
+      fullName: abbr,
+      logoUrl: null,
+      primaryColor: null,
+    };
+  }
+  return {
+    teamId: team.team_id,
+    abbreviation: team.code || "",
+    name: team.name,
+    city: team.city || "",
+    fullName: team.city ? `${team.city} ${team.name}` : team.name,
+    logoUrl: team.logo,
+    primaryColor: null,
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
@@ -149,6 +175,54 @@ export async function GET(request: NextRequest) {
     const startDate = dates[0];
     const endDate = dates[dates.length - 1];
 
+    // NFL uses API-Sports cache from Supabase
+    if (usesApiSportsCache(league)) {
+      const [cachedGames, teamMap] = await Promise.all([
+        getNflGamesFromCache(startDate, endDate),
+        getNflTeamMap(),
+      ]);
+
+      const allGames: NormalizedGame[] = cachedGames.map((game) => {
+        const homeTeam = game.home_team_id ? teamMap.get(game.home_team_id) : undefined;
+        const awayTeam = game.away_team_id ? teamMap.get(game.away_team_id) : undefined;
+        const statusLower = (game.status || "").toLowerCase();
+        const isOver = statusLower.includes("final") || statusLower.includes("finished");
+        const isInProgress = statusLower.includes("progress") || statusLower.includes("live");
+
+        return {
+          gameId: String(game.game_id),
+          status: isOver ? "final" : isInProgress ? "in_progress" : "scheduled",
+          startTime: game.game_date || "",
+          homeTeam: normalizeCachedTeam(homeTeam, homeTeam?.code || ""),
+          awayTeam: normalizeCachedTeam(awayTeam, awayTeam?.code || ""),
+          homeScore: game.home_score,
+          awayScore: game.away_score,
+          venue: null,
+          channel: null,
+          week: 0,
+        };
+      });
+
+      // Sort by start time
+      allGames.sort((a, b) => 
+        new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+      );
+
+      const response: UpcomingResponse = {
+        range: { startDate, endDate },
+        count: allGames.length,
+        games: allGames,
+      };
+
+      const cacheTtl = allGames.length > 0 ? CACHE_TTL_WITH_GAMES : CACHE_TTL_NO_GAMES;
+      setInCache(cacheKey, response, cacheTtl);
+
+      console.log(`[/api/sports/upcoming] ${league.toUpperCase()} (cache): ${allGames.length} games in next ${days} days`);
+
+      return NextResponse.json(response);
+    }
+
+    // Other leagues use SportsDataIO
     // Fetch teams first for joining
     const teams = await getTeams(league);
     const teamMap = new Map<string, Team>();
