@@ -70,34 +70,36 @@ interface StatusResponse {
 
 export default function AdminSportsPage() {
   const [token, setToken] = useState<string>("");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(true); // Default true since middleware protects this route
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [selectedLeague, setSelectedLeague] = useState<string>("all");
 
-  // Get token from URL on mount
+  // Get token from URL or cookie on mount - middleware already protects this route
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const urlToken = params.get("token");
     if (urlToken) {
       setToken(urlToken);
-      setIsAuthenticated(true);
     }
+    // Since middleware protects /admin/*, we're already authenticated
+    setIsAuthenticated(true);
   }, []);
 
-  // Fetch status
+  // Fetch status - uses cookie auth, falls back to token if provided
   const fetchStatus = useCallback(async () => {
-    if (!token) return;
-    
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/sports/status?token=${token}`);
+      const url = token 
+        ? `/api/admin/sports/status?token=${token}` 
+        : `/api/admin/sports/status`;
+      const res = await fetch(url);
       if (!res.ok) {
         if (res.status === 401) {
           setIsAuthenticated(false);
-          setMessage({ type: "error", text: "Invalid token" });
+          setMessage({ type: "error", text: "Session expired. Please log in again." });
           return;
         }
         throw new Error("Failed to fetch status");
@@ -121,13 +123,16 @@ export default function AdminSportsPage() {
     }
   }, [isAuthenticated, fetchStatus]);
 
-  // Perform action
+  // Perform action - uses cookie auth, falls back to token if provided
   const performAction = async (action: string, league: string, date?: string) => {
     setActionLoading(`${action}-${league}`);
     setMessage(null);
     
     try {
-      const res = await fetch(`/api/admin/sports/refresh?token=${token}`, {
+      const url = token 
+        ? `/api/admin/sports/refresh?token=${token}` 
+        : `/api/admin/sports/refresh`;
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, league, date }),
@@ -192,40 +197,7 @@ export default function AdminSportsPage() {
     );
   };
 
-  // Login form
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-[#0d1117] flex items-center justify-center p-4">
-        <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-8 max-w-md w-full">
-          <h1 className="text-2xl font-bold text-white mb-6">Admin Access</h1>
-          <div className="space-y-4">
-            <input
-              type="password"
-              placeholder="Enter admin token"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              className="w-full px-4 py-3 bg-[#0d1117] border border-[#30363d] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-            />
-            <Button
-              onClick={() => {
-                if (token) {
-                  setIsAuthenticated(true);
-                  // Update URL with token
-                  window.history.replaceState({}, "", `?token=${token}`);
-                }
-              }}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              Access Dashboard
-            </Button>
-            {message?.type === "error" && (
-              <p className="text-red-500 text-sm text-center">{message.text}</p>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Note: Login is handled by middleware - if user reaches here, they are authenticated
 
   return (
     <div className="min-h-screen bg-[#0d1117] text-white p-6">
