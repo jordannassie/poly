@@ -66,7 +66,11 @@ export default function AdminMarketsPage() {
       const data = await res.json();
 
       if (data.success) {
-        setImportMessage({ type: "success", text: data.message });
+        // Show cache source in message
+        const sourceNote = data.cacheSource === "supabase" 
+          ? " (from Supabase persistent cache)" 
+          : " (from memory cache)";
+        setImportMessage({ type: "success", text: data.message + sourceNote });
         // Refresh markets table
         setLoading(true);
         await fetchMarkets();

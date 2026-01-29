@@ -1,20 +1,22 @@
 /**
  * POST /api/admin/markets/import-today
  * 
- * Imports today's games from the SportsDataIO in-memory cache into public.markets table.
+ * Imports today's games from cache into public.markets table.
  * Does NOT make new SportsDataIO API calls - reads from existing cache only.
+ * 
+ * Cache priority:
+ * 1. Try in-memory cache (fast but lost on serverless cold start)
+ * 2. Fallback to Supabase persistent cache (reliable on serverless)
  * 
  * Query params:
  * - league: NFL|NBA|MLB|NHL (required)
- * 
- * Source of games: lib/sportsdataio/cache.ts (in-memory cache)
- * Uses: getFromCache() to read cached games without triggering API calls
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getAdminClient, logSystemEvent } from "@/lib/supabase/admin";
 import { getFromCache, getCacheKey } from "@/lib/sportsdataio/cache";
+import { getFromPersistentCache } from "@/lib/sportsdataio/persistCache";
 import { getTodayIso } from "@/lib/sportsdataio/nflDate";
 import type { Score } from "@/lib/sportsdataio/client";
 import { getGameStatus, getGameId, getGameDate } from "@/lib/sportsdataio/client";
@@ -32,11 +34,8 @@ function isAuthorized(): boolean {
 
 // Generate a stable slug for a game
 function generateSlug(league: string, awayTeam: string, homeTeam: string, dateStr: string): string {
-  // Extract just the date part (YYYY-MM-DD) from various date formats
   const date = new Date(dateStr);
   const dateOnly = date.toISOString().split("T")[0];
-  
-  // Create slug: nfl-kc-buf-2025-01-29
   return `${league.toLowerCase()}-${awayTeam.toLowerCase()}-${homeTeam.toLowerCase()}-${dateOnly}`;
 }
 
@@ -102,28 +101,46 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Get today's date
     const todayIso = getTodayIso();
+    let games: Score[] | null = null;
+    let cacheSource: "memory" | "supabase" = "memory";
     
-    // Read games from cache (NO new API calls!)
-    // The cache key format is: sportsdataio:{league}:scores:{date}
-    const cacheKey = getCacheKey(league.toLowerCase(), "scores", todayIso);
-    const cachedGames = getFromCache<Score[]>(cacheKey);
+    // 1. Try in-memory cache first
+    const memoryCacheKey = getCacheKey(league.toLowerCase(), "scores", todayIso);
+    const cachedGames = getFromCache<Score[]>(memoryCacheKey);
+    
+    if (cachedGames && cachedGames.length > 0) {
+      games = cachedGames;
+      cacheSource = "memory";
+    } else {
+      // 2. Fallback to Supabase persistent cache
+      const persistentResult = await getFromPersistentCache<Score[]>({
+        league: league.toLowerCase(),
+        endpoint: "scores",
+        date: todayIso,
+      });
+      
+      if (persistentResult.data && persistentResult.data.length > 0) {
+        games = persistentResult.data;
+        cacheSource = "supabase";
+      }
+    }
 
-    if (!cachedGames || cachedGames.length === 0) {
+    // No games found in any cache
+    if (!games || games.length === 0) {
       return NextResponse.json({
         success: false,
         error: `No cached games found for ${league} on ${todayIso}. Please warm the cache first via SportsDataIO Admin.`,
         league,
         date: todayIso,
         imported: 0,
+        cacheSource: null,
       }, { status: 404 });
     }
 
     // Prepare market records for upsert
-    const markets = cachedGames.map((game) => {
+    const markets = games.map((game) => {
       const gameIdRaw = getGameId(game);
-      // Convert to number for sportsdata_game_id (use hash if string)
       const sportsdataGameId = /^\d+$/.test(gameIdRaw) 
         ? parseInt(gameIdRaw, 10)
         : Math.abs(gameIdRaw.split("").reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0));
@@ -172,7 +189,7 @@ export async function POST(request: NextRequest) {
         league,
         date: todayIso,
         imported_count: importedCount,
-        cache_key: cacheKey,
+        cache_source: cacheSource,
       },
     });
 
@@ -181,6 +198,7 @@ export async function POST(request: NextRequest) {
       league,
       date: todayIso,
       imported: importedCount,
+      cacheSource,
       message: `Successfully imported ${importedCount} ${league} games for ${todayIso}`,
     });
   } catch (error) {

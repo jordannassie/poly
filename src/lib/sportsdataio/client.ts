@@ -12,6 +12,7 @@
 import { recordSuccess, recordError } from "./status";
 import { getFromCache, setInCache, getCacheKey, TTL } from "./cache";
 import { toSportsDataIONflDate, getTodayIso, getTomorrowIso } from "./nflDate";
+import { upsertCache } from "./persistCache";
 
 // API configuration - key is server-side only
 const API_KEY = process.env.SPORTSDATAIO_API_KEY || "";
@@ -65,6 +66,7 @@ async function fetchFromAPI<T>(
 
 /**
  * Fetch with cache wrapper
+ * Also persists to Supabase for reliability on serverless platforms
  */
 async function fetchWithCache<T>(
   league: string,
@@ -75,7 +77,7 @@ async function fetchWithCache<T>(
 ): Promise<T> {
   const cacheKey = getCacheKey(league, endpoint, cacheParams);
 
-  // Check cache first
+  // Check in-memory cache first
   const cached = getFromCache<T>(cacheKey);
   if (cached !== null) {
     return cached;
@@ -84,8 +86,20 @@ async function fetchWithCache<T>(
   // Fetch from API
   const data = await fetchFromAPI<T>(league, endpoint, path);
 
-  // Store in cache
+  // Store in in-memory cache
   setInCache(cacheKey, data, ttlMs);
+
+  // Also persist to Supabase for reliability on serverless platforms
+  // This runs async and doesn't block the response
+  upsertCache({
+    league,
+    endpoint,
+    date: cacheParams, // cacheParams is typically the date for scores
+    payload: data,
+    ttlMs: ttlMs * 12, // Persist with longer TTL (12x for reliability)
+  }).catch((err) => {
+    console.warn("[fetchWithCache] Supabase persist failed:", err);
+  });
 
   return data;
 }
