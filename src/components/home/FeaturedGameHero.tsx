@@ -279,8 +279,7 @@ function OffseasonHero() {
         </p>
         <Link href="/sports">
           <Button 
-            variant="outline" 
-            className="border-white/20 text-white hover:bg-white/10"
+            className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold px-6 shadow-lg"
           >
             View All Teams
           </Button>
