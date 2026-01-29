@@ -161,52 +161,53 @@ export function TopNav() {
                 <Moon className="h-4 w-4" />
               )}
             </Button>
-            <div className="hidden items-center gap-4 text-sm text-white/80 md:flex">
-              <button
-                className="hover:text-white"
-                onClick={() => setHowOpen(true)}
-                type="button"
-              >
-                How it works
-              </button>
-              {isLoggedIn ? (
-                <>
-                  {/* Portfolio & Cash */}
-                  <Link href="/portfolio" className="flex items-center gap-4 mr-2 hover:opacity-80 transition">
-                    <div className="text-center">
-                      <div className="text-xs text-white/70">Portfolio</div>
-                      <div className="text-sm font-semibold text-white">$0.00</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-xs text-white/70">Cash</div>
-                      <div className="text-sm font-semibold text-white">$0.00</div>
-                    </div>
-                  </Link>
-                  {/* Notifications */}
-                  <Button
-                    variant="ghost"
-                    className="h-9 w-9 rounded-full p-0 text-white/80 hover:text-white hover:bg-white/20"
-                  >
-                    <Bell className="h-4 w-4" />
-                  </Button>
-                  {/* User Menu */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className="flex items-center gap-1 rounded-full p-1 text-white/80 hover:text-white">
-                        {realUser?.avatar_url ? (
-                          <img 
-                            src={realUser.avatar_url} 
-                            alt="Profile" 
-                            className="h-9 w-9 rounded-full object-cover"
-                          />
-                        ) : (
-                          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-xs font-semibold text-white">
-                            {initials}
-                          </span>
-                        )}
-                        <ChevronDown className="h-4 w-4 text-white/70" />
-                      </button>
-                    </DropdownMenuTrigger>
+            {/* How it works - desktop only */}
+            <button
+              className="hidden md:block text-sm text-white/80 hover:text-white"
+              onClick={() => setHowOpen(true)}
+              type="button"
+            >
+              How it works
+            </button>
+            
+            {isLoggedIn ? (
+              <div className="flex items-center gap-2 md:gap-4">
+                {/* Portfolio & Cash */}
+                <Link href="/portfolio" className="flex items-center gap-2 md:gap-4 hover:opacity-80 transition">
+                  <div className="text-center">
+                    <div className="text-[10px] md:text-xs text-white/70">Portfolio</div>
+                    <div className="text-xs md:text-sm font-semibold text-white">$0.00</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-[10px] md:text-xs text-white/70">Cash</div>
+                    <div className="text-xs md:text-sm font-semibold text-white">$0.00</div>
+                  </div>
+                </Link>
+                {/* Notifications */}
+                <Button
+                  variant="ghost"
+                  className="h-8 w-8 md:h-9 md:w-9 rounded-full p-0 text-white/80 hover:text-white hover:bg-white/20"
+                >
+                  <Bell className="h-4 w-4" />
+                </Button>
+                {/* User Menu */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex items-center gap-1 rounded-full p-1 text-white/80 hover:text-white">
+                      {realUser?.avatar_url ? (
+                        <img 
+                          src={realUser.avatar_url} 
+                          alt="Profile" 
+                          className="h-8 w-8 md:h-9 md:w-9 rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="flex h-8 w-8 md:h-9 md:w-9 items-center justify-center rounded-full bg-white/20 text-xs font-semibold text-white">
+                          {initials}
+                        </span>
+                      )}
+                      <ChevronDown className="h-3 w-3 md:h-4 md:w-4 text-white/70" />
+                    </button>
+                  </DropdownMenuTrigger>
                   <DropdownMenuContent className="bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] w-48">
                     <DropdownMenuItem asChild>
                       <Link href={profileLink}>Profile</Link>
@@ -241,65 +242,25 @@ export function TopNav() {
                     >
                       Logout
                     </DropdownMenuItem>
-                  </DropdownMenuContent>
-                  </DropdownMenu>
-                </>
-              ) : (
-                <>
-                  <Button
-                    variant="ghost"
-                    className="text-white/80 hover:text-white hover:bg-white/20"
-                    onClick={() => setAuthOpen(true)}
-                  >
-                    Log in
-                  </Button>
-                  <Button
-                    className="bg-white text-orange-600 hover:bg-white/90 font-semibold"
-                    onClick={() => setAuthOpen(true)}
-                  >
-                    Sign up
-                  </Button>
-                </>
-              )}
-            </div>
-            {/* Mobile User Avatar */}
-            {isLoggedIn && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="md:hidden flex items-center gap-1 rounded-full p-1 text-white/80 hover:text-white">
-                    {realUser?.avatar_url ? (
-                      <img 
-                        src={realUser.avatar_url} 
-                        alt="Profile" 
-                        className="h-8 w-8 rounded-full object-cover"
-                      />
-                    ) : (
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-xs font-semibold text-white">
-                        {initials}
-                      </span>
-                    )}
-                    <ChevronDown className="h-3 w-3 text-white/70" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] w-48">
-                  <DropdownMenuItem asChild>
-                    <Link href={profileLink}>Profile</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/portfolio">Portfolio</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/settings">Settings</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-[color:var(--border-soft)]" />
-                  <DropdownMenuItem
-                    className="text-red-500 focus:text-red-500"
-                    onSelect={handleLogout}
-                  >
-                    Logout
-                  </DropdownMenuItem>
                 </DropdownMenuContent>
-              </DropdownMenu>
+                </DropdownMenu>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  className="text-white/80 hover:text-white hover:bg-white/20 text-sm"
+                  onClick={() => setAuthOpen(true)}
+                >
+                  Log in
+                </Button>
+                <Button
+                  className="hidden md:inline-flex bg-white text-orange-600 hover:bg-white/90 font-semibold"
+                  onClick={() => setAuthOpen(true)}
+                >
+                  Sign up
+                </Button>
+              </div>
             )}
             {/* Mobile Menu Button */}
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
