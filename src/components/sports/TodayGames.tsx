@@ -127,7 +127,7 @@ export function TodayGames({ league = "nfl", date }: TodayGamesProps) {
       ) : (
         <div className="space-y-3">
           {games.map((game) => (
-            <GameCard key={game.GameKey} game={game} />
+            <GameCard key={game.GameKey} game={game} league={league} />
           ))}
         </div>
       )}
@@ -135,7 +135,7 @@ export function TodayGames({ league = "nfl", date }: TodayGamesProps) {
   );
 }
 
-function GameCard({ game }: { game: Game }) {
+function GameCard({ game, league }: { game: Game; league: string }) {
   const [awayImgError, setAwayImgError] = useState(false);
   const [homeImgError, setHomeImgError] = useState(false);
 
@@ -169,15 +169,15 @@ function GameCard({ game }: { game: Game }) {
   const homeTeam = game.HomeTeamData;
 
   // Determine the game detail route based on league
-  // NFL has dedicated /nfl/game route, others use /sports for now
   const getGameHref = () => {
-    // For now, all leagues link to their respective game pages when available
-    // NFL has a dedicated route, others can use a generic sports game route
-    return `/nfl/game/${game.GameKey}`; // TODO: Add routes for other leagues
+    return `/${league}/game/${game.GameKey}`;
   };
 
   return (
-    <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4 hover:border-[color:var(--border-strong)] transition cursor-pointer">
+    <Link 
+      href={getGameHref()}
+      className="block bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4 hover:border-[color:var(--border-strong)] transition"
+    >
         {/* Status Row */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -293,6 +293,6 @@ function GameCard({ game }: { game: Game }) {
             compact
           />
         </div>
-      </div>
+      </Link>
   );
 }

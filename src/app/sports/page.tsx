@@ -6,12 +6,11 @@ import { TopNav } from "@/components/TopNav";
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { SportsSidebar } from "@/components/SportsSidebar";
 import { MainFooter } from "@/components/MainFooter";
-import { TradePanel } from "@/components/TradePanel";
-import { MobileBetBar } from "@/components/MobileBetBar";
 import { TodayGames } from "@/components/sports/TodayGames";
 import { UpcomingGames } from "@/components/sports/UpcomingGames";
 import { TeamLogoGrid } from "@/components/sports/TeamLogoGrid";
 import { sportsGames } from "@/lib/mockData";
+import Link from "next/link";
 import { TeamOutcomeButton } from "@/components/market/TeamOutcomeButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,7 +48,6 @@ function SportsPageContent() {
   
   const leagueConfig = LEAGUE_CONFIG[league];
   
-  const [selectedGame, setSelectedGame] = useState(sportsGames[0]);
   const [showSpreads, setShowSpreads] = useState(true);
   const [teamLogos, setTeamLogos] = useState<Map<string, TeamInfo>>(new Map());
 
@@ -80,34 +78,6 @@ function SportsPageContent() {
   // Helper to get logo URL for a team abbreviation
   const getTeamLogo = (abbr: string): string | null => {
     return teamLogos.get(abbr)?.logoUrl || null;
-  };
-
-  // Format for trade panel
-  const formattedMarket = {
-    slug: selectedGame.id,
-    title: `${selectedGame.team1.name} vs ${selectedGame.team2.name}`,
-    category: selectedGame.league,
-    volume: selectedGame.volume,
-    endDate: `${selectedGame.date} ${selectedGame.gameTime}`,
-    outcomes: [
-      {
-        id: selectedGame.team1.abbr.toLowerCase(),
-        name: selectedGame.team1.name,
-        prob: selectedGame.team1.odds,
-        yesPrice: selectedGame.team1.odds,
-        noPrice: 100 - selectedGame.team1.odds,
-        volume: selectedGame.volume,
-      },
-      {
-        id: selectedGame.team2.abbr.toLowerCase(),
-        name: selectedGame.team2.name,
-        prob: selectedGame.team2.odds,
-        yesPrice: selectedGame.team2.odds,
-        noPrice: 100 - selectedGame.team2.odds,
-        volume: selectedGame.volume,
-      },
-    ],
-    sparkline: [],
   };
 
   return (
@@ -191,14 +161,10 @@ function SportsPageContent() {
                   {sportsGames
                     .filter((g) => g.league === "NFL")
                     .map((game) => (
-                      <div
+                      <Link
                         key={game.id}
-                        className={`bg-[color:var(--surface)] border rounded-xl p-3 md:p-4 cursor-pointer transition ${
-                          selectedGame.id === game.id
-                            ? "border-[color:var(--accent)] ring-1 ring-[color:var(--accent)]"
-                            : "border-[color:var(--border-soft)] hover:border-[color:var(--border-strong)]"
-                        }`}
-                        onClick={() => setSelectedGame(game)}
+                        href={`/market/${game.id}`}
+                        className="block bg-[color:var(--surface)] border rounded-xl p-3 md:p-4 transition border-[color:var(--border-soft)] hover:border-[color:var(--border-strong)]"
                       >
                         {/* Game Header */}
                         <div className="flex items-center justify-between mb-3 md:mb-4">
@@ -248,7 +214,6 @@ function SportsPageContent() {
                                 color: game.team1.color,
                               }}
                               priceCents={game.team1.odds}
-                              onClick={() => setSelectedGame(game)}
                               compact
                               className="h-8"
                             />
@@ -284,7 +249,6 @@ function SportsPageContent() {
                                 color: game.team2.color,
                               }}
                               priceCents={game.team2.odds}
-                              onClick={() => setSelectedGame(game)}
                               compact
                               className="h-8"
                             />
@@ -344,7 +308,6 @@ function SportsPageContent() {
                                 color: game.team1.color,
                               }}
                               priceCents={game.team1.odds}
-                              onClick={() => setSelectedGame(game)}
                               compact
                               className="w-32"
                             />
@@ -400,7 +363,6 @@ function SportsPageContent() {
                                 color: game.team2.color,
                               }}
                               priceCents={game.team2.odds}
-                              onClick={() => setSelectedGame(game)}
                               compact
                               className="w-32"
                             />
@@ -422,7 +384,7 @@ function SportsPageContent() {
                             )}
                           </div>
                         </div>
-                      </div>
+                      </Link>
                     ))}
                 </div>
               </>
@@ -503,81 +465,7 @@ function SportsPageContent() {
           </div>
         </main>
 
-        {/* Trade Panel - Right Side on desktop, below content on mobile */}
-        <div className="w-full lg:w-80 flex-shrink-0 p-4 md:p-6 lg:border-l border-t lg:border-t-0 border-[color:var(--border-soft)]">
-          <div className="lg:sticky lg:top-6 max-w-md mx-auto lg:max-w-none">
-            {/* Selected Game Info */}
-            <div className="mb-4 p-3 md:p-4 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex items-center -space-x-2">
-                  <div
-                    className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm md:text-base overflow-hidden z-10 border-2 border-[color:var(--surface)]"
-                    style={{ backgroundColor: selectedGame.team1.color }}
-                  >
-                    {getTeamLogo(selectedGame.team1.abbr) ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img 
-                        src={getTeamLogo(selectedGame.team1.abbr)!} 
-                        alt={selectedGame.team1.name}
-                        className="w-8 h-8 md:w-10 md:h-10 object-contain"
-                        loading="lazy"
-                      />
-                    ) : (
-                      selectedGame.team1.abbr
-                    )}
-                  </div>
-                  <div
-                    className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm md:text-base overflow-hidden border-2 border-[color:var(--surface)]"
-                    style={{ backgroundColor: selectedGame.team2.color }}
-                  >
-                    {getTeamLogo(selectedGame.team2.abbr) ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img 
-                        src={getTeamLogo(selectedGame.team2.abbr)!} 
-                        alt={selectedGame.team2.name}
-                        className="w-8 h-8 md:w-10 md:h-10 object-contain"
-                        loading="lazy"
-                      />
-                    ) : (
-                      selectedGame.team2.abbr
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <div className="font-semibold text-sm md:text-base">
-                    {selectedGame.team1.name} vs {selectedGame.team2.name}
-                  </div>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-500">
-                    {selectedGame.team1.name}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <TradePanel 
-              market={formattedMarket}
-              teamA={{
-                name: selectedGame.team1.name,
-                abbr: selectedGame.team1.abbr,
-                logoUrl: getTeamLogo(selectedGame.team1.abbr),
-                color: selectedGame.team1.color,
-              }}
-              teamB={{
-                name: selectedGame.team2.name,
-                abbr: selectedGame.team2.abbr,
-                logoUrl: getTeamLogo(selectedGame.team2.abbr),
-                color: selectedGame.team2.color,
-              }}
-            />
-          </div>
-        </div>
       </div>
-
-      {/* Mobile Sticky Bet Bar */}
-      <MobileBetBar 
-        team1={selectedGame.team1} 
-        team2={selectedGame.team2} 
-      />
 
       <MainFooter />
     </div>

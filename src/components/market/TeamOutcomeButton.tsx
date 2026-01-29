@@ -11,7 +11,7 @@ export interface TeamOutcomeProps {
   };
   priceCents: number;
   selected?: boolean;
-  onClick: () => void;
+  onClick?: () => void;
   variant?: "primary" | "secondary";
   compact?: boolean;
   className?: string;
