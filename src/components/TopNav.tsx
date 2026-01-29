@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { Search, ChevronDown, Moon, Sun, Bell, Zap, Menu, X, Home, Trophy, Settings, Wallet, Radio, BarChart3 } from "lucide-react";
 import { Input } from "./ui/input";
@@ -24,17 +24,47 @@ import {
 import { clearDemoUser, DemoUser, getDemoUser, setDemoUser } from "@/lib/demoAuth";
 import { initTheme, ThemeMode, toggleTheme } from "@/lib/theme";
 
+// Real user type from /api/me
+interface RealUser {
+  id: string;
+  username: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  wallet_address?: string;
+}
+
 export function TopNav() {
   const [authOpen, setAuthOpen] = useState(false);
   const [howOpen, setHowOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [demoUser, setDemoUserState] = useState<DemoUser | null>(null);
+  const [realUser, setRealUser] = useState<RealUser | null>(null);
+  const [authType, setAuthType] = useState<"supabase" | "wallet" | "none">("none");
   const [theme, setTheme] = useState<ThemeMode>("dark");
+
+  // Fetch real user from /api/me
+  const fetchMe = useCallback(async () => {
+    try {
+      const res = await fetch("/api/me");
+      const data = await res.json();
+      if (data.user) {
+        setRealUser(data.user);
+        setAuthType(data.authType);
+      } else {
+        setRealUser(null);
+        setAuthType("none");
+      }
+    } catch {
+      setRealUser(null);
+      setAuthType("none");
+    }
+  }, []);
 
   useEffect(() => {
     setDemoUserState(getDemoUser());
     setTheme(initTheme());
-  }, []);
+    fetchMe();
+  }, [fetchMe]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -47,7 +77,28 @@ export function TopNav() {
     return () => observer.disconnect();
   }, []);
 
+  // Determine if user is logged in (real user takes priority over demo)
+  const isLoggedIn = realUser !== null || demoUser !== null;
+  const currentUser = realUser || demoUser;
+
   const initials = useMemo(() => {
+    if (realUser) {
+      // Use real user display name or username
+      const name = realUser.display_name || realUser.username || "";
+      if (name) {
+        return name
+          .split(" ")
+          .map((word) => word[0])
+          .join("")
+          .slice(0, 2)
+          .toUpperCase();
+      }
+      // Fallback to wallet address initials
+      if (realUser.wallet_address) {
+        return realUser.wallet_address.slice(0, 2).toUpperCase();
+      }
+      return "U";
+    }
     if (!demoUser) return "";
     return demoUser.name
       .split(" ")
@@ -55,7 +106,34 @@ export function TopNav() {
       .join("")
       .slice(0, 2)
       .toUpperCase();
-  }, [demoUser]);
+  }, [realUser, demoUser]);
+
+  // Get profile link
+  const profileLink = useMemo(() => {
+    if (realUser?.username) {
+      return `/u/${realUser.username}`;
+    }
+    if (demoUser?.handle) {
+      return `/u/${demoUser.handle.replace("@", "").toLowerCase()}`;
+    }
+    return "/settings";
+  }, [realUser, demoUser]);
+
+  // Handle logout
+  const handleLogout = async () => {
+    // Clear demo user
+    clearDemoUser();
+    setDemoUserState(null);
+    
+    // Clear wallet session by calling a logout or just reloading
+    // For now, just clear local state and reload to clear cookies
+    setRealUser(null);
+    setAuthType("none");
+    
+    // Clear wallet session cookie by reloading (cookie will be cleared by expiry or we can add logout endpoint)
+    document.cookie = "pp_wallet_session=; Max-Age=0; path=/";
+    window.location.reload();
+  };
 
   return (
     <>
@@ -96,7 +174,7 @@ export function TopNav() {
               >
                 How it works
               </button>
-              {demoUser ? (
+              {isLoggedIn ? (
                 <>
                   {/* Portfolio & Cash */}
                   <Link href="/portfolio" className="flex items-center gap-4 mr-2 hover:opacity-80 transition">
@@ -128,7 +206,7 @@ export function TopNav() {
                     </DropdownMenuTrigger>
                   <DropdownMenuContent className="bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] w-48">
                     <DropdownMenuItem asChild>
-                      <Link href={`/u/${demoUser.handle.replace("@", "").toLowerCase()}`}>Profile</Link>
+                      <Link href={profileLink}>Profile</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link href="/portfolio">Portfolio</Link>
@@ -156,10 +234,7 @@ export function TopNav() {
                     <DropdownMenuSeparator className="bg-[color:var(--border-soft)]" />
                     <DropdownMenuItem
                       className="text-red-500 focus:text-red-400"
-                      onSelect={() => {
-                        clearDemoUser();
-                        setDemoUserState(null);
-                      }}
+                      onSelect={handleLogout}
                     >
                       Logout
                     </DropdownMenuItem>
@@ -283,23 +358,28 @@ export function TopNav() {
 
                   {/* Auth Buttons or User Info */}
                   <div className="px-4 mt-4 pt-4 border-t border-[color:var(--border-soft)]">
-                    {demoUser ? (
+                    {isLoggedIn ? (
                       <div className="space-y-3">
                         <div className="flex items-center gap-3 p-3 bg-[color:var(--surface-2)] rounded-lg">
                           <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-amber-600 text-sm font-semibold text-white">
                             {initials}
                           </span>
                           <div>
-                            <div className="font-medium text-[color:var(--text-strong)]">{demoUser.name}</div>
-                            <div className="text-xs text-[color:var(--text-muted)]">{demoUser.email}</div>
+                            <div className="font-medium text-[color:var(--text-strong)]">
+                              {realUser?.display_name || realUser?.username || demoUser?.name || "User"}
+                            </div>
+                            <div className="text-xs text-[color:var(--text-muted)]">
+                              {realUser?.wallet_address 
+                                ? `${realUser.wallet_address.slice(0, 4)}...${realUser.wallet_address.slice(-4)}`
+                                : demoUser?.email || ""}
+                            </div>
                           </div>
                         </div>
                         <Button
                           variant="outline"
                           className="w-full border-red-500/50 text-red-500 hover:bg-red-500/10"
                           onClick={() => {
-                            clearDemoUser();
-                            setDemoUserState(null);
+                            handleLogout();
                             setMobileMenuOpen(false);
                           }}
                         >

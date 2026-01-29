@@ -33,13 +33,65 @@ declare global {
   }
 }
 
+// Wallet connection type from API
+interface WalletConnection {
+  id: string;
+  chain: string;
+  wallet_address: string;
+  verified: boolean;
+  is_primary: boolean;
+  connected_at: string;
+}
+
+// User type from /api/me
+interface CurrentUser {
+  id: string;
+  username: string | null;
+  display_name: string | null;
+  wallet_address?: string;
+}
+
 // Phantom wallet connection component
 function AccountSection() {
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [walletStatus, setWalletStatus] = useState<"idle" | "connecting" | "signing" | "verifying" | "success" | "error">("idle");
   const [walletError, setWalletError] = useState<string | null>(null);
-  const [connectedWallet, setConnectedWallet] = useState<string | null>(null);
   const [hasPhantom, setHasPhantom] = useState<boolean | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  
+  // Real user and wallet data
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [wallets, setWallets] = useState<WalletConnection[]>([]);
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [loadingWallets, setLoadingWallets] = useState(false);
+
+  // Fetch current user on mount
+  useEffect(() => {
+    const fetchMe = async () => {
+      try {
+        const res = await fetch("/api/me");
+        const data = await res.json();
+        if (data.user) {
+          setCurrentUser(data.user);
+          // Also fetch wallets
+          setLoadingWallets(true);
+          const walletsRes = await fetch("/api/wallets/my");
+          const walletsData = await walletsRes.json();
+          if (walletsData.wallets) {
+            setWallets(walletsData.wallets);
+          }
+          setLoadingWallets(false);
+        } else {
+          setCurrentUser(null);
+        }
+      } catch {
+        setCurrentUser(null);
+      } finally {
+        setLoadingUser(false);
+      }
+    };
+    fetchMe();
+  }, []);
 
   // Check for Phantom on mount
   useEffect(() => {
@@ -131,8 +183,14 @@ function AccountSection() {
       }
 
       // Success!
-      setConnectedWallet(walletAddress);
       setWalletStatus("success");
+      
+      // Refresh wallets list
+      const walletsRes = await fetch("/api/wallets/my");
+      const walletsData = await walletsRes.json();
+      if (walletsData.wallets) {
+        setWallets(walletsData.wallets);
+      }
       
       // Close modal after delay
       setTimeout(() => {
@@ -151,9 +209,66 @@ function AccountSection() {
     return `${address.slice(0, 4)}...${address.slice(-4)}`;
   };
 
+  // Show loading state
+  if (loadingUser) {
+    return (
+      <div className="space-y-8">
+        <h1 className="text-2xl font-bold">Account Settings</h1>
+        <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-6">
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-[color:var(--surface-2)] rounded w-1/3"></div>
+            <div className="h-10 bg-[color:var(--surface-2)] rounded"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show sign-in prompt if not logged in
+  if (!currentUser) {
+    return (
+      <div className="space-y-8">
+        <h1 className="text-2xl font-bold">Account Settings</h1>
+        <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-6 text-center space-y-4">
+          <Wallet className="h-12 w-12 mx-auto text-[color:var(--text-muted)]" />
+          <h3 className="font-semibold">Sign in to manage wallets</h3>
+          <p className="text-sm text-[color:var(--text-muted)]">
+            Connect your account to manage wallet connections and settings.
+          </p>
+          <Button 
+            className="bg-purple-600 hover:bg-purple-700 text-white"
+            onClick={() => window.location.href = "/"}
+          >
+            Go to Home to Sign In
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-bold">Account Settings</h1>
+      
+      {/* User Info */}
+      <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-6 space-y-4">
+        <h3 className="font-semibold">Account</h3>
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 rounded-full bg-gradient-to-br from-purple-600 to-blue-500 flex items-center justify-center">
+            <span className="text-white font-bold">
+              {(currentUser.display_name || currentUser.username || "U").slice(0, 2).toUpperCase()}
+            </span>
+          </div>
+          <div>
+            <div className="font-medium">{currentUser.display_name || currentUser.username || "User"}</div>
+            {currentUser.wallet_address && (
+              <div className="text-sm text-[color:var(--text-muted)] font-mono">
+                {formatAddress(currentUser.wallet_address)}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
       
       {/* Wallet Connections */}
       <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-6 space-y-4">
@@ -162,31 +277,42 @@ function AccountSection() {
           Connect your crypto wallet to deposit, withdraw, and verify ownership of your trading account.
         </p>
         
-        {/* Show connected wallet if exists */}
-        {connectedWallet && (
-          <div className="flex items-center justify-between p-4 rounded-lg bg-[color:var(--surface-2)]">
+        {/* Loading wallets */}
+        {loadingWallets && (
+          <div className="animate-pulse h-16 bg-[color:var(--surface-2)] rounded-lg"></div>
+        )}
+        
+        {/* Show connected wallets from database */}
+        {!loadingWallets && wallets.map((wallet) => (
+          <div key={wallet.id} className="flex items-center justify-between p-4 rounded-lg bg-[color:var(--surface-2)]">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-600 to-blue-500 flex items-center justify-center">
-                <span className="text-white font-bold text-xs">SOL</span>
+                <span className="text-white font-bold text-xs">{wallet.chain.toUpperCase().slice(0, 3)}</span>
               </div>
               <div>
-                <div className="font-mono text-sm">{formatAddress(connectedWallet)}</div>
-                <div className="text-xs text-green-500">Verified • Primary</div>
+                <div className="font-mono text-sm">{formatAddress(wallet.wallet_address)}</div>
+                <div className="flex items-center gap-2 text-xs">
+                  {wallet.verified && <span className="text-green-500">Verified</span>}
+                  {wallet.is_primary && <span className="text-purple-500">• Primary</span>}
+                  <span className="text-[color:var(--text-muted)]">
+                    • Connected {new Date(wallet.connected_at).toLocaleDateString()}
+                  </span>
+                </div>
               </div>
             </div>
             <Button variant="outline" size="sm" className="border-[color:var(--border-soft)]">
               Disconnect
             </Button>
           </div>
-        )}
+        ))}
 
-        {/* Connect Phantom Button */}
+        {/* Connect Phantom Button - show different text if wallets exist */}
         <Button 
           onClick={() => setShowWalletModal(true)}
           className="gap-2 bg-purple-600 hover:bg-purple-700 text-white"
         >
           <Wallet className="h-4 w-4" />
-          {connectedWallet ? "Connect Another Wallet" : "Connect Phantom Wallet"}
+          {wallets.length > 0 ? "Connect Another Wallet" : "Connect Phantom Wallet"}
         </Button>
       </div>
       
