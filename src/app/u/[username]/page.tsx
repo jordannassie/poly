@@ -238,11 +238,36 @@ export default function PublicProfilePage({ params }: Props) {
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
 
   useEffect(() => {
-    const demoUser = getDemoUser();
-    if (demoUser) {
-      const demoHandle = demoUser.handle.replace("@", "").toLowerCase();
-      setIsOwnProfile(username.toLowerCase() === demoHandle || username.toLowerCase() === "demo");
-    }
+    // Check if this is the current user's profile
+    const checkOwnership = async () => {
+      // First check demo user
+      const demoUser = getDemoUser();
+      if (demoUser) {
+        const demoHandle = demoUser.handle.replace("@", "").toLowerCase();
+        if (username.toLowerCase() === demoHandle || username.toLowerCase() === "demo") {
+          setIsOwnProfile(true);
+          return;
+        }
+      }
+      
+      // Then check real logged-in user via /api/me
+      try {
+        const meRes = await fetch("/api/me");
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          if (meData.user?.username && meData.user.username.toLowerCase() === username.toLowerCase()) {
+            setIsOwnProfile(true);
+            return;
+          }
+        }
+      } catch {
+        // Not logged in or error
+      }
+      
+      setIsOwnProfile(false);
+    };
+    
+    checkOwnership();
     
     // Fetch real profile data
     const fetchProfile = async () => {
