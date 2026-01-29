@@ -19,11 +19,11 @@ const competitors = [
     logo: "https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/sign/SPORTS/logos/underdog_image-and-text_vertical.webp?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8wOTc3NzFmYi1jYzJjLTQxNGItOTNjYi1jZjk5OGVhNGMyZGMiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJTUE9SVFMvbG9nb3MvdW5kZXJkb2dfaW1hZ2UtYW5kLXRleHRfdmVydGljYWwud2VicCIsImlhdCI6MTc2OTcxODk2MywiZXhwIjozMTU1MzY5NzE4OTYzfQ.byCy-G9c2c8OceODC7zvZuM2kN5fq_-UH36XzzHi06Q",
   },
   {
-    name: "PrizePicks",
+    name: "FanDuel",
     logo: "https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/sign/SPORTS/logos/images.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8wOTc3NzFmYi1jYzJjLTQxNGItOTNjYi1jZjk5OGVhNGMyZGMiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJTUE9SVFMvbG9nb3MvaW1hZ2VzLnBuZyIsImlhdCI6MTc2OTcxODk3NSwiZXhwIjozMTU1MzY5NzE4OTc1fQ.NorLJzpTYuJykb1jtwVkHCcmr1dsAXkAESfBwyg5XZU",
   },
   {
-    name: "Sleeper",
+    name: "PrizePicks",
     logo: "https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/sign/SPORTS/logos/images-1.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8wOTc3NzFmYi1jYzJjLTQxNGItOTNjYi1jZjk5OGVhNGMyZGMiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJTUE9SVFMvbG9nb3MvaW1hZ2VzLTEucG5nIiwiaWF0IjoxNzY5NzE4OTg3LCJleHAiOjMxNzEyOTcxODk4N30.rAyYOqsID2i8JxasvnMa-mrBtdUGyYDkrDxpQpzeuOU",
   },
 ];
@@ -37,8 +37,8 @@ interface ComparisonFeature {
   provePicks: FeatureStatus;
   draftkings: FeatureStatus;
   underdog: FeatureStatus;
+  fanduel: FeatureStatus;
   prizepicks: FeatureStatus;
-  sleeper: FeatureStatus;
 }
 
 const comparisonFeatures: ComparisonFeature[] = [
@@ -48,8 +48,8 @@ const comparisonFeatures: ComparisonFeature[] = [
     provePicks: "yes",
     draftkings: "no",
     underdog: "no",
-    prizepicks: "no",
-    sleeper: "partial",
+    fanduel: "no",
+    prizepicks: "partial",
   },
   {
     feature: "Verified Track Record",
@@ -57,8 +57,8 @@ const comparisonFeatures: ComparisonFeature[] = [
     provePicks: "yes",
     draftkings: "no",
     underdog: "no",
+    fanduel: "no",
     prizepicks: "no",
-    sleeper: "no",
   },
   {
     feature: "Public Leaderboards",
@@ -66,8 +66,8 @@ const comparisonFeatures: ComparisonFeature[] = [
     provePicks: "yes",
     draftkings: "no",
     underdog: "partial",
-    prizepicks: "no",
-    sleeper: "yes",
+    fanduel: "no",
+    prizepicks: "yes",
   },
   {
     feature: "Copy Trading",
@@ -75,8 +75,8 @@ const comparisonFeatures: ComparisonFeature[] = [
     provePicks: "yes",
     draftkings: "no",
     underdog: "no",
+    fanduel: "no",
     prizepicks: "no",
-    sleeper: "no",
   },
   {
     feature: "Transparent P&L Stats",
@@ -84,8 +84,8 @@ const comparisonFeatures: ComparisonFeature[] = [
     provePicks: "yes",
     draftkings: "no",
     underdog: "no",
+    fanduel: "no",
     prizepicks: "no",
-    sleeper: "no",
   },
   {
     feature: "Real-time Activity Feed",
@@ -93,8 +93,8 @@ const comparisonFeatures: ComparisonFeature[] = [
     provePicks: "yes",
     draftkings: "no",
     underdog: "no",
-    prizepicks: "no",
-    sleeper: "partial",
+    fanduel: "no",
+    prizepicks: "partial",
   },
   {
     feature: "No Hidden Fees",
@@ -102,8 +102,8 @@ const comparisonFeatures: ComparisonFeature[] = [
     provePicks: "yes",
     draftkings: "no",
     underdog: "partial",
-    prizepicks: "partial",
-    sleeper: "yes",
+    fanduel: "partial",
+    prizepicks: "yes",
   },
   {
     feature: "Crypto Wallet Login",
@@ -111,8 +111,8 @@ const comparisonFeatures: ComparisonFeature[] = [
     provePicks: "yes",
     draftkings: "no",
     underdog: "no",
+    fanduel: "no",
     prizepicks: "no",
-    sleeper: "no",
   },
 ];
 import { Button } from "./ui/button";
@@ -634,12 +634,12 @@ export function CodeGate({ children }: CodeGateProps) {
                         </div>
                       ) : (
                         <div className="flex flex-col items-center gap-1">
-                          <div className="h-10 w-10 rounded-lg bg-white/10 overflow-hidden flex items-center justify-center">
+                          <div className="h-16 w-16 rounded-lg bg-white/10 overflow-hidden flex items-center justify-center">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img 
                               src={comp.logo || ''} 
                               alt={comp.name} 
-                              className="h-8 w-8 object-contain"
+                              className="h-14 w-14 object-contain"
                             />
                           </div>
                           <span className="text-xs text-gray-500">{comp.name}</span>
@@ -704,11 +704,11 @@ export function CodeGate({ children }: CodeGateProps) {
                       )}
                     </td>
                     <td className="py-4 px-3 text-center">
-                      {row.prizepicks === "yes" ? (
+                      {row.fanduel === "yes" ? (
                         <div className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-green-500/20">
                           <Check className="h-5 w-5 text-green-400" />
                         </div>
-                      ) : row.prizepicks === "partial" ? (
+                      ) : row.fanduel === "partial" ? (
                         <div className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-yellow-500/20">
                           <Minus className="h-5 w-5 text-yellow-400" />
                         </div>
@@ -719,11 +719,11 @@ export function CodeGate({ children }: CodeGateProps) {
                       )}
                     </td>
                     <td className="py-4 px-3 text-center">
-                      {row.sleeper === "yes" ? (
+                      {row.prizepicks === "yes" ? (
                         <div className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-green-500/20">
                           <Check className="h-5 w-5 text-green-400" />
                         </div>
-                      ) : row.sleeper === "partial" ? (
+                      ) : row.prizepicks === "partial" ? (
                         <div className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-yellow-500/20">
                           <Minus className="h-5 w-5 text-yellow-400" />
                         </div>
@@ -752,8 +752,8 @@ export function CodeGate({ children }: CodeGateProps) {
                     { name: "PP", value: row.provePicks, highlight: true },
                     { name: "DK", value: row.draftkings },
                     { name: "UD", value: row.underdog },
+                    { name: "FD", value: row.fanduel },
                     { name: "PZ", value: row.prizepicks },
-                    { name: "SL", value: row.sleeper },
                   ].map((item, j) => (
                     <div key={j} className="flex flex-col items-center gap-1">
                       <span className={`text-xs ${item.highlight ? "text-orange-400 font-bold" : "text-gray-500"}`}>
