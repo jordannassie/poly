@@ -561,14 +561,19 @@ export default function SettingsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          username,
           display_name: displayName,
           bio,
           website,
         }),
       });
       
+      const data = await res.json();
+      
       if (!res.ok) {
-        throw new Error("Failed to save");
+        // Show specific error message
+        setUsernameError(data.error || "Failed to save");
+        throw new Error(data.error || "Failed to save");
       }
       
       setSaveStatus("success");
