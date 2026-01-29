@@ -1,14 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { TopNav } from "@/components/TopNav";
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { MainFooter } from "@/components/MainFooter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getSupabaseClient, getCurrentUser } from "@/lib/supabase";
-import { getMyProfile, upsertMyProfile, validateUsername } from "@/lib/profiles";
-import type { Profile } from "@/types/database.types";
+import { getDemoUser, DemoUser } from "@/lib/demoAuth";
+import { validateUsername } from "@/lib/profiles";
 import { Upload, Check, AlertCircle, Loader2 } from "lucide-react";
 
 const sidebarItems = [
@@ -21,12 +20,10 @@ const sidebarItems = [
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState("profile");
-  const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [user, setUser] = useState<DemoUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
-  const [errorMessage, setErrorMessage] = useState("");
 
   // Form fields
   const [email, setEmail] = useState("");
@@ -39,51 +36,17 @@ export default function SettingsPage() {
   // Validation state
   const [usernameError, setUsernameError] = useState("");
 
-  const loadProfile = useCallback(async () => {
-    setLoading(true);
-    try {
-      const currentUser = await getCurrentUser();
-      if (currentUser) {
-        setUser(currentUser);
-        setEmail(currentUser.email || "");
-        
-        const profileData = await getMyProfile();
-        if (profileData) {
-          setProfile(profileData);
-          setUsername(profileData.username || "");
-          setDisplayName(profileData.display_name || "");
-          setBio(profileData.bio || "");
-          setWebsite(profileData.website || "");
-          setAvatarUrl(profileData.avatar_url || "");
-        }
-      }
-    } catch (error) {
-      console.error("Error loading profile:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    loadProfile();
-
-    // Listen for auth state changes
-    const client = getSupabaseClient();
-    if (client) {
-      const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          loadProfile();
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setProfile(null);
-        }
-      });
-
-      return () => {
-        subscription.unsubscribe();
-      };
+    // Load demo user
+    const demoUser = getDemoUser();
+    if (demoUser) {
+      setUser(demoUser);
+      setEmail(demoUser.email);
+      setUsername(demoUser.handle.replace("@", ""));
+      setDisplayName(demoUser.name);
     }
-  }, [loadProfile]);
+    setLoading(false);
+  }, []);
 
   // Validate username on change
   useEffect(() => {
@@ -113,41 +76,19 @@ export default function SettingsPage() {
 
     setSaving(true);
     setSaveStatus("idle");
-    setErrorMessage("");
 
-    try {
-      const result = await upsertMyProfile({
-        username: username || null,
-        display_name: displayName || null,
-        bio: bio || null,
-        website: website || null,
-        avatar_url: avatarUrl || null,
-      });
-
-      if (result.success) {
-        setSaveStatus("success");
-        if (result.profile) {
-          setProfile(result.profile);
-        }
-        // Reset success status after 3 seconds
-        setTimeout(() => setSaveStatus("idle"), 3000);
-      } else {
-        setSaveStatus("error");
-        setErrorMessage(result.error || "Failed to save");
-        if (result.error?.toLowerCase().includes("username")) {
-          setUsernameError(result.error);
-        }
-      }
-    } catch (error) {
-      console.error("Error saving profile:", error);
-      setSaveStatus("error");
-      setErrorMessage("An unexpected error occurred");
-    } finally {
-      setSaving(false);
-    }
+    // Simulate save for demo mode
+    // TODO: When Supabase auth is integrated, use upsertMyProfile here
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    setSaveStatus("success");
+    setSaving(false);
+    
+    // Reset success status after 3 seconds
+    setTimeout(() => setSaveStatus("idle"), 3000);
   };
 
-  // Show sign-in prompt if not logged in
+  // Show sign-in prompt if not logged in as demo user
   if (!loading && !user) {
     return (
       <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
@@ -220,34 +161,13 @@ export default function SettingsPage() {
                       ) : (
                         <div className="h-16 w-16 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-yellow-500" />
                       )}
-                      <div className="space-y-2">
-                        <Button
-                          variant="outline"
-                          className="gap-2 border-[color:var(--border-soft)]"
-                          disabled
-                        >
-                          <Upload className="h-4 w-4" />
-                          Upload
-                        </Button>
-                        {/* TODO: Implement avatar upload with Supabase Storage when available */}
-                        <p className="text-xs text-[color:var(--text-muted)]">
-                          Avatar upload coming soon
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Avatar URL (temporary) */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Avatar URL</label>
-                      <Input
-                        value={avatarUrl}
-                        onChange={(e) => setAvatarUrl(e.target.value)}
-                        placeholder="https://example.com/avatar.jpg"
-                        className="bg-[color:var(--surface-2)] border-[color:var(--border-soft)]"
-                      />
-                      <p className="text-xs text-[color:var(--text-muted)]">
-                        Enter a URL to your avatar image
-                      </p>
+                      <Button
+                        variant="outline"
+                        className="gap-2 border-[color:var(--border-soft)]"
+                      >
+                        <Upload className="h-4 w-4" />
+                        Upload
+                      </Button>
                     </div>
 
                     {/* Email */}
@@ -255,31 +175,27 @@ export default function SettingsPage() {
                       <label className="text-sm font-medium">Email</label>
                       <Input
                         value={email}
-                        disabled
-                        className="bg-[color:var(--surface-2)] border-[color:var(--border-soft)] opacity-60"
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="bg-[color:var(--surface-2)] border-[color:var(--border-soft)]"
                       />
-                      <p className="text-xs text-[color:var(--text-muted)]">
-                        Email is managed through your account settings
-                      </p>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-[color:var(--text-muted)]">Not verified</span>
+                        <button className="text-blue-500 hover:underline">Resend</button>
+                      </div>
                     </div>
 
                     {/* Username */}
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Username</label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)]">
-                          @
-                        </span>
-                        <Input
-                          value={username}
-                          onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
-                          placeholder="username"
-                          maxLength={20}
-                          className={`pl-8 bg-[color:var(--surface-2)] border-[color:var(--border-soft)] ${
-                            usernameError ? "border-red-500" : ""
-                          }`}
-                        />
-                      </div>
+                      <Input
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                        placeholder="username"
+                        maxLength={20}
+                        className={`bg-[color:var(--surface-2)] border-[color:var(--border-soft)] ${
+                          usernameError ? "border-red-500" : ""
+                        }`}
+                      />
                       {usernameError ? (
                         <p className="text-xs text-red-500 flex items-center gap-1">
                           <AlertCircle className="h-3 w-3" />
@@ -292,37 +208,15 @@ export default function SettingsPage() {
                       )}
                     </div>
 
-                    {/* Display Name */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Display Name</label>
-                      <Input
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                        placeholder="Your display name"
-                        className="bg-[color:var(--surface-2)] border-[color:var(--border-soft)]"
-                      />
-                    </div>
-
                     {/* Bio */}
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Bio</label>
                       <textarea
                         value={bio}
                         onChange={(e) => setBio(e.target.value)}
-                        placeholder="Tell us about yourself..."
+                        placeholder="Bio"
                         rows={4}
                         className="w-full rounded-lg bg-[color:var(--surface-2)] border border-[color:var(--border-soft)] p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    {/* Website */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Website</label>
-                      <Input
-                        value={website}
-                        onChange={(e) => setWebsite(e.target.value)}
-                        placeholder="https://yourwebsite.com"
-                        className="bg-[color:var(--surface-2)] border-[color:var(--border-soft)]"
                       />
                     </div>
 
@@ -359,12 +253,6 @@ export default function SettingsPage() {
                           "Save changes"
                         )}
                       </Button>
-                      {saveStatus === "error" && errorMessage && (
-                        <p className="text-sm text-red-500 flex items-center gap-1">
-                          <AlertCircle className="h-4 w-4" />
-                          {errorMessage}
-                        </p>
-                      )}
                     </div>
 
                     {/* Profile Preview */}
