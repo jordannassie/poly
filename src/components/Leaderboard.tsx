@@ -22,9 +22,10 @@ export function Leaderboard() {
       </div>
       <CardContent className="p-0">
         {leaderboard.slice(0, 5).map((trader, index) => (
-          <div
+          <Link
             key={trader.rank}
-            className={`flex items-center gap-4 p-4 border-b border-[color:var(--border-soft)] last:border-b-0 hover:bg-[color:var(--surface-2)] transition ${
+            href={`/u/${trader.name.toLowerCase()}`}
+            className={`flex items-center gap-4 p-4 border-b border-[color:var(--border-soft)] last:border-b-0 hover:bg-[color:var(--surface-2)] transition cursor-pointer ${
               index === 0 ? "bg-gradient-to-r from-yellow-500/5 to-transparent" : ""
             }`}
           >
@@ -42,7 +43,9 @@ export function Leaderboard() {
               {trader.rank}
             </div>
             <div className="flex-1">
-              <div className="font-semibold text-sm">{trader.name}</div>
+              <div className="font-semibold text-sm hover:text-blue-500 transition">
+                {trader.name}
+              </div>
               <div className="text-xs text-[color:var(--text-subtle)]">
                 {trader.volume}
               </div>
@@ -52,7 +55,7 @@ export function Leaderboard() {
                 {trader.profit}
               </div>
             </div>
-          </div>
+          </Link>
         ))}
       </CardContent>
     </Card>

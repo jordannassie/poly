@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { TopNav } from "@/components/TopNav";
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { MainFooter } from "@/components/MainFooter";
@@ -74,49 +75,58 @@ export default function LeaderboardPage() {
             {/* Leaderboard Rows */}
             <div className="space-y-2">
               {leaderboard.map((trader) => (
-                <Card
+                <Link
                   key={trader.rank}
-                  className={`bg-[color:var(--surface)] border-[color:var(--border-soft)] hover:border-[color:var(--border-strong)] transition ${
-                    trader.rank <= 3 ? "border-l-4 border-l-yellow-500" : ""
-                  }`}
+                  href={`/u/${trader.name.toLowerCase()}`}
+                  className="block"
                 >
-                  {/* Mobile Layout */}
-                  <CardContent className="p-3 md:hidden">
-                    <div className="flex items-center gap-3">
-                      <span className="w-6 text-center font-bold text-sm text-[color:var(--text-muted)]">
-                        {trader.rank}
-                      </span>
-                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm">
-                        {trader.avatar}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <span className="font-semibold text-sm truncate block">{trader.name}</span>
-                        <div className="flex items-center gap-3 text-xs">
-                          <span className="text-green-500 font-medium">{trader.profit}</span>
-                          <span className="text-[color:var(--text-muted)]">{trader.volume}</span>
+                  <Card
+                    className={`bg-[color:var(--surface)] border-[color:var(--border-soft)] hover:border-[color:var(--border-strong)] transition cursor-pointer ${
+                      trader.rank <= 3 ? "border-l-4 border-l-yellow-500" : ""
+                    }`}
+                  >
+                    {/* Mobile Layout */}
+                    <CardContent className="p-3 md:hidden">
+                      <div className="flex items-center gap-3">
+                        <span className="w-6 text-center font-bold text-sm text-[color:var(--text-muted)]">
+                          {trader.rank}
+                        </span>
+                        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm">
+                          {trader.avatar}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="font-semibold text-sm truncate block hover:text-blue-500 transition">
+                            {trader.name}
+                          </span>
+                          <div className="flex items-center gap-3 text-xs">
+                            <span className="text-green-500 font-medium">{trader.profit}</span>
+                            <span className="text-[color:var(--text-muted)]">{trader.volume}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                  {/* Desktop Layout */}
-                  <CardContent className="hidden md:grid p-4 grid-cols-[auto_1fr_auto_auto] gap-4 items-center">
-                    <span className="w-8 text-center font-bold text-[color:var(--text-muted)]">
-                      {trader.rank}
-                    </span>
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-lg">
-                        {trader.avatar}
+                    </CardContent>
+                    {/* Desktop Layout */}
+                    <CardContent className="hidden md:grid p-4 grid-cols-[auto_1fr_auto_auto] gap-4 items-center">
+                      <span className="w-8 text-center font-bold text-[color:var(--text-muted)]">
+                        {trader.rank}
+                      </span>
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-lg">
+                          {trader.avatar}
+                        </div>
+                        <span className="font-semibold hover:text-blue-500 transition">
+                          {trader.name}
+                        </span>
                       </div>
-                      <span className="font-semibold">{trader.name}</span>
-                    </div>
-                    <span className="text-right font-semibold text-green-500">
-                      {trader.profit}
-                    </span>
-                    <span className="text-right w-28 text-[color:var(--text-muted)]">
-                      {trader.volume}
-                    </span>
-                  </CardContent>
-                </Card>
+                      <span className="text-right font-semibold text-green-500">
+                        {trader.profit}
+                      </span>
+                      <span className="text-right w-28 text-[color:var(--text-muted)]">
+                        {trader.volume}
+                      </span>
+                    </CardContent>
+                  </Card>
+                </Link>
               ))}
             </div>
 
@@ -160,9 +170,10 @@ export default function LeaderboardPage() {
               </div>
               <CardContent className="p-0">
                 {biggestWins.map((win) => (
-                  <div
+                  <Link
                     key={`${win.name}-${win.rank}`}
-                    className="flex items-center gap-3 p-4 border-b border-[color:var(--border-soft)] last:border-b-0 hover:bg-[color:var(--surface-2)] transition"
+                    href={`/u/${win.name.toLowerCase()}`}
+                    className="flex items-center gap-3 p-4 border-b border-[color:var(--border-soft)] last:border-b-0 hover:bg-[color:var(--surface-2)] transition cursor-pointer"
                   >
                     <span className="w-6 text-center text-sm text-[color:var(--text-muted)]">
                       {win.rank}
@@ -172,7 +183,7 @@ export default function LeaderboardPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-sm truncate">
-                        {win.name}{" "}
+                        <span className="hover:text-blue-500 transition">{win.name}</span>{" "}
                         <span className="text-[color:var(--text-muted)] font-normal">
                           | {win.market}
                         </span>
@@ -183,7 +194,7 @@ export default function LeaderboardPage() {
                         <span className="text-green-500 font-semibold">{win.to}</span>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </CardContent>
             </Card>

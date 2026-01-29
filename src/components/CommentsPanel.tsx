@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { demoComments } from "@/lib/mockData";
 import { Card, CardContent } from "./ui/card";
 import { Input } from "./ui/input";
@@ -19,7 +20,12 @@ export function CommentsPanel({ title = "User comments" }: CommentsPanelProps) {
               className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface-2)] p-4"
             >
               <div className="flex items-center justify-between text-xs text-[color:var(--text-subtle)]">
-                <span>@{comment.user}</span>
+                <Link
+                  href={`/u/${comment.user.toLowerCase()}`}
+                  className="hover:text-blue-500 transition"
+                >
+                  @{comment.user}
+                </Link>
                 <span>{comment.time}</span>
               </div>
               <div className="mt-2 text-sm text-[color:var(--text-strong)]">
@@ -33,7 +39,7 @@ export function CommentsPanel({ title = "User comments" }: CommentsPanelProps) {
         </div>
         <div className="space-y-2">
           <Input
-            placeholder="What’s your prediction?"
+            placeholder="What's your prediction?"
             className="bg-[color:var(--surface-2)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] placeholder:text-[color:var(--text-subtle)]"
           />
           <Button className="bg-[color:var(--accent)] hover:bg-[color:var(--accent-strong)] text-white">
