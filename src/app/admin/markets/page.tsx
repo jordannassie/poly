@@ -1,35 +1,71 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Activity, Clock, CheckCircle } from "lucide-react";
+import { Search, Activity, Clock, CheckCircle, AlertTriangle, Loader2 } from "lucide-react";
 
-// Demo markets data
-const demoMarkets = [
-  { id: "1", league: "NFL", homeTeam: "Chiefs", awayTeam: "Eagles", slug: "chiefs-vs-eagles-sb", startTime: "2025-02-09 18:30", gameStatus: "scheduled", marketStatus: "open", sportsdataId: 12345 },
-  { id: "2", league: "NBA", homeTeam: "Lakers", awayTeam: "Celtics", slug: "lakers-vs-celtics", startTime: "2025-01-30 20:00", gameStatus: "live", marketStatus: "open", sportsdataId: 23456 },
-  { id: "3", league: "NFL", homeTeam: "Bills", awayTeam: "Ravens", slug: "bills-vs-ravens-afc", startTime: "2025-01-26 15:00", gameStatus: "final", marketStatus: "settled", sportsdataId: 34567, finalOutcome: "HOME" },
-  { id: "4", league: "NBA", homeTeam: "Warriors", awayTeam: "Nuggets", slug: "warriors-vs-nuggets", startTime: "2025-01-28 22:00", gameStatus: "final", marketStatus: "settled", sportsdataId: 45678, finalOutcome: "AWAY" },
-  { id: "5", league: "NBA", homeTeam: "Heat", awayTeam: "Bucks", slug: "heat-vs-bucks", startTime: "2025-01-31 19:30", gameStatus: "scheduled", marketStatus: "open", sportsdataId: 56789 },
-];
+interface Market {
+  id: string;
+  league: string;
+  sportsdata_game_id: number;
+  slug: string;
+  home_team: string;
+  away_team: string;
+  start_time: string;
+  game_status: string;
+  market_status: string;
+  final_outcome: string | null;
+  created_at: string;
+}
 
 export default function AdminMarketsPage() {
+  const [markets, setMarkets] = useState<Market[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "open" | "live" | "settled">("all");
-  
-  const filteredMarkets = demoMarkets.filter(m => {
+
+  useEffect(() => {
+    async function fetchMarkets() {
+      try {
+        const res = await fetch("/api/admin/markets");
+        const data = await res.json();
+        
+        if (data.error === "Admin service key not configured") {
+          setError(data.error);
+        } else if (data.error) {
+          setError(data.error);
+        } else {
+          setMarkets(data.markets || []);
+        }
+      } catch (err) {
+        setError("Failed to load markets");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchMarkets();
+  }, []);
+
+  const filteredMarkets = markets.filter(m => {
     const matchesSearch = 
-      m.homeTeam.toLowerCase().includes(search.toLowerCase()) ||
-      m.awayTeam.toLowerCase().includes(search.toLowerCase()) ||
+      m.home_team.toLowerCase().includes(search.toLowerCase()) ||
+      m.away_team.toLowerCase().includes(search.toLowerCase()) ||
       m.slug.toLowerCase().includes(search.toLowerCase());
     
-    if (statusFilter === "open") return matchesSearch && m.marketStatus === "open" && m.gameStatus === "scheduled";
-    if (statusFilter === "live") return matchesSearch && m.gameStatus === "live";
-    if (statusFilter === "settled") return matchesSearch && m.marketStatus === "settled";
+    if (statusFilter === "open") return matchesSearch && m.market_status === "open" && m.game_status === "scheduled";
+    if (statusFilter === "live") return matchesSearch && m.game_status === "live";
+    if (statusFilter === "settled") return matchesSearch && m.market_status === "settled";
     return matchesSearch;
   });
+
+  const formatDateTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleString();
+  };
 
   const getStatusBadge = (gameStatus: string, marketStatus: string) => {
     if (gameStatus === "live") {
@@ -41,6 +77,38 @@ export default function AdminMarketsPage() {
     return <span className="flex items-center gap-1 text-green-400 text-sm"><Clock className="h-3 w-3" />Open</span>;
   };
 
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  if (error === "Admin service key not configured") {
+    return (
+      <div className="p-6 space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Markets</h1>
+          <p className="text-gray-400">View all prediction markets</p>
+        </div>
+        <Card className="bg-yellow-500/10 border-yellow-500/30">
+          <CardContent className="p-6">
+            <div className="flex items-start gap-4">
+              <AlertTriangle className="h-6 w-6 text-yellow-500" />
+              <div>
+                <h3 className="text-yellow-400 font-semibold">Admin Service Key Not Configured</h3>
+                <p className="text-yellow-400/80 text-sm mt-1">
+                  Add <code className="bg-yellow-500/20 px-1 rounded">SUPABASE_SERVICE_ROLE_KEY</code> to your environment variables to view markets.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -50,7 +118,7 @@ export default function AdminMarketsPage() {
           <p className="text-gray-400">View all prediction markets from SportsDataIO</p>
         </div>
         <div className="text-sm text-gray-400">
-          {demoMarkets.length} total markets
+          {markets.length} total markets
         </div>
       </div>
 
@@ -66,12 +134,12 @@ export default function AdminMarketsPage() {
           />
         </div>
         <div className="flex gap-2">
-          {["all", "open", "live", "settled"].map((status) => (
+          {(["all", "open", "live", "settled"] as const).map((status) => (
             <Button
               key={status}
               variant={statusFilter === status ? "default" : "outline"}
               size="sm"
-              onClick={() => setStatusFilter(status as any)}
+              onClick={() => setStatusFilter(status)}
               className={statusFilter === status ? "bg-blue-600" : "border-[#30363d] text-gray-400"}
             >
               {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -83,57 +151,57 @@ export default function AdminMarketsPage() {
       {/* Markets Table */}
       <Card className="bg-[#161b22] border-[#30363d]">
         <CardContent className="p-0">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-[#30363d] text-gray-400 text-sm">
-                <th className="text-left p-4">League</th>
-                <th className="text-left p-4">Matchup</th>
-                <th className="text-left p-4">Start Time</th>
-                <th className="text-left p-4">Status</th>
-                <th className="text-left p-4">Outcome</th>
-                <th className="text-left p-4">SportsData ID</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredMarkets.map((market) => (
-                <tr key={market.id} className="border-b border-[#30363d]/50 hover:bg-[#0d1117]/50">
-                  <td className="p-4">
-                    <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                      market.league === "NFL" ? "bg-blue-500/20 text-blue-400" : "bg-orange-500/20 text-orange-400"
-                    }`}>
-                      {market.league}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <div>
-                      <p className="text-white font-medium">{market.awayTeam} @ {market.homeTeam}</p>
-                      <p className="text-gray-400 text-sm">{market.slug}</p>
-                    </div>
-                  </td>
-                  <td className="p-4 text-gray-300">{market.startTime}</td>
-                  <td className="p-4">{getStatusBadge(market.gameStatus, market.marketStatus)}</td>
-                  <td className="p-4">
-                    {market.finalOutcome ? (
-                      <span className={`text-sm font-medium ${
-                        market.finalOutcome === "HOME" ? "text-green-400" : "text-blue-400"
-                      }`}>
-                        {market.finalOutcome === "HOME" ? market.homeTeam : market.awayTeam} Win
-                      </span>
-                    ) : (
-                      <span className="text-gray-500">—</span>
-                    )}
-                  </td>
-                  <td className="p-4">
-                    <code className="text-gray-400 text-sm">{market.sportsdataId}</code>
-                  </td>
+          {filteredMarkets.length > 0 ? (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[#30363d] text-gray-400 text-sm">
+                  <th className="text-left p-4">League</th>
+                  <th className="text-left p-4">Matchup</th>
+                  <th className="text-left p-4">Start Time</th>
+                  <th className="text-left p-4">Status</th>
+                  <th className="text-left p-4">Outcome</th>
+                  <th className="text-left p-4">SportsData ID</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          
-          {filteredMarkets.length === 0 && (
+              </thead>
+              <tbody>
+                {filteredMarkets.map((market) => (
+                  <tr key={market.id} className="border-b border-[#30363d]/50 hover:bg-[#0d1117]/50">
+                    <td className="p-4">
+                      <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                        market.league === "NFL" ? "bg-blue-500/20 text-blue-400" : "bg-orange-500/20 text-orange-400"
+                      }`}>
+                        {market.league}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <div>
+                        <p className="text-white font-medium">{market.away_team} @ {market.home_team}</p>
+                        <p className="text-gray-400 text-sm">{market.slug}</p>
+                      </div>
+                    </td>
+                    <td className="p-4 text-gray-300">{formatDateTime(market.start_time)}</td>
+                    <td className="p-4">{getStatusBadge(market.game_status, market.market_status)}</td>
+                    <td className="p-4">
+                      {market.final_outcome ? (
+                        <span className={`text-sm font-medium ${
+                          market.final_outcome === "HOME" ? "text-green-400" : "text-blue-400"
+                        }`}>
+                          {market.final_outcome === "HOME" ? market.home_team : market.away_team} Win
+                        </span>
+                      ) : (
+                        <span className="text-gray-500">—</span>
+                      )}
+                    </td>
+                    <td className="p-4">
+                      <code className="text-gray-400 text-sm">{market.sportsdata_game_id}</code>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
             <div className="p-8 text-center text-gray-400">
-              No markets found matching your criteria.
+              {search ? "No markets found matching your criteria." : "No markets in database yet."}
             </div>
           )}
         </CardContent>

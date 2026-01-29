@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
   Users, 
@@ -9,30 +10,127 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  Activity
+  Activity,
+  Loader2
 } from "lucide-react";
 import Link from "next/link";
 
-// Demo data - will be replaced with real data when Supabase is connected
-const stats = {
-  totalUsers: 1247,
-  totalWallets: 892,
-  marketsOpen: 24,
-  marketsLive: 8,
-  marketsFinal: 156,
-  payoutsQueued: 12,
-  payoutsFailed: 2,
-  lastCacheWarm: "2 hours ago",
-};
-
-const recentActivity = [
-  { type: "ADMIN_LOGIN", message: "Admin logged in", time: "2 min ago", severity: "info" },
-  { type: "CACHE_WARM", message: "SportsDataIO cache warmed successfully", time: "2 hours ago", severity: "info" },
-  { type: "MARKET_SETTLED", message: "Chiefs vs Eagles settled - HOME win", time: "5 hours ago", severity: "info" },
-  { type: "PAYOUT_FAILED", message: "Payout to 8xK3...9fD2 failed - insufficient funds", time: "1 day ago", severity: "error" },
-];
+interface DashboardData {
+  users: { total: number };
+  wallets: { total: number };
+  markets: { open: number; live: number; settled: number };
+  payouts: { queued: number; failed: number };
+  recentLogs: Array<{
+    id: string;
+    event_type: string;
+    severity: string;
+    payload: Record<string, unknown>;
+    created_at: string;
+  }>;
+}
 
 export default function AdminDashboard() {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [serviceKeyMissing, setServiceKeyMissing] = useState(false);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        // Fetch all data in parallel
+        const [usersRes, walletsRes, marketsRes, payoutsRes, logsRes] = await Promise.all([
+          fetch("/api/admin/users"),
+          fetch("/api/admin/wallets"),
+          fetch("/api/admin/markets"),
+          fetch("/api/admin/payouts"),
+          fetch("/api/admin/logs?limit=5"),
+        ]);
+
+        // Check for service key error
+        if (usersRes.status === 500) {
+          const usersData = await usersRes.json();
+          if (usersData.error === "Admin service key not configured") {
+            setServiceKeyMissing(true);
+            setLoading(false);
+            return;
+          }
+        }
+
+        const [users, wallets, markets, payouts, logs] = await Promise.all([
+          usersRes.json(),
+          walletsRes.json(),
+          marketsRes.json(),
+          payoutsRes.json(),
+          logsRes.json(),
+        ]);
+
+        setData({
+          users: { total: users.users?.length || 0 },
+          wallets: { total: wallets.wallets?.length || 0 },
+          markets: markets.counts || { open: 0, live: 0, settled: 0 },
+          payouts: payouts.counts || { queued: 0, failed: 0 },
+          recentLogs: logs.logs || [],
+        });
+      } catch (err) {
+        setError("Failed to load dashboard data");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, []);
+
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return "just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  if (serviceKeyMissing) {
+    return (
+      <div className="p-6 space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
+          <p className="text-gray-400">Overview of ProvePicks platform metrics</p>
+        </div>
+        <Card className="bg-yellow-500/10 border-yellow-500/30">
+          <CardContent className="p-6">
+            <div className="flex items-start gap-4">
+              <AlertTriangle className="h-6 w-6 text-yellow-500 mt-0.5" />
+              <div>
+                <h3 className="text-yellow-400 font-semibold text-lg">Admin Service Key Not Configured</h3>
+                <p className="text-yellow-400/80 mt-1">
+                  To enable real data in admin pages, add <code className="bg-yellow-500/20 px-1 rounded">SUPABASE_SERVICE_ROLE_KEY</code> to your Netlify environment variables.
+                </p>
+                <p className="text-yellow-400/60 text-sm mt-2">
+                  Get this key from your Supabase project settings → API → service_role key (keep it secret!)
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -40,6 +138,17 @@ export default function AdminDashboard() {
         <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
         <p className="text-gray-400">Overview of ProvePicks platform metrics</p>
       </div>
+
+      {error && (
+        <Card className="bg-red-500/10 border-red-500/30">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-red-400">
+              <AlertTriangle className="h-4 w-4" />
+              {error}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -49,7 +158,7 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-400 text-sm">Total Users</p>
-                  <p className="text-3xl font-bold text-white">{stats.totalUsers.toLocaleString()}</p>
+                  <p className="text-3xl font-bold text-white">{data?.users.total.toLocaleString() || 0}</p>
                 </div>
                 <div className="h-12 w-12 rounded-lg bg-blue-500/20 flex items-center justify-center">
                   <Users className="h-6 w-6 text-blue-500" />
@@ -65,7 +174,7 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-400 text-sm">Connected Wallets</p>
-                  <p className="text-3xl font-bold text-white">{stats.totalWallets.toLocaleString()}</p>
+                  <p className="text-3xl font-bold text-white">{data?.wallets.total.toLocaleString() || 0}</p>
                 </div>
                 <div className="h-12 w-12 rounded-lg bg-purple-500/20 flex items-center justify-center">
                   <Wallet className="h-6 w-6 text-purple-500" />
@@ -82,8 +191,12 @@ export default function AdminDashboard() {
                 <div>
                   <p className="text-gray-400 text-sm">Markets</p>
                   <div className="flex items-center gap-2">
-                    <span className="text-3xl font-bold text-white">{stats.marketsOpen + stats.marketsLive}</span>
-                    <span className="text-xs text-green-400">({stats.marketsLive} live)</span>
+                    <span className="text-3xl font-bold text-white">
+                      {(data?.markets.open || 0) + (data?.markets.live || 0)}
+                    </span>
+                    {(data?.markets.live || 0) > 0 && (
+                      <span className="text-xs text-green-400">({data?.markets.live} live)</span>
+                    )}
                   </div>
                 </div>
                 <div className="h-12 w-12 rounded-lg bg-green-500/20 flex items-center justify-center">
@@ -101,9 +214,9 @@ export default function AdminDashboard() {
                 <div>
                   <p className="text-gray-400 text-sm">Payouts Queued</p>
                   <div className="flex items-center gap-2">
-                    <span className="text-3xl font-bold text-white">{stats.payoutsQueued}</span>
-                    {stats.payoutsFailed > 0 && (
-                      <span className="text-xs text-red-400">({stats.payoutsFailed} failed)</span>
+                    <span className="text-3xl font-bold text-white">{data?.payouts.queued || 0}</span>
+                    {(data?.payouts.failed || 0) > 0 && (
+                      <span className="text-xs text-red-400">({data?.payouts.failed} failed)</span>
                     )}
                   </div>
                 </div>
@@ -131,21 +244,21 @@ export default function AdminDashboard() {
                   <div className="h-2 w-2 rounded-full bg-green-500" />
                   <span className="text-gray-300">Open</span>
                 </div>
-                <span className="font-semibold text-white">{stats.marketsOpen}</span>
+                <span className="font-semibold text-white">{data?.markets.open || 0}</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-[#0d1117] rounded-lg">
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-purple-500 animate-pulse" />
                   <span className="text-gray-300">Live</span>
                 </div>
-                <span className="font-semibold text-white">{stats.marketsLive}</span>
+                <span className="font-semibold text-white">{data?.markets.live || 0}</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-[#0d1117] rounded-lg">
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-gray-500" />
-                  <span className="text-gray-300">Final</span>
+                  <span className="text-gray-300">Settled</span>
                 </div>
-                <span className="font-semibold text-white">{stats.marketsFinal}</span>
+                <span className="font-semibold text-white">{data?.markets.settled || 0}</span>
               </div>
             </div>
           </CardContent>
@@ -159,19 +272,23 @@ export default function AdminDashboard() {
               Recent Activity
             </h2>
             <div className="space-y-3">
-              {recentActivity.map((activity, i) => (
-                <div key={i} className="flex items-start gap-3 p-3 bg-[#0d1117] rounded-lg">
-                  {activity.severity === "error" ? (
-                    <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5" />
-                  ) : (
-                    <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-300 truncate">{activity.message}</p>
-                    <p className="text-xs text-gray-500">{activity.time}</p>
+              {data?.recentLogs && data.recentLogs.length > 0 ? (
+                data.recentLogs.map((log) => (
+                  <div key={log.id} className="flex items-start gap-3 p-3 bg-[#0d1117] rounded-lg">
+                    {log.severity === "error" ? (
+                      <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-300 truncate">{log.event_type}</p>
+                      <p className="text-xs text-gray-500">{formatTime(log.created_at)}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-gray-500 text-center py-4">No recent activity</p>
+              )}
             </div>
             <Link 
               href="/admin/logs"
@@ -191,7 +308,7 @@ export default function AdminDashboard() {
               <div className="h-3 w-3 rounded-full bg-green-500" />
               <div>
                 <p className="text-white font-medium">All Systems Operational</p>
-                <p className="text-sm text-gray-400">Last SportsDataIO cache warm: {stats.lastCacheWarm}</p>
+                <p className="text-sm text-gray-400">Connected to Supabase</p>
               </div>
             </div>
             <Link 
@@ -200,22 +317,6 @@ export default function AdminDashboard() {
             >
               View SportsDataIO Status →
             </Link>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Service Key Warning */}
-      <Card className="bg-yellow-500/10 border-yellow-500/30">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-yellow-500" />
-            <div>
-              <p className="text-yellow-400 font-medium">Admin service key not configured</p>
-              <p className="text-yellow-400/70 text-sm">
-                Add SUPABASE_SERVICE_ROLE_KEY to Netlify env vars for full admin database access. 
-                Currently showing demo data.
-              </p>
-            </div>
           </div>
         </CardContent>
       </Card>

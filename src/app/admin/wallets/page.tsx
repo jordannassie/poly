@@ -1,33 +1,113 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, CheckCircle, XCircle, ExternalLink } from "lucide-react";
+import { Search, CheckCircle, XCircle, ExternalLink, AlertTriangle, Loader2 } from "lucide-react";
 import Link from "next/link";
 
-// Demo wallets data
-const demoWallets = [
-  { id: "1", userId: "1", username: "demo", address: "8xK3nRvP2mQfYh7sLw4bNcDe6tUjXa9fD2", chain: "solana", verified: true, primary: true, createdAt: "2025-01-15", lastSeen: "2 min ago" },
-  { id: "2", userId: "2", username: "bossoskil1", address: "5pM2kLqR8nVfGh3sWx6bYcZe4tPjUa7dE1", chain: "solana", verified: true, primary: true, createdAt: "2025-01-10", lastSeen: "1 hour ago" },
-  { id: "3", userId: "2", username: "bossoskil1", address: "9qN4mTsS6pXgJi5uRy8cZdAf2vQkWb3eF0", chain: "solana", verified: false, primary: false, createdAt: "2025-01-12", lastSeen: "3 days ago" },
-  { id: "4", userId: "3", username: "kch123", address: "7rP6nUsT4qYhKj2vSz9dAbCg8wRmXc5fG3", chain: "solana", verified: true, primary: true, createdAt: "2025-01-08", lastSeen: "5 hours ago" },
-  { id: "5", userId: "4", username: "gopatriots", address: "3sQ8pVtU2rZiLk4wTa0eBcDh6xSmYd7gH5", chain: "solana", verified: true, primary: true, createdAt: "2025-01-05", lastSeen: "12 hours ago" },
-];
+interface WalletConnection {
+  id: string;
+  user_id: string;
+  username: string;
+  chain: string;
+  wallet_address: string;
+  verified: boolean;
+  primary: boolean;
+  created_at: string;
+  last_seen_at: string | null;
+}
 
 export default function AdminWalletsPage() {
+  const [wallets, setWallets] = useState<WalletConnection[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "verified" | "primary">("all");
-  
-  const filteredWallets = demoWallets.filter(w => {
-    const matchesSearch = w.address.toLowerCase().includes(search.toLowerCase()) ||
-      w.username.toLowerCase().includes(search.toLowerCase());
+
+  useEffect(() => {
+    async function fetchWallets() {
+      try {
+        const res = await fetch("/api/admin/wallets");
+        const data = await res.json();
+        
+        if (data.error === "Admin service key not configured") {
+          setError(data.error);
+        } else if (data.error) {
+          setError(data.error);
+        } else {
+          setWallets(data.wallets || []);
+        }
+      } catch (err) {
+        setError("Failed to load wallets");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchWallets();
+  }, []);
+
+  const filteredWallets = wallets.filter(w => {
+    const matchesSearch = 
+      w.wallet_address.toLowerCase().includes(search.toLowerCase()) ||
+      (w.username?.toLowerCase() || "").includes(search.toLowerCase());
     
     if (filter === "verified") return matchesSearch && w.verified;
     if (filter === "primary") return matchesSearch && w.primary;
     return matchesSearch;
   });
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString();
+  };
+
+  const formatTimeSince = (dateStr: string | null) => {
+    if (!dateStr) return "Never";
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  if (error === "Admin service key not configured") {
+    return (
+      <div className="p-6 space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Wallet Connections</h1>
+          <p className="text-gray-400">View all connected wallets across the platform</p>
+        </div>
+        <Card className="bg-yellow-500/10 border-yellow-500/30">
+          <CardContent className="p-6">
+            <div className="flex items-start gap-4">
+              <AlertTriangle className="h-6 w-6 text-yellow-500" />
+              <div>
+                <h3 className="text-yellow-400 font-semibold">Admin Service Key Not Configured</h3>
+                <p className="text-yellow-400/80 text-sm mt-1">
+                  Add <code className="bg-yellow-500/20 px-1 rounded">SUPABASE_SERVICE_ROLE_KEY</code> to your environment variables to view wallets.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -38,7 +118,7 @@ export default function AdminWalletsPage() {
           <p className="text-gray-400">View all connected wallets across the platform</p>
         </div>
         <div className="text-sm text-gray-400">
-          {demoWallets.length} total wallets
+          {wallets.length} total wallets
         </div>
       </div>
 
@@ -54,99 +134,88 @@ export default function AdminWalletsPage() {
           />
         </div>
         <div className="flex gap-2">
-          <Button
-            variant={filter === "all" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilter("all")}
-            className={filter === "all" ? "bg-blue-600" : "border-[#30363d] text-gray-400"}
-          >
-            All
-          </Button>
-          <Button
-            variant={filter === "verified" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilter("verified")}
-            className={filter === "verified" ? "bg-green-600" : "border-[#30363d] text-gray-400"}
-          >
-            Verified
-          </Button>
-          <Button
-            variant={filter === "primary" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilter("primary")}
-            className={filter === "primary" ? "bg-purple-600" : "border-[#30363d] text-gray-400"}
-          >
-            Primary
-          </Button>
+          {(["all", "verified", "primary"] as const).map((f) => (
+            <Button
+              key={f}
+              variant={filter === f ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilter(f)}
+              className={filter === f ? "bg-blue-600" : "border-[#30363d] text-gray-400"}
+            >
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </Button>
+          ))}
         </div>
       </div>
 
       {/* Wallets Table */}
       <Card className="bg-[#161b22] border-[#30363d]">
         <CardContent className="p-0">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-[#30363d] text-gray-400 text-sm">
-                <th className="text-left p-4">Wallet Address</th>
-                <th className="text-left p-4">User</th>
-                <th className="text-left p-4">Chain</th>
-                <th className="text-left p-4">Status</th>
-                <th className="text-left p-4">Connected</th>
-                <th className="text-left p-4">Last Seen</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredWallets.map((wallet) => (
-                <tr key={wallet.id} className="border-b border-[#30363d]/50 hover:bg-[#0d1117]/50">
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <code className="text-blue-400 text-sm">{wallet.address.slice(0, 8)}...{wallet.address.slice(-4)}</code>
-                      <a 
-                        href={`https://solscan.io/account/${wallet.address}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-gray-400 hover:text-white"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <Link href={`/admin/users/${wallet.userId}`} className="text-gray-300 hover:text-white">
-                      @{wallet.username}
-                    </Link>
-                  </td>
-                  <td className="p-4 text-gray-400 uppercase text-sm">{wallet.chain}</td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      {wallet.verified ? (
-                        <span className="flex items-center gap-1 text-green-400 text-sm">
-                          <CheckCircle className="h-3 w-3" />
-                          Verified
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-gray-400 text-sm">
-                          <XCircle className="h-3 w-3" />
-                          Unverified
-                        </span>
-                      )}
-                      {wallet.primary && (
-                        <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded">
-                          Primary
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="p-4 text-gray-400">{wallet.createdAt}</td>
-                  <td className="p-4 text-gray-400">{wallet.lastSeen}</td>
+          {filteredWallets.length > 0 ? (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[#30363d] text-gray-400 text-sm">
+                  <th className="text-left p-4">Wallet Address</th>
+                  <th className="text-left p-4">User</th>
+                  <th className="text-left p-4">Chain</th>
+                  <th className="text-left p-4">Status</th>
+                  <th className="text-left p-4">Connected</th>
+                  <th className="text-left p-4">Last Seen</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          
-          {filteredWallets.length === 0 && (
+              </thead>
+              <tbody>
+                {filteredWallets.map((wallet) => (
+                  <tr key={wallet.id} className="border-b border-[#30363d]/50 hover:bg-[#0d1117]/50">
+                    <td className="p-4">
+                      <div className="flex items-center gap-2">
+                        <code className="text-blue-400 text-sm">
+                          {wallet.wallet_address.slice(0, 8)}...{wallet.wallet_address.slice(-4)}
+                        </code>
+                        <a 
+                          href={`https://solscan.io/account/${wallet.wallet_address}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-gray-400 hover:text-white"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <Link href={`/admin/users/${wallet.user_id}`} className="text-gray-300 hover:text-white">
+                        @{wallet.username}
+                      </Link>
+                    </td>
+                    <td className="p-4 text-gray-400 uppercase text-sm">{wallet.chain}</td>
+                    <td className="p-4">
+                      <div className="flex items-center gap-2">
+                        {wallet.verified ? (
+                          <span className="flex items-center gap-1 text-green-400 text-sm">
+                            <CheckCircle className="h-3 w-3" />
+                            Verified
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-gray-400 text-sm">
+                            <XCircle className="h-3 w-3" />
+                            Unverified
+                          </span>
+                        )}
+                        {wallet.primary && (
+                          <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded">
+                            Primary
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="p-4 text-gray-400">{formatDate(wallet.created_at)}</td>
+                    <td className="p-4 text-gray-400">{formatTimeSince(wallet.last_seen_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
             <div className="p-8 text-center text-gray-400">
-              No wallets found matching your criteria.
+              {search ? "No wallets found matching your criteria." : "No wallets connected yet."}
             </div>
           )}
         </CardContent>

@@ -1,28 +1,57 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, AlertTriangle, AlertCircle, Info } from "lucide-react";
+import { FileText, AlertTriangle, AlertCircle, Info, Loader2 } from "lucide-react";
 
-// Demo logs data
-const demoLogs = [
-  { id: "1", eventType: "ADMIN_LOGIN", severity: "info", message: "Admin logged in from 192.168.1.1", actor: null, entityType: null, entityId: null, createdAt: "2025-01-29 10:30:00" },
-  { id: "2", eventType: "CACHE_WARM", severity: "info", message: "SportsDataIO cache warmed for NFL, NBA", actor: null, entityType: "cache", entityId: null, createdAt: "2025-01-29 08:00:00" },
-  { id: "3", eventType: "MARKET_SETTLED", severity: "info", message: "Market settled: Chiefs vs Eagles - HOME win", actor: null, entityType: "market", entityId: "m-123", createdAt: "2025-01-28 21:45:00" },
-  { id: "4", eventType: "PAYOUT_QUEUED", severity: "info", message: "Payout queued for user demo: $1,250 USDC", actor: "user-1", entityType: "payout", entityId: "p-456", createdAt: "2025-01-28 14:30:00" },
-  { id: "5", eventType: "PAYOUT_FAILED", severity: "error", message: "Payout failed for user gopatriots: Insufficient SOL for fees", actor: "user-4", entityType: "payout", entityId: "p-789", createdAt: "2025-01-27 16:20:00" },
-  { id: "6", eventType: "WALLET_CONNECTED", severity: "info", message: "Wallet connected for user bossoskil1: 5pM2kL...7dE1", actor: "user-2", entityType: "wallet", entityId: "w-101", createdAt: "2025-01-27 12:00:00" },
-  { id: "7", eventType: "CACHE_ERROR", severity: "warn", message: "SportsDataIO rate limit approaching (80%)", actor: null, entityType: "cache", entityId: null, createdAt: "2025-01-26 15:30:00" },
-  { id: "8", eventType: "MARKET_IMPORTED", severity: "info", message: "12 new NFL markets imported from SportsDataIO", actor: null, entityType: "market", entityId: null, createdAt: "2025-01-26 08:00:00" },
-];
+interface SystemEvent {
+  id: string;
+  event_type: string;
+  severity: string;
+  actor_user_id: string | null;
+  actor_wallet: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  payload: Record<string, unknown>;
+  created_at: string;
+}
 
 export default function AdminLogsPage() {
+  const [logs, setLogs] = useState<SystemEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [severityFilter, setSeverityFilter] = useState<"all" | "info" | "warn" | "error">("all");
-  
-  const filteredLogs = demoLogs.filter(log => 
-    severityFilter === "all" || log.severity === severityFilter
-  );
+
+  useEffect(() => {
+    async function fetchLogs() {
+      try {
+        const url = severityFilter === "all" 
+          ? "/api/admin/logs" 
+          : `/api/admin/logs?severity=${severityFilter}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        if (data.error === "Admin service key not configured") {
+          setError(data.error);
+        } else if (data.error) {
+          setError(data.error);
+        } else {
+          setLogs(data.logs || []);
+        }
+      } catch (err) {
+        setError("Failed to load logs");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchLogs();
+  }, [severityFilter]);
+
+  const formatDateTime = (dateStr: string) => {
+    return new Date(dateStr).toLocaleString();
+  };
 
   const getSeverityIcon = (severity: string) => {
     switch (severity) {
@@ -40,6 +69,46 @@ export default function AdminLogsPage() {
     }
   };
 
+  const formatPayload = (payload: Record<string, unknown>) => {
+    if (!payload || Object.keys(payload).length === 0) return null;
+    return Object.entries(payload)
+      .filter(([_, v]) => v !== null && v !== undefined)
+      .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
+      .join(', ');
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  if (error === "Admin service key not configured") {
+    return (
+      <div className="p-6 space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-white">System Logs</h1>
+          <p className="text-gray-400">View system events and activity logs</p>
+        </div>
+        <Card className="bg-yellow-500/10 border-yellow-500/30">
+          <CardContent className="p-6">
+            <div className="flex items-start gap-4">
+              <AlertTriangle className="h-6 w-6 text-yellow-500" />
+              <div>
+                <h3 className="text-yellow-400 font-semibold">Admin Service Key Not Configured</h3>
+                <p className="text-yellow-400/80 text-sm mt-1">
+                  Add <code className="bg-yellow-500/20 px-1 rounded">SUPABASE_SERVICE_ROLE_KEY</code> to your environment variables to view logs.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -49,18 +118,18 @@ export default function AdminLogsPage() {
           <p className="text-gray-400">View system events and activity logs</p>
         </div>
         <div className="text-sm text-gray-400">
-          {demoLogs.length} total events
+          {logs.length} events
         </div>
       </div>
 
       {/* Filters */}
       <div className="flex gap-2">
-        {["all", "info", "warn", "error"].map((severity) => (
+        {(["all", "info", "warn", "error"] as const).map((severity) => (
           <Button
             key={severity}
             variant={severityFilter === severity ? "default" : "outline"}
             size="sm"
-            onClick={() => setSeverityFilter(severity as any)}
+            onClick={() => setSeverityFilter(severity)}
             className={
               severityFilter === severity 
                 ? severity === "error" ? "bg-red-600" 
@@ -76,38 +145,40 @@ export default function AdminLogsPage() {
 
       {/* Logs List */}
       <div className="space-y-2">
-        {filteredLogs.map((log) => (
-          <Card key={log.id} className={`${getSeverityClass(log.severity)} border`}>
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                {getSeverityIcon(log.severity)}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-mono text-gray-400 bg-[#161b22] px-2 py-0.5 rounded">
-                      {log.eventType}
-                    </span>
-                    {log.entityType && (
-                      <span className="text-xs text-gray-500">
-                        {log.entityType}{log.entityId ? `: ${log.entityId}` : ""}
+        {logs.length > 0 ? (
+          logs.map((log) => (
+            <Card key={log.id} className={`${getSeverityClass(log.severity)} border`}>
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  {getSeverityIcon(log.severity)}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-mono text-gray-400 bg-[#161b22] px-2 py-0.5 rounded">
+                        {log.event_type}
                       </span>
+                      {log.entity_type && (
+                        <span className="text-xs text-gray-500">
+                          {log.entity_type}{log.entity_id ? `: ${log.entity_id}` : ""}
+                        </span>
+                      )}
+                    </div>
+                    {formatPayload(log.payload) && (
+                      <p className="text-sm text-gray-300 break-all">{formatPayload(log.payload)}</p>
                     )}
+                    <p className="text-xs text-gray-500 mt-1">{formatDateTime(log.created_at)}</p>
                   </div>
-                  <p className="text-gray-300">{log.message}</p>
-                  <p className="text-xs text-gray-500 mt-1">{log.createdAt}</p>
                 </div>
-              </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <Card className="bg-[#161b22] border-[#30363d]">
+            <CardContent className="p-8 text-center text-gray-400">
+              No logs found. Events will appear here as they occur.
             </CardContent>
           </Card>
-        ))}
+        )}
       </div>
-
-      {filteredLogs.length === 0 && (
-        <Card className="bg-[#161b22] border-[#30363d]">
-          <CardContent className="p-8 text-center text-gray-400">
-            No logs found matching your criteria.
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

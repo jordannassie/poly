@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { logSystemEvent } from "@/lib/supabase/admin";
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const COOKIE_NAME = "pp_admin";
@@ -22,6 +23,18 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    // Log admin login event
+    const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
+    await logSystemEvent({
+      eventType: "ADMIN_LOGIN",
+      severity: "info",
+      payload: {
+        ip: ip.split(",")[0].trim(),
+        userAgent: request.headers.get("user-agent") || "unknown",
+        timestamp: new Date().toISOString(),
+      },
+    });
 
     // Set the admin cookie
     const response = NextResponse.json({ success: true });
