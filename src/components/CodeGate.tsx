@@ -631,23 +631,23 @@ export function CodeGate({ children }: CodeGateProps) {
                   {competitors.map((comp) => (
                     <th key={comp.name} className="py-4 px-3 text-center">
                       {comp.isProvePicks ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
-                            <Zap className="h-4 w-4 text-white" />
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="h-24 w-24 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
+                            <Zap className="h-10 w-10 text-white" />
                           </div>
-                          <span className="font-bold text-orange-400">ProvePicks</span>
+                          <span className="text-sm font-bold text-orange-400">ProvePicks</span>
                         </div>
                       ) : (
-                        <div className="flex flex-col items-center gap-1">
-                          <div className="h-16 w-16 rounded-lg bg-white/10 overflow-hidden flex items-center justify-center">
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="h-24 w-24 rounded-xl bg-white/10 overflow-hidden flex items-center justify-center">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img 
                               src={comp.logo || ''} 
                               alt={comp.name} 
-                              className="h-14 w-14 object-contain"
+                              className="h-20 w-20 object-contain"
                             />
                           </div>
-                          <span className="text-xs text-gray-500">{comp.name}</span>
+                          <span className="text-sm text-gray-400">{comp.name}</span>
                         </div>
                       )}
                     </th>
