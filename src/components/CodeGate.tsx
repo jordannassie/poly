@@ -749,16 +749,29 @@ export function CodeGate({ children }: CodeGateProps) {
                 </div>
                 <div className="grid grid-cols-5 gap-2">
                   {[
-                    { name: "PP", value: row.provePicks, highlight: true },
-                    { name: "DK", value: row.draftkings },
-                    { name: "UD", value: row.underdog },
-                    { name: "FD", value: row.fanduel },
-                    { name: "PZ", value: row.prizepicks },
+                    { name: "ProvePicks", value: row.provePicks, highlight: true, logo: null, isProvePicks: true },
+                    { name: "DraftKings", value: row.draftkings, logo: competitors[1].logo },
+                    { name: "Underdog", value: row.underdog, logo: competitors[2].logo },
+                    { name: "FanDuel", value: row.fanduel, logo: competitors[3].logo },
+                    { name: "PrizePicks", value: row.prizepicks, logo: competitors[4].logo },
                   ].map((item, j) => (
-                    <div key={j} className="flex flex-col items-center gap-1">
-                      <span className={`text-xs ${item.highlight ? "text-orange-400 font-bold" : "text-gray-500"}`}>
-                        {item.name}
-                      </span>
+                    <div key={j} className="flex flex-col items-center gap-2">
+                      {/* Logo */}
+                      {item.isProvePicks ? (
+                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
+                          <Zap className="h-5 w-5 text-white" />
+                        </div>
+                      ) : (
+                        <div className="h-10 w-10 rounded-lg bg-white/10 overflow-hidden flex items-center justify-center">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img 
+                            src={item.logo || ''} 
+                            alt={item.name} 
+                            className="h-8 w-8 object-contain"
+                          />
+                        </div>
+                      )}
+                      {/* Status */}
                       {item.value === "yes" ? (
                         <div className="h-6 w-6 rounded-full bg-green-500/20 flex items-center justify-center">
                           <Check className="h-4 w-4 text-green-400" />
