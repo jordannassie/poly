@@ -22,6 +22,8 @@ type ApiResponse = {
   sport?: string;
   endpoint?: string;
   params?: Record<string, string>;
+  triedEndpoints?: string[];
+  note?: string;
   data?: unknown;
   error?: string;
 };
@@ -143,18 +145,23 @@ export default function AdminApiSportsPage() {
             Test Connection
           </Button>
           
-          <Button
-            onClick={() => fetchEndpoint("teams")}
-            disabled={loading !== null}
-            className="bg-green-600 hover:bg-green-700 text-white"
-          >
-            {loading === "teams" ? (
-              <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <Users className="h-4 w-4 mr-2" />
+          <div className="flex flex-col gap-1">
+            <Button
+              onClick={() => fetchEndpoint("teams")}
+              disabled={loading !== null}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {loading === "teams" ? (
+                <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Users className="h-4 w-4 mr-2" />
+              )}
+              Fetch Teams
+            </Button>
+            {sport === "nfl" && (
+              <span className="text-xs text-gray-500">NFL: fetched without season (fallback to 2025)</span>
             )}
-            Fetch Teams
-          </Button>
+          </div>
           
           <Button
             onClick={() => fetchEndpoint("fixtures", { from: fromDate, to: toDate })}
@@ -215,6 +222,25 @@ export default function AdminApiSportsPage() {
             <div className="px-4 py-2 bg-[#0d1117] border-b border-[#30363d]">
               <span className="text-gray-500 text-sm">Endpoint: </span>
               <code className="text-blue-400 text-sm break-all">{result.endpoint}</code>
+            </div>
+          )}
+
+          {/* Tried Endpoints (for debugging) */}
+          {result.triedEndpoints && result.triedEndpoints.length > 1 && (
+            <div className="px-4 py-2 bg-[#0d1117] border-b border-[#30363d]">
+              <span className="text-gray-500 text-sm">Tried endpoints: </span>
+              <div className="mt-1 space-y-1">
+                {result.triedEndpoints.map((ep, i) => (
+                  <code key={i} className="block text-xs text-gray-400">{i + 1}. {ep}</code>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Note */}
+          {result.note && (
+            <div className="px-4 py-2 bg-yellow-500/10 border-b border-[#30363d]">
+              <span className="text-yellow-400 text-sm">{result.note}</span>
             </div>
           )}
 
