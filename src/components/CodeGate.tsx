@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Zap, Lock, ArrowRight, Trophy, Users, TrendingUp, Shield, ChevronDown, Check } from "lucide-react";
+import { Zap, Lock, ArrowRight, Trophy, Users, TrendingUp, ChevronDown, Check, Flame, Clock, DollarSign, Activity } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
@@ -12,6 +12,53 @@ type CodeGateProps = {
   children: React.ReactNode;
 };
 
+// Demo data for live preview
+const demoMatchups = [
+  {
+    id: 1,
+    league: "NFL",
+    homeTeam: { name: "Chiefs", abbr: "KC", color: "#E31837", odds: 58 },
+    awayTeam: { name: "Eagles", abbr: "PHI", color: "#004C54", odds: 42 },
+    volume: "$8.5m",
+    bettors: 589,
+    locksIn: "4h 0m",
+  },
+  {
+    id: 2,
+    league: "NBA",
+    homeTeam: { name: "Lakers", abbr: "LAL", color: "#552583", odds: 45 },
+    awayTeam: { name: "Celtics", abbr: "BOS", color: "#007A33", odds: 55 },
+    volume: "$4.2m",
+    bettors: 423,
+    locksIn: "2h 30m",
+  },
+  {
+    id: 3,
+    league: "NFL",
+    homeTeam: { name: "Cowboys", abbr: "DAL", color: "#003594", odds: 52 },
+    awayTeam: { name: "49ers", abbr: "SF", color: "#AA0000", odds: 48 },
+    volume: "$6.1m",
+    bettors: 512,
+    locksIn: "6h 15m",
+  },
+];
+
+const demoTraders = [
+  { rank: 1, name: "bossoskill", avatar: "🏆", profit: "+$437k", winRate: "78%", streak: 12, picks: 234 },
+  { rank: 2, name: "alphatrader", avatar: "🔥", profit: "+$312k", winRate: "72%", streak: 8, picks: 189 },
+  { rank: 3, name: "sportsguru", avatar: "⚡", profit: "+$256k", winRate: "69%", streak: 6, picks: 312 },
+  { rank: 4, name: "pickmaster", avatar: "💎", profit: "+$198k", winRate: "67%", streak: 5, picks: 156 },
+  { rank: 5, name: "clutchking", avatar: "👑", profit: "+$145k", winRate: "65%", streak: 4, picks: 278 },
+];
+
+const demoActivity = [
+  { user: "bossoskill", action: "bet", team: "Chiefs", amount: "$5,000", time: "2m ago" },
+  { user: "alphatrader", action: "won", team: "Lakers", amount: "+$8,200", time: "5m ago" },
+  { user: "sportsguru", action: "bet", team: "Eagles", amount: "$3,500", time: "8m ago" },
+  { user: "pickmaster", action: "bet", team: "Celtics", amount: "$2,000", time: "12m ago" },
+  { user: "clutchking", action: "won", team: "Cowboys", amount: "+$4,100", time: "15m ago" },
+];
+
 export function CodeGate({ children }: CodeGateProps) {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [code, setCode] = useState("");
@@ -20,6 +67,7 @@ export function CodeGate({ children }: CodeGateProps) {
   const [email, setEmail] = useState("");
   const [emailSubmitted, setEmailSubmitted] = useState(false);
   const [showCodeGate, setShowCodeGate] = useState(false);
+  const [activeMatchup, setActiveMatchup] = useState(0);
 
   useEffect(() => {
     // Check if already unlocked
@@ -28,6 +76,14 @@ export function CodeGate({ children }: CodeGateProps) {
       setIsUnlocked(true);
     }
     setIsLoading(false);
+  }, []);
+
+  // Auto-rotate matchups
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveMatchup((prev) => (prev + 1) % demoMatchups.length);
+    }, 4000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleCodeSubmit = (e: React.FormEvent) => {
@@ -72,29 +128,7 @@ export function CodeGate({ children }: CodeGateProps) {
     return <>{children}</>;
   }
 
-  // Features data
-  const features = [
-    {
-      icon: <Trophy className="h-6 w-6" />,
-      title: "Prove Your Picks",
-      description: "Track your predictions with verified on-chain records. No more screenshots.",
-    },
-    {
-      icon: <Users className="h-6 w-6" />,
-      title: "Follow Top Traders",
-      description: "See what the best predictors are betting on in real-time.",
-    },
-    {
-      icon: <TrendingUp className="h-6 w-6" />,
-      title: "Live Leaderboards",
-      description: "Compete for the top spots and build your reputation.",
-    },
-    {
-      icon: <Shield className="h-6 w-6" />,
-      title: "Transparent Stats",
-      description: "Win rates, streaks, and P&L - all publicly verifiable.",
-    },
-  ];
+  const currentMatchup = demoMatchups[activeMatchup];
 
   // Show waitlist page
   return (
@@ -102,89 +136,349 @@ export function CodeGate({ children }: CodeGateProps) {
       {/* Hero Section */}
       <div className="relative overflow-hidden">
         {/* Background image */}
-        <div className="absolute inset-0 bg-[url('https://phhczohqidgrvcmszets.supabase.co/storage/v1/object/public/Sports%20Bet/image/alluring_swan_07128_Seahawks_vs_patriots_football_--ar_169_--_71ef6a5c-e7d7-4a27-9f1a-cd6de9f2772d_0.png')] bg-cover bg-center opacity-20" />
+        <div className="absolute inset-0 bg-[url('https://phhczohqidgrvcmszets.supabase.co/storage/v1/object/public/Sports%20Bet/image/alluring_swan_07128_Seahawks_vs_patriots_football_--ar_169_--_71ef6a5c-e7d7-4a27-9f1a-cd6de9f2772d_0.png')] bg-cover bg-center opacity-15" />
         {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0a0a0a]/80 to-[#0a0a0a]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a]/60 via-[#0a0a0a]/80 to-[#0a0a0a]" />
         
-        <div className="relative z-10 max-w-4xl mx-auto px-4 py-16 md:py-24 text-center">
-          {/* Logo */}
-          <div className="flex items-center justify-center gap-3 mb-8">
-            <div className="h-14 w-14 md:h-16 md:w-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/25">
-              <Zap className="h-8 w-8 md:h-9 md:w-9 text-white" />
-            </div>
-            <span className="text-3xl md:text-4xl font-bold">ProvePicks</span>
-          </div>
-
-          {/* Coming Soon Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-orange-500/30 mb-6">
-            <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-            <span className="text-orange-400 font-medium text-sm">Coming Soon</span>
-          </div>
-
-          {/* Headline */}
-          <h1 className="text-3xl md:text-5xl font-bold mb-4">
-            Join the Waitlist
-          </h1>
-          <p className="text-lg md:text-xl text-gray-400 mb-8 max-w-2xl mx-auto">
-            The social prediction market for sports. Follow traders. Track picks. Prove performance.
-          </p>
-
-          {/* Email Signup Form */}
-          {emailSubmitted ? (
-            <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-6 max-w-md mx-auto">
-              <div className="flex items-center justify-center gap-2 text-green-400 mb-2">
-                <Check className="h-5 w-5" />
-                <span className="font-semibold">You&apos;re on the list!</span>
+        <div className="relative z-10 max-w-6xl mx-auto px-4 py-12 md:py-20">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left: Content */}
+            <div className="text-center lg:text-left">
+              {/* Logo */}
+              <div className="flex items-center justify-center lg:justify-start gap-3 mb-6">
+                <div className="h-12 w-12 md:h-14 md:w-14 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/25">
+                  <Zap className="h-7 w-7 md:h-8 md:w-8 text-white" />
+                </div>
+                <span className="text-2xl md:text-3xl font-bold">ProvePicks</span>
               </div>
-              <p className="text-gray-400 text-sm">
-                We&apos;ll notify you at <span className="text-white">{email}</span> when we launch.
-              </p>
-            </div>
-          ) : (
-            <form onSubmit={handleEmailSubmit} className="max-w-md mx-auto">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Input
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="flex-1 h-12 bg-white/10 border-white/20 text-white placeholder:text-gray-500 focus:border-orange-500"
-                  required
-                />
-                <Button
-                  type="submit"
-                  className="h-12 px-6 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-semibold"
-                >
-                  Get Notified
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
+
+              {/* Coming Soon Badge */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-orange-500/30 mb-6">
+                <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                <span className="text-orange-400 font-medium text-sm">Coming Soon</span>
               </div>
-              <p className="text-gray-500 text-sm mt-3">
-                Be the first to know when we go live. No spam, ever.
+
+              {/* Headline */}
+              <h1 className="text-3xl md:text-5xl font-bold mb-4">
+                Join the Waitlist
+              </h1>
+              <p className="text-lg md:text-xl text-gray-400 mb-8 max-w-lg mx-auto lg:mx-0">
+                The social prediction market for sports. Follow traders. Track picks. Prove performance.
               </p>
-            </form>
-          )}
+
+              {/* Email Signup Form */}
+              {emailSubmitted ? (
+                <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-6 max-w-md mx-auto lg:mx-0">
+                  <div className="flex items-center justify-center lg:justify-start gap-2 text-green-400 mb-2">
+                    <Check className="h-5 w-5" />
+                    <span className="font-semibold">You&apos;re on the list!</span>
+                  </div>
+                  <p className="text-gray-400 text-sm">
+                    We&apos;ll notify you at <span className="text-white">{email}</span> when we launch.
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={handleEmailSubmit} className="max-w-md mx-auto lg:mx-0">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Input
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="flex-1 h-12 bg-white/10 border-white/20 text-white placeholder:text-gray-500 focus:border-orange-500"
+                      required
+                    />
+                    <Button
+                      type="submit"
+                      className="h-12 px-6 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-semibold"
+                    >
+                      Get Notified
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </Button>
+                  </div>
+                  <p className="text-gray-500 text-sm mt-3">
+                    Be the first to know when we go live. No spam, ever.
+                  </p>
+                </form>
+              )}
+            </div>
+
+            {/* Right: Live Matchup Preview */}
+            <div className="hidden lg:block">
+              <div className="bg-[#111111] rounded-2xl border border-gray-800 p-6 shadow-2xl">
+                {/* Matchup Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <span className="px-3 py-1 rounded-full bg-orange-500/20 text-orange-400 text-xs font-semibold">
+                    {currentMatchup.league}
+                  </span>
+                  <div className="flex items-center gap-2 text-gray-400 text-sm">
+                    <Clock className="h-4 w-4" />
+                    <span>Locks in {currentMatchup.locksIn}</span>
+                  </div>
+                </div>
+
+                {/* Teams */}
+                <div className="flex items-center justify-between mb-6">
+                  {/* Home Team */}
+                  <div className="flex items-center gap-4">
+                    <div 
+                      className="h-16 w-16 rounded-full flex items-center justify-center text-white font-bold text-lg"
+                      style={{ backgroundColor: currentMatchup.homeTeam.color }}
+                    >
+                      {currentMatchup.homeTeam.abbr}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-lg">{currentMatchup.homeTeam.name}</p>
+                      <p className="text-2xl font-bold text-green-400">{currentMatchup.homeTeam.odds}%</p>
+                    </div>
+                  </div>
+
+                  <div className="text-gray-500 font-bold text-xl">VS</div>
+
+                  {/* Away Team */}
+                  <div className="flex items-center gap-4 text-right">
+                    <div>
+                      <p className="font-semibold text-lg">{currentMatchup.awayTeam.name}</p>
+                      <p className="text-2xl font-bold text-gray-400">{currentMatchup.awayTeam.odds}%</p>
+                    </div>
+                    <div 
+                      className="h-16 w-16 rounded-full flex items-center justify-center text-white font-bold text-lg"
+                      style={{ backgroundColor: currentMatchup.awayTeam.color }}
+                    >
+                      {currentMatchup.awayTeam.abbr}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Odds Bar */}
+                <div className="h-3 bg-gray-800 rounded-full overflow-hidden mb-4">
+                  <div 
+                    className="h-full transition-all duration-500"
+                    style={{ 
+                      width: `${currentMatchup.homeTeam.odds}%`,
+                      backgroundColor: currentMatchup.homeTeam.color
+                    }}
+                  />
+                </div>
+
+                {/* Stats */}
+                <div className="flex items-center justify-between text-sm text-gray-400">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" />
+                    <span>Volume: <span className="text-white font-semibold">{currentMatchup.volume}</span></span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    <span><span className="text-white font-semibold">{currentMatchup.bettors}</span> active bettors</span>
+                  </div>
+                </div>
+
+                {/* Matchup Indicators */}
+                <div className="flex justify-center gap-2 mt-4">
+                  {demoMatchups.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setActiveMatchup(i)}
+                      className={`h-2 rounded-full transition-all ${
+                        i === activeMatchup ? "w-6 bg-orange-500" : "w-2 bg-gray-700"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Features Section */}
-      <div className="max-w-5xl mx-auto px-4 py-16">
-        <h2 className="text-2xl md:text-3xl font-bold text-center mb-12">
-          Why ProvePicks?
-        </h2>
-        <div className="grid md:grid-cols-2 gap-6">
-          {features.map((feature, index) => (
-            <div
-              key={index}
-              className="p-6 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 hover:border-orange-500/30 transition"
-            >
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-orange-500/20 to-amber-500/20 flex items-center justify-center text-orange-400 mb-4">
-                {feature.icon}
+      {/* Live Stats Bar */}
+      <div className="border-y border-gray-800 bg-gradient-to-r from-orange-500/5 via-transparent to-orange-500/5">
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <div className="flex flex-wrap justify-center gap-6 md:gap-12 text-sm">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-green-400" />
+              <span className="text-gray-400">Live Traders:</span>
+              <span className="text-white font-semibold">589</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-orange-400" />
+              <span className="text-gray-400">Volume Today:</span>
+              <span className="text-white font-semibold">$18.8m</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Flame className="h-4 w-4 text-red-400" />
+              <span className="text-gray-400">Hot Picks:</span>
+              <span className="text-white font-semibold">$82k (10m)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Trophy className="h-4 w-4 text-yellow-400" />
+              <span className="text-gray-400">Top Streak:</span>
+              <span className="text-white font-semibold">12 wins</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Top Traders & Activity Section */}
+      <div className="max-w-6xl mx-auto px-4 py-16">
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* Top Traders */}
+          <div>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-yellow-500/20 to-orange-500/20 flex items-center justify-center">
+                <Trophy className="h-5 w-5 text-yellow-400" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
-              <p className="text-gray-400 text-sm">{feature.description}</p>
+              <h2 className="text-xl font-bold">Top Traders</h2>
+            </div>
+            <div className="space-y-3">
+              {demoTraders.map((trader) => (
+                <div 
+                  key={trader.rank}
+                  className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-white/5 to-transparent border border-white/5 hover:border-orange-500/30 transition"
+                >
+                  <div className="text-lg font-bold text-gray-500 w-6">#{trader.rank}</div>
+                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-orange-500/30 to-amber-500/30 flex items-center justify-center text-lg">
+                    {trader.avatar}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold">@{trader.name}</p>
+                    <p className="text-xs text-gray-500">{trader.picks} picks · {trader.winRate} win rate</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-green-400 font-bold">{trader.profit}</p>
+                    <p className="text-xs text-orange-400">🔥 {trader.streak} streak</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Live Activity */}
+          <div>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center">
+                <Activity className="h-5 w-5 text-green-400" />
+              </div>
+              <h2 className="text-xl font-bold">Live Activity</h2>
+              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+            </div>
+            <div className="space-y-3">
+              {demoActivity.map((activity, i) => (
+                <div 
+                  key={i}
+                  className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-white/5 to-transparent border border-white/5"
+                >
+                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center text-sm font-bold">
+                    {activity.user.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm">
+                      <span className="font-semibold text-white">@{activity.user}</span>
+                      <span className="text-gray-400"> {activity.action === "bet" ? "placed bet on" : "won on"} </span>
+                      <span className="text-orange-400 font-medium">{activity.team}</span>
+                    </p>
+                    <p className="text-xs text-gray-500">{activity.time}</p>
+                  </div>
+                  <div className={`font-bold ${activity.action === "won" ? "text-green-400" : "text-white"}`}>
+                    {activity.amount}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Matchups Preview (Mobile) */}
+      <div className="lg:hidden max-w-lg mx-auto px-4 pb-12">
+        <h2 className="text-xl font-bold text-center mb-6">Live Markets</h2>
+        <div className="space-y-4">
+          {demoMatchups.map((matchup) => (
+            <div key={matchup.id} className="bg-[#111111] rounded-xl border border-gray-800 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="px-2 py-1 rounded-full bg-orange-500/20 text-orange-400 text-xs font-semibold">
+                  {matchup.league}
+                </span>
+                <span className="text-xs text-gray-500">Locks in {matchup.locksIn}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-xs"
+                    style={{ backgroundColor: matchup.homeTeam.color }}
+                  >
+                    {matchup.homeTeam.abbr}
+                  </div>
+                  <span className="font-medium">{matchup.homeTeam.name}</span>
+                </div>
+                <span className="text-green-400 font-bold">{matchup.homeTeam.odds}%</span>
+              </div>
+              <div className="h-2 bg-gray-800 rounded-full overflow-hidden my-3">
+                <div 
+                  className="h-full"
+                  style={{ 
+                    width: `${matchup.homeTeam.odds}%`,
+                    backgroundColor: matchup.homeTeam.color
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-xs"
+                    style={{ backgroundColor: matchup.awayTeam.color }}
+                  >
+                    {matchup.awayTeam.abbr}
+                  </div>
+                  <span className="font-medium">{matchup.awayTeam.name}</span>
+                </div>
+                <span className="text-gray-400 font-bold">{matchup.awayTeam.odds}%</span>
+              </div>
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-800 text-xs text-gray-500">
+                <span>Volume: {matchup.volume}</span>
+                <span>{matchup.bettors} bettors</span>
+              </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Why ProvePicks Section */}
+      <div className="bg-gradient-to-b from-transparent to-orange-500/5 py-16">
+        <div className="max-w-5xl mx-auto px-4">
+          <h2 className="text-2xl md:text-3xl font-bold text-center mb-12">
+            Why ProvePicks?
+          </h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="p-6 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 hover:border-orange-500/30 transition text-center">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-orange-500/20 to-amber-500/20 flex items-center justify-center text-orange-400 mb-4 mx-auto">
+                <Trophy className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Prove Your Picks</h3>
+              <p className="text-gray-400 text-sm">Verified on-chain records. No more screenshots.</p>
+            </div>
+            <div className="p-6 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 hover:border-orange-500/30 transition text-center">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-orange-500/20 to-amber-500/20 flex items-center justify-center text-orange-400 mb-4 mx-auto">
+                <Users className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Follow Top Traders</h3>
+              <p className="text-gray-400 text-sm">See what the best predictors are betting on.</p>
+            </div>
+            <div className="p-6 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 hover:border-orange-500/30 transition text-center">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-orange-500/20 to-amber-500/20 flex items-center justify-center text-orange-400 mb-4 mx-auto">
+                <TrendingUp className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Live Leaderboards</h3>
+              <p className="text-gray-400 text-sm">Compete for the top spots and build reputation.</p>
+            </div>
+            <div className="p-6 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 hover:border-orange-500/30 transition text-center">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-orange-500/20 to-amber-500/20 flex items-center justify-center text-orange-400 mb-4 mx-auto">
+                <DollarSign className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Transparent Stats</h3>
+              <p className="text-gray-400 text-sm">Win rates, streaks, and P&L - all verifiable.</p>
+            </div>
+          </div>
         </div>
       </div>
 
