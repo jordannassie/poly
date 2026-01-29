@@ -17,16 +17,18 @@ type ApiResponse = {
   message?: string;
   fetched?: number;
   synced?: number;
+  inserted?: number;
+  updated?: number;
+  count?: number;
   fromDate?: string;
   toDate?: string;
   dates?: string[];
 };
 
 export default function AdminApiSportsNflPage() {
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [toDate, setToDate] = useState(
-    new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
-  );
+  // Default to a known NFL week (2025-09-07 to 2025-09-15)
+  const [date, setDate] = useState("2025-09-07");
+  const [toDate, setToDate] = useState("2025-09-15");
   const [loading, setLoading] = useState<string | null>(null);
   const [result, setResult] = useState<ApiResponse | null>(null);
 
@@ -240,18 +242,24 @@ export default function AdminApiSportsNflPage() {
           </div>
 
           {/* Sync Stats */}
-          {(result.fetched !== undefined || result.synced !== undefined) && (
+          {(result.inserted !== undefined || result.updated !== undefined || result.count !== undefined) && (
             <div className="px-4 py-3 bg-green-500/10 border-b border-[#30363d] flex gap-6">
-              {result.fetched !== undefined && (
+              {result.count !== undefined && (
                 <div>
-                  <span className="text-gray-400 text-sm">Fetched: </span>
-                  <span className="text-green-400 font-bold">{result.fetched}</span>
+                  <span className="text-gray-400 text-sm">Total: </span>
+                  <span className="text-green-400 font-bold">{result.count}</span>
                 </div>
               )}
-              {result.synced !== undefined && (
+              {result.inserted !== undefined && (
                 <div>
-                  <span className="text-gray-400 text-sm">Synced: </span>
-                  <span className="text-green-400 font-bold">{result.synced}</span>
+                  <span className="text-gray-400 text-sm">Inserted: </span>
+                  <span className="text-blue-400 font-bold">{result.inserted}</span>
+                </div>
+              )}
+              {result.updated !== undefined && (
+                <div>
+                  <span className="text-gray-400 text-sm">Updated: </span>
+                  <span className="text-yellow-400 font-bold">{result.updated}</span>
                 </div>
               )}
             </div>
