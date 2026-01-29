@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Loader2, AlertCircle, Calendar, ChevronRight } from "lucide-react";
+import { AlertCircle, Calendar, ChevronRight } from "lucide-react";
+import { LightningLoader } from "@/components/ui/LightningLoader";
 import { Button } from "@/components/ui/button";
 
 interface Team {
@@ -82,8 +83,7 @@ export function UpcomingGames({ league = "nfl", days = 7 }: UpcomingGamesProps) 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-[color:var(--text-muted)]" />
-        <span className="ml-3 text-[color:var(--text-muted)]">Loading upcoming matchups...</span>
+        <LightningLoader size="md" text="Loading upcoming matchups..." />
       </div>
     );
   }

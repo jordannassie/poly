@@ -7,7 +7,8 @@ import { MainFooter } from "@/components/MainFooter";
 import { MarketGamePage } from "@/components/market/MarketGamePage";
 import { gameToMarketViewModel } from "@/lib/adapters/gameToMarketViewModel";
 import { Button } from "@/components/ui/button";
-import { Loader2, AlertCircle, ChevronLeft } from "lucide-react";
+import { LightningLoader } from "@/components/ui/LightningLoader";
+import { AlertCircle, ChevronLeft } from "lucide-react";
 
 interface Team {
   teamId: number;
@@ -87,7 +88,7 @@ export function SportGamePage({ league, gameId }: SportGamePageProps) {
     fetchGame();
   }, [gameId, league]);
 
-  // Loading state
+  // Loading state - minimal with lightning loader
   if (loading) {
     return (
       <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
@@ -101,7 +102,7 @@ export function SportGamePage({ league, gameId }: SportGamePageProps) {
             Back to {config.name}
           </Link>
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-10 w-10 animate-spin text-[color:var(--accent)]" />
+            <LightningLoader size="lg" text="Loading game..." />
           </div>
         </main>
         <MainFooter />

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
+import { LightningLoader } from "@/components/ui/LightningLoader";
 
 interface Team {
   teamId: number;
@@ -59,8 +60,7 @@ export function TeamLogoGrid({ league = "nfl" }: TeamLogoGridProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-[color:var(--text-muted)]" />
-        <span className="ml-3 text-[color:var(--text-muted)]">Loading teams...</span>
+        <LightningLoader size="md" text="Loading teams..." />
       </div>
     );
   }

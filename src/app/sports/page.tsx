@@ -15,7 +15,8 @@ import { TeamOutcomeButton } from "@/components/market/TeamOutcomeButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, ToggleRight, ChevronDown, MoreHorizontal, Heart, Loader2 } from "lucide-react";
+import { Settings, ToggleRight, ChevronDown, MoreHorizontal, Heart } from "lucide-react";
+import { LightningLoader } from "@/components/ui/LightningLoader";
 
 // Valid leagues
 const VALID_LEAGUES = ["nfl", "nba", "mlb", "nhl"] as const;
@@ -476,8 +477,7 @@ function SportsPageContent() {
 function SportsPageLoading() {
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] flex items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-[color:var(--text-muted)]" />
-      <span className="ml-3 text-[color:var(--text-muted)]">Loading...</span>
+      <LightningLoader size="lg" text="Loading..." />
     </div>
   );
 }

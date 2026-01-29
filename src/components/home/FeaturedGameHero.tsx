@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Loader2, Calendar, Tv, Trophy, ChevronRight } from "lucide-react";
+import { Calendar, Tv, Trophy, ChevronRight } from "lucide-react";
+import { LightningLoader } from "@/components/ui/LightningLoader";
 import { Button } from "@/components/ui/button";
 
 interface Team {
@@ -73,7 +74,7 @@ export function FeaturedGameHero({ league = "nfl" }: FeaturedGameHeroProps) {
     return (
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a1f2e] to-[#0d1117] p-8 md:p-12">
         <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-10 w-10 animate-spin text-orange-500" />
+          <LightningLoader size="lg" />
         </div>
       </div>
     );

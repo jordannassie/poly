@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Loader2, AlertCircle, Calendar } from "lucide-react";
+import { AlertCircle, Calendar } from "lucide-react";
+import { LightningLoader } from "@/components/ui/LightningLoader";
 import { TeamOutcomeButtonPair } from "@/components/market/TeamOutcomeButton";
 
 interface Team {
@@ -91,8 +92,7 @@ export function TodayGames({ league = "nfl", date }: TodayGamesProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-[color:var(--text-muted)]" />
-        <span className="ml-3 text-[color:var(--text-muted)]">Loading games...</span>
+        <LightningLoader size="md" text="Loading games..." />
       </div>
     );
   }

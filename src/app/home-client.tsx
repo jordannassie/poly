@@ -21,8 +21,8 @@ import {
   Users,
   Activity,
   Radio,
-  Loader2,
 } from "lucide-react";
+import { LightningLoader } from "@/components/ui/LightningLoader";
 
 // Hot game type from API
 interface HotGame {
@@ -216,8 +216,7 @@ export default function HomeClient() {
             {/* Loading State */}
             {loading && (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-[color:var(--accent)]" />
-                <span className="ml-3 text-[color:var(--text-muted)]">Loading games...</span>
+                <LightningLoader size="md" text="Loading games..." />
               </div>
             )}
 
