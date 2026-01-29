@@ -201,9 +201,17 @@ export function TopNav() {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button className="flex items-center gap-1 rounded-full p-1 text-white/80 hover:text-white">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-xs font-semibold text-white">
-                          {initials}
-                        </span>
+                        {realUser?.avatar_url ? (
+                          <img 
+                            src={realUser.avatar_url} 
+                            alt="Profile" 
+                            className="h-9 w-9 rounded-full object-cover"
+                          />
+                        ) : (
+                          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-xs font-semibold text-white">
+                            {initials}
+                          </span>
+                        )}
                         <ChevronDown className="h-4 w-4 text-white/70" />
                       </button>
                     </DropdownMenuTrigger>
@@ -364,9 +372,17 @@ export function TopNav() {
                     {isLoggedIn ? (
                       <div className="space-y-3">
                         <div className="flex items-center gap-3 p-3 bg-[color:var(--surface-2)] rounded-lg">
-                          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-amber-600 text-sm font-semibold text-white">
-                            {initials}
-                          </span>
+                          {realUser?.avatar_url ? (
+                            <img 
+                              src={realUser.avatar_url} 
+                              alt="Profile" 
+                              className="h-10 w-10 rounded-full object-cover"
+                            />
+                          ) : (
+                            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-amber-600 text-sm font-semibold text-white">
+                              {initials}
+                            </span>
+                          )}
                           <div>
                             <div className="font-medium text-[color:var(--text-strong)]">
                               {realUser?.display_name || realUser?.username || demoUser?.name || "User"}
