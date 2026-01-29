@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { TopNav } from "@/components/TopNav";
 import { CategoryTabs } from "@/components/CategoryTabs";
@@ -13,8 +13,37 @@ import { Search, ChevronDown, Trophy, TrendingUp, ArrowRight } from "lucide-reac
 
 const timeFilters = ["Today", "Weekly", "Monthly", "All"];
 
+interface CurrentUser {
+  username: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
 export default function LeaderboardPage() {
   const [activeFilter, setActiveFilter] = useState("Today");
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch("/api/me");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) {
+            setCurrentUser(data.user);
+          }
+        }
+      } catch {
+        // Not logged in
+      }
+    };
+    fetchUser();
+  }, []);
+
+  const getInitials = (name: string | null, username: string | null): string => {
+    const displayName = name || username || "U";
+    return displayName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+  };
 
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
@@ -131,32 +160,50 @@ export default function LeaderboardPage() {
             </div>
 
             {/* Your Position */}
-            <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] border-2 border-dashed">
-              {/* Mobile */}
-              <CardContent className="p-3 md:hidden">
-                <div className="flex items-center gap-3">
-                  <span className="w-6 text-center font-bold text-sm text-[color:var(--text-muted)]">—</span>
-                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs">
-                    DT
+            {currentUser && (
+              <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] border-2 border-dashed">
+                {/* Mobile */}
+                <CardContent className="p-3 md:hidden">
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 text-center font-bold text-sm text-[color:var(--text-muted)]">—</span>
+                    {currentUser.avatar_url ? (
+                      <img 
+                        src={currentUser.avatar_url} 
+                        alt="You" 
+                        className="h-8 w-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs">
+                        {getInitials(currentUser.display_name, currentUser.username)}
+                      </div>
+                    )}
+                    <span className="font-semibold text-sm">{currentUser.display_name || currentUser.username || "You"} (You)</span>
                   </div>
-                  <span className="font-semibold text-sm">jordannase (You)</span>
-                </div>
-              </CardContent>
-              {/* Desktop */}
-              <CardContent className="hidden md:grid p-4 grid-cols-[auto_1fr_auto_auto] gap-4 items-center">
-                <span className="w-8 text-center font-bold text-[color:var(--text-muted)]">
-                  —
-                </span>
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
-                    DT
+                </CardContent>
+                {/* Desktop */}
+                <CardContent className="hidden md:grid p-4 grid-cols-[auto_1fr_auto_auto] gap-4 items-center">
+                  <span className="w-8 text-center font-bold text-[color:var(--text-muted)]">
+                    —
+                  </span>
+                  <div className="flex items-center gap-3">
+                    {currentUser.avatar_url ? (
+                      <img 
+                        src={currentUser.avatar_url} 
+                        alt="You" 
+                        className="h-10 w-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
+                        {getInitials(currentUser.display_name, currentUser.username)}
+                      </div>
+                    )}
+                    <span className="font-semibold">{currentUser.display_name || currentUser.username || "You"} (You)</span>
                   </div>
-                  <span className="font-semibold">jordannase (You)</span>
-                </div>
-                <span className="text-right text-[color:var(--text-muted)]">—</span>
-                <span className="text-right w-28 text-[color:var(--text-muted)]">—</span>
-              </CardContent>
-            </Card>
+                  <span className="text-right text-[color:var(--text-muted)]">—</span>
+                  <span className="text-right w-28 text-[color:var(--text-muted)]">—</span>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Biggest Wins Sidebar */}
