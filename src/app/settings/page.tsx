@@ -880,18 +880,6 @@ export default function SettingsPage() {
                       </p>
                     </div>
 
-                    {/* Social Connections */}
-                    <div className="space-y-3">
-                      <label className="text-sm font-medium">Social Connections</label>
-                      <Button
-                        variant="outline"
-                        className="gap-2 border-[color:var(--border-soft)]"
-                      >
-                        <span className="font-bold">𝕏</span>
-                        Connect X
-                      </Button>
-                    </div>
-
                     {/* Save */}
                     <div className="flex items-center gap-4">
                       <Button 
