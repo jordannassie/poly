@@ -24,7 +24,7 @@ export function isSportEnabled(sportKey: string): boolean {
 // Full sports menu configuration
 export const sportsMenu: SportConfig[] = [
   // Enabled sports - active and clickable
-  { key: "nfl", label: "NFL", enabled: true, route: "/nfl", icon: "🏈" },
+  { key: "nfl", label: "NFL", enabled: true, route: "/sports?league=nfl", icon: "🏈" },
   { key: "nba", label: "NBA", enabled: true, route: "/sports?league=nba", icon: "🏀" },
   { key: "mlb", label: "MLB", enabled: true, route: "/sports?league=mlb", icon: "⚾" },
   { key: "nhl", label: "NHL", enabled: true, route: "/sports?league=nhl", icon: "🏒" },
@@ -59,7 +59,7 @@ export const categoryTabs: CategoryConfig[] = [
   { label: "Big Volume", href: "/?view=big-volume", enabled: true },
   
   // Enabled sports
-  { label: "NFL", href: "/nfl", enabled: true, isSport: true },
+  { label: "NFL", href: "/sports?league=nfl", enabled: true, isSport: true },
   { label: "NBA", href: "/sports?league=nba", enabled: true, isSport: true },
   { label: "MLB", href: "/sports?league=mlb", enabled: true, isSport: true },
   { label: "NHL", href: "/sports?league=nhl", enabled: true, isSport: true },

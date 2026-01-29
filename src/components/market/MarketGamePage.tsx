@@ -87,7 +87,7 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
                 Home
               </Link>
               <ChevronRight className="h-4 w-4" />
-              <Link href={league === "nfl" ? "/nfl" : `/sports?league=${league}`} className="hover:text-[color:var(--text-strong)]">
+              <Link href={`/sports?league=${league}`} className="hover:text-[color:var(--text-strong)]">
                 {league.toUpperCase()}
               </Link>
             </div>

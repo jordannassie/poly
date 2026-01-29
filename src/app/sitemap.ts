@@ -26,7 +26,10 @@ const getBaseUrl = () => {
 // Static pages that should always be in sitemap
 const STATIC_PAGES = [
   { path: "/", changeFreq: "daily" as const, priority: 1.0 },
-  { path: "/nfl", changeFreq: "hourly" as const, priority: 0.9 },
+  { path: "/sports?league=nfl", changeFreq: "hourly" as const, priority: 0.9 },
+  { path: "/sports?league=nba", changeFreq: "hourly" as const, priority: 0.9 },
+  { path: "/sports?league=mlb", changeFreq: "hourly" as const, priority: 0.9 },
+  { path: "/sports?league=nhl", changeFreq: "hourly" as const, priority: 0.9 },
   { path: "/sports", changeFreq: "daily" as const, priority: 0.8 },
   { path: "/leaderboard", changeFreq: "daily" as const, priority: 0.6 },
 ];
