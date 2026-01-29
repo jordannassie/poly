@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Activity, Clock, CheckCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { Search, Activity, Clock, CheckCircle, AlertTriangle, Loader2, Download, RefreshCw } from "lucide-react";
 
 interface Market {
   id: string;
@@ -26,29 +26,59 @@ export default function AdminMarketsPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "open" | "live" | "settled">("all");
+  
+  // Import state
+  const [importLeague, setImportLeague] = useState("NFL");
+  const [importing, setImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const fetchMarkets = async () => {
+    try {
+      const res = await fetch("/api/admin/markets");
+      const data = await res.json();
+      
+      if (data.error === "Admin service key not configured") {
+        setError(data.error);
+      } else if (data.error) {
+        setError(data.error);
+      } else {
+        setMarkets(data.markets || []);
+      }
+    } catch (err) {
+      setError("Failed to load markets");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchMarkets() {
-      try {
-        const res = await fetch("/api/admin/markets");
-        const data = await res.json();
-        
-        if (data.error === "Admin service key not configured") {
-          setError(data.error);
-        } else if (data.error) {
-          setError(data.error);
-        } else {
-          setMarkets(data.markets || []);
-        }
-      } catch (err) {
-        setError("Failed to load markets");
-      } finally {
-        setLoading(false);
-      }
-    }
-
     fetchMarkets();
   }, []);
+
+  const handleImport = async () => {
+    setImporting(true);
+    setImportMessage(null);
+
+    try {
+      const res = await fetch(`/api/admin/markets/import-today?league=${importLeague}`, {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setImportMessage({ type: "success", text: data.message });
+        // Refresh markets table
+        setLoading(true);
+        await fetchMarkets();
+      } else {
+        setImportMessage({ type: "error", text: data.error });
+      }
+    } catch (err) {
+      setImportMessage({ type: "error", text: "Failed to import games" });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const filteredMarkets = markets.filter(m => {
     const matchesSearch = 
@@ -115,12 +145,73 @@ export default function AdminMarketsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Markets</h1>
-          <p className="text-gray-400">View all prediction markets from SportsDataIO</p>
+          <p className="text-gray-400">View and import prediction markets</p>
         </div>
         <div className="text-sm text-gray-400">
           {markets.length} total markets
         </div>
       </div>
+
+      {/* Import Section */}
+      <Card className="bg-[#161b22] border-[#30363d]">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Download className="h-5 w-5 text-blue-500" />
+              <span className="text-white font-medium">Import Today&apos;s Games</span>
+            </div>
+            <select
+              value={importLeague}
+              onChange={(e) => setImportLeague(e.target.value)}
+              className="px-3 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg text-white"
+            >
+              <option value="NFL">NFL</option>
+              <option value="NBA">NBA</option>
+              <option value="MLB">MLB</option>
+              <option value="NHL">NHL</option>
+            </select>
+            <Button
+              onClick={handleImport}
+              disabled={importing}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {importing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Import from Cache
+                </>
+              )}
+            </Button>
+            <Button
+              onClick={() => { setLoading(true); fetchMarkets(); }}
+              variant="outline"
+              size="sm"
+              className="border-[#30363d] text-gray-400"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          {importMessage && (
+            <div className={`mt-3 px-3 py-2 rounded text-sm ${
+              importMessage.type === "success" 
+                ? "bg-green-500/20 text-green-400" 
+                : "bg-red-500/20 text-red-400"
+            }`}>
+              {importMessage.text}
+            </div>
+          )}
+          
+          <p className="text-xs text-gray-500 mt-2">
+            Imports games from SportsDataIO cache into the markets database. Make sure to warm the cache first via SportsDataIO Admin.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Filters */}
       <div className="flex items-center gap-4">
@@ -168,7 +259,10 @@ export default function AdminMarketsPage() {
                   <tr key={market.id} className="border-b border-[#30363d]/50 hover:bg-[#0d1117]/50">
                     <td className="p-4">
                       <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                        market.league === "NFL" ? "bg-blue-500/20 text-blue-400" : "bg-orange-500/20 text-orange-400"
+                        market.league === "NFL" ? "bg-blue-500/20 text-blue-400" : 
+                        market.league === "NBA" ? "bg-orange-500/20 text-orange-400" :
+                        market.league === "MLB" ? "bg-red-500/20 text-red-400" :
+                        "bg-cyan-500/20 text-cyan-400"
                       }`}>
                         {market.league}
                       </span>
@@ -201,7 +295,7 @@ export default function AdminMarketsPage() {
             </table>
           ) : (
             <div className="p-8 text-center text-gray-400">
-              {search ? "No markets found matching your criteria." : "No markets in database yet."}
+              {search ? "No markets found matching your criteria." : "No markets in database yet. Import games from the SportsDataIO cache above."}
             </div>
           )}
         </CardContent>
