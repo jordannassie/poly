@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, Copy, Check, Image } from "lucide-react";
+import { Download, Copy, Check, ImageIcon } from "lucide-react";
 import { PicksCard, type PicksCardData } from "./PicksCard";
 import { usePicksCardImage } from "./usePicksCardImage";
 
@@ -47,7 +47,7 @@ export function PicksCardModal({ open, onOpenChange, data }: PicksCardModalProps
       <DialogContent className="bg-[#0d1117] border-[#30363d] max-w-[420px] p-0 overflow-hidden">
         <DialogHeader className="p-4 pb-2 border-b border-[#30363d]">
           <DialogTitle className="flex items-center gap-2 text-white">
-            <Image className="h-5 w-5 text-orange-500" />
+            <ImageIcon className="h-5 w-5 text-orange-500" />
             Picks Card Preview
           </DialogTitle>
         </DialogHeader>

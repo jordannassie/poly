@@ -4,6 +4,30 @@ import { useCallback, RefObject } from "react";
 import type { PicksCardData } from "./PicksCard";
 
 /**
+ * Helper to draw rounded rectangle (polyfill for older browsers)
+ */
+function drawRoundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+/**
  * Hook for generating shareable content from PicksCard
  * Uses native Canvas API - no external dependencies
  */
@@ -15,8 +39,11 @@ export function usePicksCardImage(
    * Generate caption for sharing
    */
   const generateCaption = useCallback(() => {
+    if (!data?.teamA?.name || !data?.teamB?.name) {
+      return "My pick on ProvePicks";
+    }
     const selectedTeam = data.selectedTeam === "teamA" ? data.teamA : data.teamB;
-    return `My pick: ${selectedTeam.name}. Market: ${data.teamA.name} ${data.teamA.odds}% / ${data.teamB.name} ${data.teamB.odds}%. ${data.eventTitle}`;
+    return `My pick: ${selectedTeam.name}. Market: ${data.teamA.name} ${data.teamA.odds ?? 0}% / ${data.teamB.name} ${data.teamB.odds ?? 0}%. ${data.eventTitle}`;
   }, [data]);
 
   /**
@@ -108,8 +135,7 @@ export function usePicksCardImage(
       
       if (selectedA) {
         ctx.fillStyle = "rgba(249, 115, 22, 0.15)";
-        ctx.beginPath();
-        ctx.roundRect(20, 120, 140, 150, 12);
+        drawRoundRect(ctx, 20, 120, 140, 150, 12);
         ctx.fill();
         ctx.strokeStyle = "rgba(249, 115, 22, 0.5)";
         ctx.lineWidth = 2;
@@ -117,9 +143,8 @@ export function usePicksCardImage(
       }
 
       // Team A logo placeholder
-      ctx.fillStyle = data.teamA.color;
-      ctx.beginPath();
-      ctx.roundRect(teamAX - 30, 130, 60, 60, 10);
+      ctx.fillStyle = data.teamA.color || "#333";
+      drawRoundRect(ctx, teamAX - 30, 130, 60, 60, 10);
       ctx.fill();
       
       ctx.fillStyle = "#ffffff";
@@ -152,8 +177,7 @@ export function usePicksCardImage(
       
       if (selectedB) {
         ctx.fillStyle = "rgba(249, 115, 22, 0.15)";
-        ctx.beginPath();
-        ctx.roundRect(width - 160, 120, 140, 150, 12);
+        drawRoundRect(ctx, width - 160, 120, 140, 150, 12);
         ctx.fill();
         ctx.strokeStyle = "rgba(249, 115, 22, 0.5)";
         ctx.lineWidth = 2;
@@ -161,9 +185,8 @@ export function usePicksCardImage(
       }
 
       // Team B logo placeholder
-      ctx.fillStyle = data.teamB.color;
-      ctx.beginPath();
-      ctx.roundRect(teamBX - 30, 130, 60, 60, 10);
+      ctx.fillStyle = data.teamB.color || "#333";
+      drawRoundRect(ctx, teamBX - 30, 130, 60, 60, 10);
       ctx.fill();
       
       ctx.fillStyle = "#ffffff";

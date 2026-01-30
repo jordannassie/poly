@@ -35,9 +35,11 @@ interface PicksCardProps {
  */
 export const PicksCard = forwardRef<HTMLDivElement, PicksCardProps>(
   function PicksCard({ data }, ref) {
-    const { league, eventTitle, teamA, teamB, selectedTeam, locksIn, userHandle, statLine } = data;
+    const { league = "", eventTitle = "", teamA, teamB, selectedTeam = "teamA", locksIn = "TBD", userHandle = "Guest", statLine } = data || {};
 
-    const selectedTeamData = selectedTeam === "teamA" ? teamA : teamB;
+    // Defensive defaults
+    const safeTeamA = teamA || { name: "Team A", abbr: "A", logoUrl: null, odds: 50, color: "#333" };
+    const safeTeamB = teamB || { name: "Team B", abbr: "B", logoUrl: null, odds: 50, color: "#333" };
 
     return (
       <div
@@ -74,21 +76,21 @@ export const PicksCard = forwardRef<HTMLDivElement, PicksCardProps>(
             }`}>
               <div 
                 className="w-16 h-16 rounded-xl flex items-center justify-center mb-2 overflow-hidden"
-                style={{ backgroundColor: teamA.color }}
+                style={{ backgroundColor: safeTeamA.color }}
               >
-                {teamA.logoUrl ? (
+                {safeTeamA.logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={teamA.logoUrl}
-                    alt={teamA.name}
+                    src={safeTeamA.logoUrl}
+                    alt={safeTeamA.name}
                     className="w-12 h-12 object-contain"
                   />
                 ) : (
-                  <span className="text-white font-bold text-lg">{teamA.abbr}</span>
+                  <span className="text-white font-bold text-lg">{safeTeamA.abbr}</span>
                 )}
               </div>
-              <span className="text-sm font-semibold text-white">{teamA.name}</span>
-              <span className="text-2xl font-bold text-white mt-1">{teamA.odds}%</span>
+              <span className="text-sm font-semibold text-white">{safeTeamA.name}</span>
+              <span className="text-2xl font-bold text-white mt-1">{safeTeamA.odds}%</span>
               {selectedTeam === "teamA" && (
                 <span className="text-xs text-orange-400 mt-1 font-medium">SELECTED</span>
               )}
@@ -107,21 +109,21 @@ export const PicksCard = forwardRef<HTMLDivElement, PicksCardProps>(
             }`}>
               <div 
                 className="w-16 h-16 rounded-xl flex items-center justify-center mb-2 overflow-hidden"
-                style={{ backgroundColor: teamB.color }}
+                style={{ backgroundColor: safeTeamB.color }}
               >
-                {teamB.logoUrl ? (
+                {safeTeamB.logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={teamB.logoUrl}
-                    alt={teamB.name}
+                    src={safeTeamB.logoUrl}
+                    alt={safeTeamB.name}
                     className="w-12 h-12 object-contain"
                   />
                 ) : (
-                  <span className="text-white font-bold text-lg">{teamB.abbr}</span>
+                  <span className="text-white font-bold text-lg">{safeTeamB.abbr}</span>
                 )}
               </div>
-              <span className="text-sm font-semibold text-white">{teamB.name}</span>
-              <span className="text-2xl font-bold text-white mt-1">{teamB.odds}%</span>
+              <span className="text-sm font-semibold text-white">{safeTeamB.name}</span>
+              <span className="text-2xl font-bold text-white mt-1">{safeTeamB.odds}%</span>
               {selectedTeam === "teamB" && (
                 <span className="text-xs text-orange-400 mt-1 font-medium">SELECTED</span>
               )}
