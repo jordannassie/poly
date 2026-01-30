@@ -22,21 +22,40 @@ export interface PicksCardData {
   selectedTeam: "teamA" | "teamB";
   locksIn: string;
   userHandle: string;
+  userAvatarUrl?: string | null;
   statLine?: string;
+  // Receipt card fields (optional)
+  amount?: number;
+  potentialPayout?: number;
 }
+
+export type CardVariant = "pick" | "receipt";
 
 interface PicksCardProps {
   data: PicksCardData;
   compact?: boolean;
+  variant?: CardVariant;
 }
 
 /**
  * PicksCard component - renders a shareable pre-pick card
- * Supports full and compact modes
+ * Supports full and compact modes, and pick vs receipt variants
  */
 export const PicksCard = forwardRef<HTMLDivElement, PicksCardProps>(
-  function PicksCard({ data, compact = false }, ref) {
-    const { league = "", eventTitle = "", teamA, teamB, selectedTeam = "teamA", locksIn = "TBD", userHandle = "Guest", statLine } = data || {};
+  function PicksCard({ data, compact = false, variant = "pick" }, ref) {
+    const { 
+      league = "", 
+      eventTitle = "", 
+      teamA, 
+      teamB, 
+      selectedTeam = "teamA", 
+      locksIn = "TBD", 
+      userHandle = "Guest", 
+      userAvatarUrl,
+      statLine,
+      amount,
+      potentialPayout
+    } = data || {};
 
     // Defensive defaults
     const safeTeamA = teamA || { name: "Team A", abbr: "A", logoUrl: null, odds: 50, color: "#333" };
@@ -44,6 +63,9 @@ export const PicksCard = forwardRef<HTMLDivElement, PicksCardProps>(
 
     // Format user handle for display
     const displayHandle = userHandle === "Guest" ? "Guest" : (userHandle.startsWith("@") ? userHandle : `@${userHandle}`);
+
+    // Determine if we should show receipt info
+    const showReceipt = variant === "receipt" && amount && amount > 0;
 
     // Compact mode for inline preview
     if (compact) {
@@ -58,7 +80,9 @@ export const PicksCard = forwardRef<HTMLDivElement, PicksCardProps>(
               <span className="text-[10px] font-bold text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded">
                 {league.toUpperCase()}
               </span>
-              <span className="text-[10px] text-gray-500">My Pick</span>
+              <span className="text-[10px] text-gray-500">
+                {showReceipt ? "My Receipt" : "My Pick"}
+              </span>
             </div>
           </div>
 
@@ -125,7 +149,23 @@ export const PicksCard = forwardRef<HTMLDivElement, PicksCardProps>(
           {/* Compact Footer */}
           <div className="px-3 py-2 bg-[#161b22] border-t border-[#30363d]">
             <div className="flex items-center justify-between text-[10px]">
-              <span className="text-gray-400">{displayHandle}</span>
+              <div className="flex items-center gap-1.5">
+                {userAvatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={userAvatarUrl}
+                    alt=""
+                    className="w-4 h-4 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-4 h-4 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
+                    <span className="text-white text-[8px] font-bold">
+                      {userHandle.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <span className="text-gray-400">{displayHandle}</span>
+              </div>
               <span className="text-gray-500">Locks: {locksIn}</span>
             </div>
           </div>
@@ -147,7 +187,9 @@ export const PicksCard = forwardRef<HTMLDivElement, PicksCardProps>(
               <span className="text-xs font-bold text-orange-500 bg-orange-500/10 px-2 py-1 rounded">
                 {league.toUpperCase()}
               </span>
-              <span className="text-xs text-gray-400">My Pick</span>
+              <span className="text-xs text-gray-400">
+                {showReceipt ? "My Receipt" : "My Pick"}
+              </span>
             </div>
             <span className="text-xs text-gray-500">provepicks.com</span>
           </div>
@@ -224,15 +266,41 @@ export const PicksCard = forwardRef<HTMLDivElement, PicksCardProps>(
           </div>
         </div>
 
+        {/* Receipt Section (only for receipt variant with amount) */}
+        {showReceipt && (
+          <div className="px-5 py-4 border-t border-[#30363d] bg-[#0d1117]">
+            <div className="flex justify-between items-center">
+              <div className="text-center flex-1">
+                <div className="text-xs text-gray-500 mb-1">Amount</div>
+                <div className="text-xl font-bold text-white">${amount?.toLocaleString()}</div>
+              </div>
+              <div className="w-px h-10 bg-[#30363d]" />
+              <div className="text-center flex-1">
+                <div className="text-xs text-gray-500 mb-1">Potential Payout</div>
+                <div className="text-xl font-bold text-green-500">${potentialPayout?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
         <div className="px-5 py-4 bg-[#161b22] border-t border-[#30363d]">
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
-                <span className="text-white text-xs font-bold">
-                  {userHandle.charAt(0).toUpperCase()}
-                </span>
-              </div>
+              {userAvatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={userAvatarUrl}
+                  alt=""
+                  className="w-6 h-6 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">
+                    {userHandle.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
               <span className="text-gray-300">{displayHandle}</span>
               {statLine && (
                 <span className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded">

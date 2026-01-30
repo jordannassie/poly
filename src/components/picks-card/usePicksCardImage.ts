@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, RefObject, useState } from "react";
-import type { PicksCardData } from "./PicksCard";
+import type { PicksCardData, CardVariant } from "./PicksCard";
 
-// In-memory cache for base64 logo URLs
-const logoCache = new Map<string, string>();
+// In-memory cache for base64 image URLs
+const imageCache = new Map<string, string>();
 
 /**
  * Load an image URL as a base64 data URL
@@ -14,8 +14,8 @@ async function loadImageAsDataUrl(url: string): Promise<string | null> {
   if (!url) return null;
 
   // Check cache first
-  if (logoCache.has(url)) {
-    return logoCache.get(url)!;
+  if (imageCache.has(url)) {
+    return imageCache.get(url)!;
   }
 
   try {
@@ -38,7 +38,7 @@ async function loadImageAsDataUrl(url: string): Promise<string | null> {
       const reader = new FileReader();
       reader.onloadend = () => {
         const dataUrl = reader.result as string;
-        logoCache.set(url, dataUrl);
+        imageCache.set(url, dataUrl);
         resolve(dataUrl);
       };
       reader.onerror = () => resolve(null);
@@ -56,7 +56,7 @@ async function loadImageAsDataUrl(url: string): Promise<string | null> {
         const reader = new FileReader();
         reader.onloadend = () => {
           const dataUrl = reader.result as string;
-          logoCache.set(url, dataUrl);
+          imageCache.set(url, dataUrl);
           resolve(dataUrl);
         };
         reader.onerror = () => resolve(null);
@@ -108,11 +108,12 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 
 /**
  * Hook for generating shareable content from PicksCard
- * Creates a 1080x1080 centered export image with logos
+ * Creates a 1080x1080 centered export image with logos and avatar
  */
 export function usePicksCardImage(
   cardRef: RefObject<HTMLDivElement | null>,
-  data: PicksCardData
+  data: PicksCardData,
+  variant: CardVariant = "pick"
 ) {
   const [isLoading, setIsLoading] = useState(false);
 
@@ -124,8 +125,14 @@ export function usePicksCardImage(
       return "My pick on ProvePicks";
     }
     const selectedTeam = data.selectedTeam === "teamA" ? data.teamA : data.teamB;
+    
+    // Different caption for receipt card
+    if (variant === "receipt" && data.amount && data.amount > 0) {
+      return `My pick: ${selectedTeam.name}. Amount: $${data.amount}. Potential payout: $${data.potentialPayout?.toFixed(2)}. ${data.eventTitle}`;
+    }
+    
     return `My pick: ${selectedTeam.name}. Market: ${data.teamA.name} ${data.teamA.odds ?? 0}% / ${data.teamB.name} ${data.teamB.odds ?? 0}%. ${data.eventTitle}`;
-  }, [data]);
+  }, [data, variant]);
 
   /**
    * Copy caption to clipboard
@@ -142,16 +149,17 @@ export function usePicksCardImage(
   }, [generateCaption]);
 
   /**
-   * Download card as 1080x1080 PNG with logos
+   * Download card as 1080x1080 PNG with logos and avatar
    */
   const downloadImage = useCallback(async () => {
     setIsLoading(true);
 
     try {
-      // Load logos as base64
-      const [logoADataUrl, logoBDataUrl] = await Promise.all([
+      // Load all images as base64 in parallel
+      const [logoADataUrl, logoBDataUrl, avatarDataUrl] = await Promise.all([
         data.teamA.logoUrl ? loadImageAsDataUrl(data.teamA.logoUrl) : null,
         data.teamB.logoUrl ? loadImageAsDataUrl(data.teamB.logoUrl) : null,
+        data.userAvatarUrl ? loadImageAsDataUrl(data.userAvatarUrl) : null,
       ]);
 
       // Create canvas (1080x1080 square)
@@ -166,9 +174,12 @@ export function usePicksCardImage(
       canvas.width = size;
       canvas.height = size;
 
+      // Determine if receipt card (adds extra height for amount section)
+      const isReceipt = variant === "receipt" && data.amount && data.amount > 0;
+
       // Card dimensions (centered in 1080x1080)
       const cardWidth = 720;
-      const cardHeight = 800;
+      const cardHeight = isReceipt ? 900 : 800;
       const cardX = (size - cardWidth) / 2;
       const cardY = (size - cardHeight) / 2;
 
@@ -215,11 +226,11 @@ export function usePicksCardImage(
       ctx.textAlign = "center";
       ctx.fillText(data.league.toUpperCase(), cardX + 80, cardY + 57);
 
-      // "My Pick" text
+      // Card type text
       ctx.fillStyle = "#9ca3af";
       ctx.font = "18px system-ui, -apple-system, sans-serif";
       ctx.textAlign = "left";
-      ctx.fillText("My Pick", cardX + 140, cardY + 57);
+      ctx.fillText(isReceipt ? "My Receipt" : "My Pick", cardX + 140, cardY + 57);
 
       // ProvePicks branding
       ctx.fillStyle = "#6b7280";
@@ -273,7 +284,6 @@ export function usePicksCardImage(
           const imgSize = 90;
           ctx.drawImage(imgA, logoAX + (logoSize - imgSize) / 2, logoY + (logoSize - imgSize) / 2, imgSize, imgSize);
         } catch {
-          // Draw abbreviation fallback
           ctx.fillStyle = "#ffffff";
           ctx.font = "bold 40px system-ui, -apple-system, sans-serif";
           ctx.textAlign = "center";
@@ -363,6 +373,49 @@ export function usePicksCardImage(
         ctx.fillText("SELECTED", teamBX + teamWidth / 2, logoY + logoSize + 140);
       }
 
+      // Receipt section (for receipt variant only)
+      let receiptEndY = teamSectionY + 360;
+      if (isReceipt) {
+        const receiptY = teamSectionY + 360;
+        receiptEndY = receiptY + 100;
+
+        // Receipt separator
+        ctx.strokeStyle = "#30363d";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cardX + 40, receiptY);
+        ctx.lineTo(cardX + cardWidth - 40, receiptY);
+        ctx.stroke();
+
+        // Amount label
+        ctx.fillStyle = "#6b7280";
+        ctx.font = "16px system-ui, -apple-system, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("Amount", cardX + cardWidth / 4, receiptY + 35);
+
+        // Amount value
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 32px system-ui, -apple-system, sans-serif";
+        ctx.fillText(`$${data.amount?.toLocaleString()}`, cardX + cardWidth / 4, receiptY + 75);
+
+        // Divider line
+        ctx.strokeStyle = "#30363d";
+        ctx.beginPath();
+        ctx.moveTo(cardX + cardWidth / 2, receiptY + 20);
+        ctx.lineTo(cardX + cardWidth / 2, receiptY + 85);
+        ctx.stroke();
+
+        // Potential payout label
+        ctx.fillStyle = "#6b7280";
+        ctx.font = "16px system-ui, -apple-system, sans-serif";
+        ctx.fillText("Potential Payout", cardX + (3 * cardWidth) / 4, receiptY + 35);
+
+        // Potential payout value
+        ctx.fillStyle = "#22c55e";
+        ctx.font = "bold 32px system-ui, -apple-system, sans-serif";
+        ctx.fillText(`$${data.potentialPayout?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, cardX + (3 * cardWidth) / 4, receiptY + 75);
+      }
+
       // Footer background
       const footerY = cardY + cardHeight - 100;
       ctx.fillStyle = "#161b22";
@@ -390,20 +443,51 @@ export function usePicksCardImage(
       // User avatar
       const avatarX = cardX + 60;
       const avatarY = footerY + 50;
-      const avatarGradient = ctx.createLinearGradient(avatarX - 20, avatarY - 20, avatarX + 20, avatarY + 20);
-      avatarGradient.addColorStop(0, "#f97316");
-      avatarGradient.addColorStop(1, "#fbbf24");
-      ctx.fillStyle = avatarGradient;
-      ctx.beginPath();
-      ctx.arc(avatarX, avatarY, 24, 0, Math.PI * 2);
-      ctx.fill();
+      const avatarRadius = 24;
 
-      // Avatar initial
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 20px system-ui, -apple-system, sans-serif";
-      ctx.textAlign = "center";
-      const userInitial = data.userHandle?.charAt(0)?.toUpperCase() || "G";
-      ctx.fillText(userInitial, avatarX, avatarY + 7);
+      if (avatarDataUrl) {
+        // Draw avatar image in circle
+        try {
+          const avatarImg = await loadImage(avatarDataUrl);
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(avatarX, avatarY, avatarRadius, 0, Math.PI * 2);
+          ctx.closePath();
+          ctx.clip();
+          ctx.drawImage(avatarImg, avatarX - avatarRadius, avatarY - avatarRadius, avatarRadius * 2, avatarRadius * 2);
+          ctx.restore();
+        } catch {
+          // Fallback to gradient circle with initial
+          const avatarGradient = ctx.createLinearGradient(avatarX - 20, avatarY - 20, avatarX + 20, avatarY + 20);
+          avatarGradient.addColorStop(0, "#f97316");
+          avatarGradient.addColorStop(1, "#fbbf24");
+          ctx.fillStyle = avatarGradient;
+          ctx.beginPath();
+          ctx.arc(avatarX, avatarY, avatarRadius, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 20px system-ui, -apple-system, sans-serif";
+          ctx.textAlign = "center";
+          const userInitial = data.userHandle?.charAt(0)?.toUpperCase() || "G";
+          ctx.fillText(userInitial, avatarX, avatarY + 7);
+        }
+      } else {
+        // Gradient circle with initial (no avatar)
+        const avatarGradient = ctx.createLinearGradient(avatarX - 20, avatarY - 20, avatarX + 20, avatarY + 20);
+        avatarGradient.addColorStop(0, "#f97316");
+        avatarGradient.addColorStop(1, "#fbbf24");
+        ctx.fillStyle = avatarGradient;
+        ctx.beginPath();
+        ctx.arc(avatarX, avatarY, avatarRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 20px system-ui, -apple-system, sans-serif";
+        ctx.textAlign = "center";
+        const userInitial = data.userHandle?.charAt(0)?.toUpperCase() || "G";
+        ctx.fillText(userInitial, avatarX, avatarY + 7);
+      }
 
       // Username
       ctx.fillStyle = "#d1d5db";
@@ -419,9 +503,10 @@ export function usePicksCardImage(
       ctx.fillText(`Locks: ${data.locksIn}`, cardX + cardWidth - 40, avatarY + 7);
 
       // Download
+      const cardType = isReceipt ? "receipt" : "picks";
       const dataUrl = canvas.toDataURL("image/png");
       const link = document.createElement("a");
-      link.download = `picks-card-${data.teamA.abbr}-vs-${data.teamB.abbr}.png`;
+      link.download = `${cardType}-card-${data.teamA.abbr}-vs-${data.teamB.abbr}.png`;
       link.href = dataUrl;
       link.click();
 
@@ -432,7 +517,7 @@ export function usePicksCardImage(
       setIsLoading(false);
       return false;
     }
-  }, [data]);
+  }, [data, variant]);
 
   return {
     generateCaption,

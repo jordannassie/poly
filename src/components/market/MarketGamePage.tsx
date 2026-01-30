@@ -68,6 +68,7 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
   
   // User state for picks card
   const [userHandle, setUserHandle] = useState<string>("Guest");
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   
   // Fetch logged-in user
   useEffect(() => {
@@ -79,6 +80,10 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
           // Use username, then display_name, fallback to Guest
           const handle = data.user.username || data.user.display_name || "Guest";
           setUserHandle(handle);
+          // Set avatar URL if available
+          if (data.user.avatar_url) {
+            setUserAvatarUrl(data.user.avatar_url);
+          }
         }
       } catch {
         // Keep Guest if fetch fails
@@ -541,6 +546,7 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
                   selectedTeam,
                   locksIn: locksIn || "TBD",
                   userHandle,
+                  userAvatarUrl,
                   statLine: undefined,
                 }}
               />
@@ -593,7 +599,11 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
           selectedTeam,
           locksIn: locksIn || "TBD",
           userHandle,
+          userAvatarUrl,
           statLine: undefined,
+          // Receipt card data (only shown when user enters amount)
+          amount: tradeAmount > 0 ? tradeAmount : undefined,
+          potentialPayout: tradeAmount > 0 ? tradeAmount * (100 / selectedPrice) : undefined,
         }}
       />
     </div>
