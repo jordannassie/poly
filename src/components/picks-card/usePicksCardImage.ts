@@ -1,10 +1,76 @@
 "use client";
 
-import { useCallback, RefObject } from "react";
+import { useCallback, RefObject, useState } from "react";
 import type { PicksCardData } from "./PicksCard";
 
+// In-memory cache for base64 logo URLs
+const logoCache = new Map<string, string>();
+
 /**
- * Helper to draw rounded rectangle (polyfill for older browsers)
+ * Load an image URL as a base64 data URL
+ * Falls back to proxy if CORS fails
+ */
+async function loadImageAsDataUrl(url: string): Promise<string | null> {
+  if (!url) return null;
+
+  // Check cache first
+  if (logoCache.has(url)) {
+    return logoCache.get(url)!;
+  }
+
+  try {
+    // Try direct fetch first
+    let response = await fetch(url);
+
+    // If CORS fails, try proxy
+    if (!response.ok) {
+      const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(url)}`;
+      response = await fetch(proxyUrl);
+    }
+
+    if (!response.ok) {
+      console.warn(`Failed to load image: ${url}`);
+      return null;
+    }
+
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        logoCache.set(url, dataUrl);
+        resolve(dataUrl);
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    // If direct fetch fails (CORS), try proxy
+    try {
+      const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(url)}`;
+      const response = await fetch(proxyUrl);
+      if (!response.ok) return null;
+
+      const blob = await response.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const dataUrl = reader.result as string;
+          logoCache.set(url, dataUrl);
+          resolve(dataUrl);
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      console.warn(`Failed to proxy image: ${url}`);
+      return null;
+    }
+  }
+}
+
+/**
+ * Helper to draw rounded rectangle
  */
 function drawRoundRect(
   ctx: CanvasRenderingContext2D,
@@ -28,13 +94,28 @@ function drawRoundRect(
 }
 
 /**
+ * Load an image from data URL for canvas drawing
+ */
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+/**
  * Hook for generating shareable content from PicksCard
- * Uses native Canvas API - no external dependencies
+ * Creates a 1080x1080 centered export image with logos
  */
 export function usePicksCardImage(
   cardRef: RefObject<HTMLDivElement | null>,
   data: PicksCardData
 ) {
+  const [isLoading, setIsLoading] = useState(false);
+
   /**
    * Generate caption for sharing
    */
@@ -61,187 +142,281 @@ export function usePicksCardImage(
   }, [generateCaption]);
 
   /**
-   * Download card as PNG using canvas
-   * This is a simplified approach that draws the card to a canvas
+   * Download card as 1080x1080 PNG with logos
    */
   const downloadImage = useCallback(async () => {
-    const element = cardRef.current;
-    if (!element) return false;
+    setIsLoading(true);
 
     try {
-      // Create canvas
+      // Load logos as base64
+      const [logoADataUrl, logoBDataUrl] = await Promise.all([
+        data.teamA.logoUrl ? loadImageAsDataUrl(data.teamA.logoUrl) : null,
+        data.teamB.logoUrl ? loadImageAsDataUrl(data.teamB.logoUrl) : null,
+      ]);
+
+      // Create canvas (1080x1080 square)
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
-      if (!ctx) return false;
+      if (!ctx) {
+        setIsLoading(false);
+        return false;
+      }
 
-      // Set canvas size (2x for retina)
-      const scale = 2;
-      const width = 360;
-      const height = 400;
-      canvas.width = width * scale;
-      canvas.height = height * scale;
-      ctx.scale(scale, scale);
+      const size = 1080;
+      canvas.width = size;
+      canvas.height = size;
 
-      // Background
+      // Card dimensions (centered in 1080x1080)
+      const cardWidth = 720;
+      const cardHeight = 800;
+      const cardX = (size - cardWidth) / 2;
+      const cardY = (size - cardHeight) / 2;
+
+      // Background (dark)
+      ctx.fillStyle = "#0a0a0a";
+      ctx.fillRect(0, 0, size, size);
+
+      // Card background
       ctx.fillStyle = "#0d1117";
-      ctx.fillRect(0, 0, width, height);
+      drawRoundRect(ctx, cardX, cardY, cardWidth, cardHeight, 32);
+      ctx.fill();
 
-      // Header background
-      const headerGradient = ctx.createLinearGradient(0, 0, width, 0);
+      // Card border
+      ctx.strokeStyle = "#30363d";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Header gradient
+      ctx.save();
+      ctx.beginPath();
+      drawRoundRect(ctx, cardX, cardY, cardWidth, 100, 32);
+      ctx.clip();
+      const headerGradient = ctx.createLinearGradient(cardX, cardY, cardX + cardWidth, cardY);
       headerGradient.addColorStop(0, "#161b22");
       headerGradient.addColorStop(1, "#21262d");
       ctx.fillStyle = headerGradient;
-      ctx.fillRect(0, 0, width, 50);
+      ctx.fillRect(cardX, cardY, cardWidth, 100);
+      ctx.restore();
 
-      // Header text
-      ctx.fillStyle = "#f97316";
-      ctx.font = "bold 12px system-ui";
-      ctx.fillText(data.league.toUpperCase(), 20, 30);
-      
-      ctx.fillStyle = "#9ca3af";
-      ctx.font = "12px system-ui";
-      ctx.fillText("My Pick", 80, 30);
-      
-      ctx.fillStyle = "#6b7280";
-      ctx.textAlign = "right";
-      ctx.fillText("provepicks.com", width - 20, 30);
-      ctx.textAlign = "left";
-
-      // Separator line
+      // Header line
       ctx.strokeStyle = "#30363d";
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(0, 50);
-      ctx.lineTo(width, 50);
+      ctx.moveTo(cardX, cardY + 100);
+      ctx.lineTo(cardX + cardWidth, cardY + 100);
       ctx.stroke();
+
+      // League badge
+      ctx.fillStyle = "rgba(249, 115, 22, 0.15)";
+      drawRoundRect(ctx, cardX + 40, cardY + 35, 80, 30, 6);
+      ctx.fill();
+      ctx.fillStyle = "#f97316";
+      ctx.font = "bold 20px system-ui, -apple-system, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(data.league.toUpperCase(), cardX + 80, cardY + 57);
+
+      // "My Pick" text
+      ctx.fillStyle = "#9ca3af";
+      ctx.font = "18px system-ui, -apple-system, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText("My Pick", cardX + 140, cardY + 57);
+
+      // ProvePicks branding
+      ctx.fillStyle = "#6b7280";
+      ctx.font = "16px system-ui, -apple-system, sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText("provepicks.com", cardX + cardWidth - 40, cardY + 57);
 
       // Event title
       ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 18px system-ui";
+      ctx.font = "bold 36px system-ui, -apple-system, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(data.eventTitle, width / 2, 80);
-      ctx.textAlign = "left";
+      ctx.fillText(data.eventTitle, cardX + cardWidth / 2, cardY + 160);
 
-      // Separator
+      // Title separator
+      ctx.strokeStyle = "#30363d";
       ctx.beginPath();
-      ctx.moveTo(0, 100);
-      ctx.lineTo(width, 100);
+      ctx.moveTo(cardX + 40, cardY + 190);
+      ctx.lineTo(cardX + cardWidth - 40, cardY + 190);
       ctx.stroke();
 
-      // Team A side
-      const teamAX = 60;
-      const teamY = 180;
+      // Team section
+      const teamSectionY = cardY + 220;
+      const teamWidth = 280;
+      const teamAX = cardX + 60;
+      const teamBX = cardX + cardWidth - 60 - teamWidth;
       const selectedA = data.selectedTeam === "teamA";
-      
-      if (selectedA) {
-        ctx.fillStyle = "rgba(249, 115, 22, 0.15)";
-        drawRoundRect(ctx, 20, 120, 140, 150, 12);
-        ctx.fill();
-        ctx.strokeStyle = "rgba(249, 115, 22, 0.5)";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
-
-      // Team A logo placeholder
-      ctx.fillStyle = data.teamA.color || "#333";
-      drawRoundRect(ctx, teamAX - 30, 130, 60, 60, 10);
-      ctx.fill();
-      
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 16px system-ui";
-      ctx.textAlign = "center";
-      ctx.fillText(data.teamA.abbr, teamAX, 168);
-      
-      // Team A name
-      ctx.font = "600 14px system-ui";
-      ctx.fillText(data.teamA.name, teamAX + 30, 210);
-      
-      // Team A odds
-      ctx.font = "bold 24px system-ui";
-      ctx.fillText(`${data.teamA.odds}%`, teamAX + 30, 240);
-      
-      if (selectedA) {
-        ctx.fillStyle = "#f97316";
-        ctx.font = "bold 10px system-ui";
-        ctx.fillText("SELECTED", teamAX + 30, 260);
-      }
-
-      // VS
-      ctx.fillStyle = "#6b7280";
-      ctx.font = "bold 16px system-ui";
-      ctx.fillText("VS", width / 2, teamY);
-
-      // Team B side
-      const teamBX = width - 60;
       const selectedB = data.selectedTeam === "teamB";
-      
-      if (selectedB) {
-        ctx.fillStyle = "rgba(249, 115, 22, 0.15)";
-        drawRoundRect(ctx, width - 160, 120, 140, 150, 12);
+
+      // Team A selection highlight
+      if (selectedA) {
+        ctx.fillStyle = "rgba(249, 115, 22, 0.12)";
+        drawRoundRect(ctx, teamAX, teamSectionY, teamWidth, 320, 20);
         ctx.fill();
         ctx.strokeStyle = "rgba(249, 115, 22, 0.5)";
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 3;
         ctx.stroke();
       }
 
-      // Team B logo placeholder
-      ctx.fillStyle = data.teamB.color || "#333";
-      drawRoundRect(ctx, teamBX - 30, 130, 60, 60, 10);
+      // Team A logo background
+      const logoSize = 120;
+      const logoAX = teamAX + (teamWidth - logoSize) / 2;
+      const logoY = teamSectionY + 30;
+      ctx.fillStyle = data.teamA.color || "#333";
+      drawRoundRect(ctx, logoAX, logoY, logoSize, logoSize, 20);
       ctx.fill();
-      
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 16px system-ui";
-      ctx.fillText(data.teamB.abbr, teamBX, 168);
-      
+
+      // Team A logo image
+      if (logoADataUrl) {
+        try {
+          const imgA = await loadImage(logoADataUrl);
+          const imgSize = 90;
+          ctx.drawImage(imgA, logoAX + (logoSize - imgSize) / 2, logoY + (logoSize - imgSize) / 2, imgSize, imgSize);
+        } catch {
+          // Draw abbreviation fallback
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 40px system-ui, -apple-system, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(data.teamA.abbr, logoAX + logoSize / 2, logoY + logoSize / 2 + 14);
+        }
+      } else {
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 40px system-ui, -apple-system, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(data.teamA.abbr, logoAX + logoSize / 2, logoY + logoSize / 2 + 14);
+      }
+
+      // Team A name
+      ctx.fillStyle = selectedA ? "#ffffff" : "rgba(255,255,255,0.6)";
+      ctx.font = "bold 24px system-ui, -apple-system, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(data.teamA.name, teamAX + teamWidth / 2, logoY + logoSize + 50);
+
+      // Team A odds
+      ctx.fillStyle = selectedA ? "#ffffff" : "rgba(255,255,255,0.6)";
+      ctx.font = "bold 48px system-ui, -apple-system, sans-serif";
+      ctx.fillText(`${data.teamA.odds}%`, teamAX + teamWidth / 2, logoY + logoSize + 110);
+
+      // Team A selected label
+      if (selectedA) {
+        ctx.fillStyle = "#f97316";
+        ctx.font = "bold 16px system-ui, -apple-system, sans-serif";
+        ctx.fillText("SELECTED", teamAX + teamWidth / 2, logoY + logoSize + 140);
+      }
+
+      // VS divider
+      ctx.fillStyle = "#6b7280";
+      ctx.font = "bold 32px system-ui, -apple-system, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("VS", cardX + cardWidth / 2, teamSectionY + 180);
+
+      // Team B selection highlight
+      if (selectedB) {
+        ctx.fillStyle = "rgba(249, 115, 22, 0.12)";
+        drawRoundRect(ctx, teamBX, teamSectionY, teamWidth, 320, 20);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(249, 115, 22, 0.5)";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+
+      // Team B logo background
+      const logoBX = teamBX + (teamWidth - logoSize) / 2;
+      ctx.fillStyle = data.teamB.color || "#333";
+      drawRoundRect(ctx, logoBX, logoY, logoSize, logoSize, 20);
+      ctx.fill();
+
+      // Team B logo image
+      if (logoBDataUrl) {
+        try {
+          const imgB = await loadImage(logoBDataUrl);
+          const imgSize = 90;
+          ctx.drawImage(imgB, logoBX + (logoSize - imgSize) / 2, logoY + (logoSize - imgSize) / 2, imgSize, imgSize);
+        } catch {
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 40px system-ui, -apple-system, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(data.teamB.abbr, logoBX + logoSize / 2, logoY + logoSize / 2 + 14);
+        }
+      } else {
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 40px system-ui, -apple-system, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(data.teamB.abbr, logoBX + logoSize / 2, logoY + logoSize / 2 + 14);
+      }
+
       // Team B name
-      ctx.font = "600 14px system-ui";
-      ctx.fillText(data.teamB.name, teamBX - 30, 210);
-      
+      ctx.fillStyle = selectedB ? "#ffffff" : "rgba(255,255,255,0.6)";
+      ctx.font = "bold 24px system-ui, -apple-system, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(data.teamB.name, teamBX + teamWidth / 2, logoY + logoSize + 50);
+
       // Team B odds
-      ctx.font = "bold 24px system-ui";
-      ctx.fillText(`${data.teamB.odds}%`, teamBX - 30, 240);
-      
+      ctx.fillStyle = selectedB ? "#ffffff" : "rgba(255,255,255,0.6)";
+      ctx.font = "bold 48px system-ui, -apple-system, sans-serif";
+      ctx.fillText(`${data.teamB.odds}%`, teamBX + teamWidth / 2, logoY + logoSize + 110);
+
+      // Team B selected label
       if (selectedB) {
         ctx.fillStyle = "#f97316";
-        ctx.font = "bold 10px system-ui";
-        ctx.fillText("SELECTED", teamBX - 30, 260);
+        ctx.font = "bold 16px system-ui, -apple-system, sans-serif";
+        ctx.fillText("SELECTED", teamBX + teamWidth / 2, logoY + logoSize + 140);
       }
 
       // Footer background
+      const footerY = cardY + cardHeight - 100;
       ctx.fillStyle = "#161b22";
-      ctx.fillRect(0, height - 60, width, 60);
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(cardX, footerY);
+      ctx.lineTo(cardX + cardWidth, footerY);
+      ctx.lineTo(cardX + cardWidth, cardY + cardHeight - 32);
+      ctx.quadraticCurveTo(cardX + cardWidth, cardY + cardHeight, cardX + cardWidth - 32, cardY + cardHeight);
+      ctx.lineTo(cardX + 32, cardY + cardHeight);
+      ctx.quadraticCurveTo(cardX, cardY + cardHeight, cardX, cardY + cardHeight - 32);
+      ctx.lineTo(cardX, footerY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      // Footer separator
       ctx.strokeStyle = "#30363d";
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(0, height - 60);
-      ctx.lineTo(width, height - 60);
+      ctx.moveTo(cardX, footerY);
+      ctx.lineTo(cardX + cardWidth, footerY);
       ctx.stroke();
 
-      // User avatar circle
-      const avatarGradient = ctx.createLinearGradient(20, height - 40, 44, height - 16);
+      // User avatar
+      const avatarX = cardX + 60;
+      const avatarY = footerY + 50;
+      const avatarGradient = ctx.createLinearGradient(avatarX - 20, avatarY - 20, avatarX + 20, avatarY + 20);
       avatarGradient.addColorStop(0, "#f97316");
       avatarGradient.addColorStop(1, "#fbbf24");
       ctx.fillStyle = avatarGradient;
       ctx.beginPath();
-      ctx.arc(32, height - 28, 12, 0, Math.PI * 2);
+      ctx.arc(avatarX, avatarY, 24, 0, Math.PI * 2);
       ctx.fill();
-      
+
+      // Avatar initial
       ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 10px system-ui";
+      ctx.font = "bold 20px system-ui, -apple-system, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(data.userHandle.charAt(0).toUpperCase(), 32, height - 24);
-      
+      const userInitial = data.userHandle?.charAt(0)?.toUpperCase() || "G";
+      ctx.fillText(userInitial, avatarX, avatarY + 7);
+
       // Username
-      ctx.textAlign = "left";
       ctx.fillStyle = "#d1d5db";
-      ctx.font = "14px system-ui";
-      ctx.fillText(data.userHandle, 50, height - 24);
+      ctx.font = "20px system-ui, -apple-system, sans-serif";
+      ctx.textAlign = "left";
+      const displayHandle = data.userHandle.startsWith("@") ? data.userHandle : `@${data.userHandle}`;
+      ctx.fillText(displayHandle === "@Guest" ? "Guest" : displayHandle, avatarX + 40, avatarY + 7);
 
       // Locks in
-      ctx.textAlign = "right";
       ctx.fillStyle = "#9ca3af";
-      ctx.font = "12px system-ui";
-      ctx.fillText(`Locks: ${data.locksIn}`, width - 20, height - 24);
+      ctx.font = "18px system-ui, -apple-system, sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(`Locks: ${data.locksIn}`, cardX + cardWidth - 40, avatarY + 7);
 
       // Download
       const dataUrl = canvas.toDataURL("image/png");
@@ -250,16 +425,19 @@ export function usePicksCardImage(
       link.href = dataUrl;
       link.click();
 
+      setIsLoading(false);
       return true;
     } catch (err) {
       console.error("Failed to generate image:", err);
+      setIsLoading(false);
       return false;
     }
-  }, [cardRef, data]);
+  }, [data]);
 
   return {
     generateCaption,
     copyCaption,
     downloadImage,
+    isLoading,
   };
 }

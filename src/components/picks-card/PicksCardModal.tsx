@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, Copy, Check, ImageIcon } from "lucide-react";
+import { Download, Copy, Check, ImageIcon, Loader2 } from "lucide-react";
 import { PicksCard, type PicksCardData } from "./PicksCard";
 import { usePicksCardImage } from "./usePicksCardImage";
 
@@ -23,7 +23,7 @@ interface PicksCardModalProps {
  */
 export function PicksCardModal({ open, onOpenChange, data }: PicksCardModalProps) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const { downloadImage, copyCaption, generateCaption } = usePicksCardImage(cardRef, data);
+  const { downloadImage, copyCaption, generateCaption, isLoading } = usePicksCardImage(cardRef, data);
   
   const [copiedCaption, setCopiedCaption] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -69,12 +69,13 @@ export function PicksCardModal({ open, onOpenChange, data }: PicksCardModalProps
         <div className="p-4 pt-2 flex gap-3 border-t border-[#30363d]">
           <Button
             onClick={handleDownload}
-            disabled={downloading}
+            disabled={downloading || isLoading}
             className="flex-1 bg-orange-500 hover:bg-orange-600 text-white"
           >
-            {downloading ? (
+            {downloading || isLoading ? (
               <>
-                <span className="animate-pulse">Generating...</span>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generating...
               </>
             ) : (
               <>
@@ -100,6 +101,13 @@ export function PicksCardModal({ open, onOpenChange, data }: PicksCardModalProps
               </>
             )}
           </Button>
+        </div>
+
+        {/* Export info */}
+        <div className="px-4 pb-3 text-center">
+          <p className="text-xs text-gray-500">
+            Exports as 1080x1080 PNG with team logos
+          </p>
         </div>
       </DialogContent>
     </Dialog>

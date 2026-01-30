@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { TopNav } from "@/components/TopNav";
 import { SportsSidebar } from "@/components/SportsSidebar";
@@ -32,7 +32,14 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { PicksCardModal } from "@/components/picks-card/PicksCardModal";
-import type { PicksCardData } from "@/components/picks-card/PicksCard";
+import { PicksCard, type PicksCardData } from "@/components/picks-card/PicksCard";
+
+// User type for picks card
+interface UserProfile {
+  id: string;
+  username: string | null;
+  display_name: string | null;
+}
 
 // Format number with commas and 2 decimal places
 const formatCurrency = (value: number): string => {
@@ -58,6 +65,27 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
   
   // Picks Card modal state
   const [picksCardOpen, setPicksCardOpen] = useState(false);
+  
+  // User state for picks card
+  const [userHandle, setUserHandle] = useState<string>("Guest");
+  
+  // Fetch logged-in user
+  useEffect(() => {
+    async function fetchUser() {
+      try {
+        const res = await fetch("/api/me");
+        const data = await res.json();
+        if (data.user) {
+          // Use username, then display_name, fallback to Guest
+          const handle = data.user.username || data.user.display_name || "Guest";
+          setUserHandle(handle);
+        }
+      } catch {
+        // Keep Guest if fetch fails
+      }
+    }
+    fetchUser();
+  }, []);
 
   const { team1, team2, league, stats, lines, volume, locksInLabel: locksIn } = market;
 
@@ -476,6 +504,47 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
                 By trading, you agree to the Terms of Use.
               </p>
             </div>
+
+            {/* My Pick Preview Card */}
+            <div className="mt-4 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-semibold text-[color:var(--text-strong)]">My Pick Preview</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPicksCardOpen(true)}
+                  className="text-orange-500 hover:text-orange-400 hover:bg-orange-500/10 text-xs"
+                >
+                  <Share2 className="h-3 w-3 mr-1" />
+                  Share Pick
+                </Button>
+              </div>
+              <PicksCard
+                compact
+                data={{
+                  league,
+                  eventTitle: market.title,
+                  teamA: {
+                    name: team1.name,
+                    abbr: team1.abbr,
+                    logoUrl: team1.logoUrl || null,
+                    odds: team1.odds,
+                    color: team1.color,
+                  },
+                  teamB: {
+                    name: team2.name,
+                    abbr: team2.abbr,
+                    logoUrl: team2.logoUrl || null,
+                    odds: team2.odds,
+                    color: team2.color,
+                  },
+                  selectedTeam,
+                  locksIn: locksIn || "TBD",
+                  userHandle,
+                  statLine: undefined,
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -523,7 +592,7 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
           },
           selectedTeam,
           locksIn: locksIn || "TBD",
-          userHandle: "Guest",
+          userHandle,
           statLine: undefined,
         }}
       />

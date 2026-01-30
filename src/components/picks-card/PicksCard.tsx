@@ -27,20 +27,113 @@ export interface PicksCardData {
 
 interface PicksCardProps {
   data: PicksCardData;
+  compact?: boolean;
 }
 
 /**
  * PicksCard component - renders a shareable pre-pick card
- * Uses a ref so it can be captured to an image
+ * Supports full and compact modes
  */
 export const PicksCard = forwardRef<HTMLDivElement, PicksCardProps>(
-  function PicksCard({ data }, ref) {
+  function PicksCard({ data, compact = false }, ref) {
     const { league = "", eventTitle = "", teamA, teamB, selectedTeam = "teamA", locksIn = "TBD", userHandle = "Guest", statLine } = data || {};
 
     // Defensive defaults
     const safeTeamA = teamA || { name: "Team A", abbr: "A", logoUrl: null, odds: 50, color: "#333" };
     const safeTeamB = teamB || { name: "Team B", abbr: "B", logoUrl: null, odds: 50, color: "#333" };
 
+    // Format user handle for display
+    const displayHandle = userHandle === "Guest" ? "Guest" : (userHandle.startsWith("@") ? userHandle : `@${userHandle}`);
+
+    // Compact mode for inline preview
+    if (compact) {
+      return (
+        <div
+          ref={ref}
+          className="w-full bg-[#0d1117] border border-[#30363d] rounded-xl overflow-hidden"
+        >
+          {/* Compact Header */}
+          <div className="px-3 py-2 bg-gradient-to-r from-[#161b22] to-[#21262d] border-b border-[#30363d]">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded">
+                {league.toUpperCase()}
+              </span>
+              <span className="text-[10px] text-gray-500">My Pick</span>
+            </div>
+          </div>
+
+          {/* Compact Teams */}
+          <div className="px-3 py-3">
+            <div className="flex items-center justify-between">
+              {/* Team A */}
+              <div className={`flex flex-col items-center flex-1 p-2 rounded-lg transition ${
+                selectedTeam === "teamA" 
+                  ? "bg-gradient-to-b from-orange-500/20 to-transparent border border-orange-500/50" 
+                  : "opacity-60"
+              }`}>
+                <div 
+                  className="w-10 h-10 rounded-lg flex items-center justify-center mb-1 overflow-hidden"
+                  style={{ backgroundColor: safeTeamA.color }}
+                >
+                  {safeTeamA.logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={safeTeamA.logoUrl}
+                      alt={safeTeamA.name}
+                      className="w-7 h-7 object-contain"
+                    />
+                  ) : (
+                    <span className="text-white font-bold text-xs">{safeTeamA.abbr}</span>
+                  )}
+                </div>
+                <span className="text-[10px] font-semibold text-white">{safeTeamA.abbr}</span>
+                <span className="text-sm font-bold text-white">{safeTeamA.odds}%</span>
+              </div>
+
+              {/* VS */}
+              <div className="px-2">
+                <span className="text-gray-500 font-bold text-xs">VS</span>
+              </div>
+
+              {/* Team B */}
+              <div className={`flex flex-col items-center flex-1 p-2 rounded-lg transition ${
+                selectedTeam === "teamB" 
+                  ? "bg-gradient-to-b from-orange-500/20 to-transparent border border-orange-500/50" 
+                  : "opacity-60"
+              }`}>
+                <div 
+                  className="w-10 h-10 rounded-lg flex items-center justify-center mb-1 overflow-hidden"
+                  style={{ backgroundColor: safeTeamB.color }}
+                >
+                  {safeTeamB.logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={safeTeamB.logoUrl}
+                      alt={safeTeamB.name}
+                      className="w-7 h-7 object-contain"
+                    />
+                  ) : (
+                    <span className="text-white font-bold text-xs">{safeTeamB.abbr}</span>
+                  )}
+                </div>
+                <span className="text-[10px] font-semibold text-white">{safeTeamB.abbr}</span>
+                <span className="text-sm font-bold text-white">{safeTeamB.odds}%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Compact Footer */}
+          <div className="px-3 py-2 bg-[#161b22] border-t border-[#30363d]">
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-gray-400">{displayHandle}</span>
+              <span className="text-gray-500">Locks: {locksIn}</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Full card mode
     return (
       <div
         ref={ref}
@@ -140,7 +233,7 @@ export const PicksCard = forwardRef<HTMLDivElement, PicksCardProps>(
                   {userHandle.charAt(0).toUpperCase()}
                 </span>
               </div>
-              <span className="text-gray-300">{userHandle}</span>
+              <span className="text-gray-300">{displayHandle}</span>
               {statLine && (
                 <span className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded">
                   {statLine}
