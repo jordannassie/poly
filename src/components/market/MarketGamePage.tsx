@@ -29,7 +29,10 @@ import {
   Zap,
   TrendingUp,
   Sparkles,
+  ImageIcon,
 } from "lucide-react";
+import { PicksCardModal } from "@/components/picks-card/PicksCardModal";
+import type { PicksCardData } from "@/components/picks-card/PicksCard";
 
 // Format number with commas and 2 decimal places
 const formatCurrency = (value: number): string => {
@@ -52,6 +55,9 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
   // Trade panel state
   const [tradeAmount, setTradeAmount] = useState(0);
   const [selectedTeam, setSelectedTeam] = useState<"teamA" | "teamB">("teamA");
+  
+  // Picks Card modal state
+  const [picksCardOpen, setPicksCardOpen] = useState(false);
 
   const { team1, team2, league, stats, lines, volume, locksInLabel: locksIn } = market;
 
@@ -104,6 +110,15 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9">
                   <Bookmark className="h-4 w-4 md:h-5 md:w-5" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 md:h-9 md:w-9"
+                  onClick={() => setPicksCardOpen(true)}
+                  title="Create Picks Card"
+                >
+                  <ImageIcon className="h-4 w-4 md:h-5 md:w-5" />
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9">
                   <Share2 className="h-4 w-4 md:h-5 md:w-5" />
@@ -484,6 +499,34 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
       />
 
       <MainFooter />
+
+      {/* Picks Card Modal */}
+      <PicksCardModal
+        open={picksCardOpen}
+        onOpenChange={setPicksCardOpen}
+        data={{
+          league,
+          eventTitle: market.title,
+          teamA: {
+            name: team1.name,
+            abbr: team1.abbr,
+            logoUrl: team1.logoUrl || null,
+            odds: team1.odds,
+            color: team1.color,
+          },
+          teamB: {
+            name: team2.name,
+            abbr: team2.abbr,
+            logoUrl: team2.logoUrl || null,
+            odds: team2.odds,
+            color: team2.color,
+          },
+          selectedTeam,
+          locksIn: locksIn || "TBD",
+          userHandle: "Guest",
+          statLine: undefined,
+        }}
+      />
     </div>
   );
 }
