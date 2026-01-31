@@ -42,6 +42,7 @@ export default function PlinkoPage() {
   const ballsRef = useRef<Ball[]>([]);
   const nextBallId = useRef(0);
   
+  const [mounted, setMounted] = useState(false);
   const [amount, setAmount] = useState<number>(0);
   const [risk, setRisk] = useState<"low" | "medium" | "high">("medium");
   const [rows, setRows] = useState(16);
@@ -50,6 +51,12 @@ export default function PlinkoPage() {
   const [results, setResults] = useState<GameResult[]>([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isAutoMode, setIsAutoMode] = useState(false);
+
+  // Track when component is mounted
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
   
   // Calculate multipliers based on rows
   const getMultipliers = useCallback(() => {
@@ -247,15 +254,21 @@ export default function PlinkoPage() {
 
   // Start animation loop
   useEffect(() => {
-    draw();
-    animationRef.current = requestAnimationFrame(animate);
+    if (!mounted) return;
+    
+    // Initial draw
+    const timer = setTimeout(() => {
+      draw();
+      animationRef.current = requestAnimationFrame(animate);
+    }, 100);
     
     return () => {
+      clearTimeout(timer);
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [animate, draw]);
+  }, [mounted, animate, draw]);
 
   // Drop a ball
   const dropBall = useCallback(() => {
@@ -283,6 +296,8 @@ export default function PlinkoPage() {
 
   // Handle canvas resize
   useEffect(() => {
+    if (!mounted) return;
+    
     const canvas = canvasRef.current;
     if (!canvas) return;
     
@@ -295,10 +310,14 @@ export default function PlinkoPage() {
       }
     };
     
-    resizeCanvas();
+    // Delay initial resize to ensure DOM is ready
+    const timer = setTimeout(resizeCanvas, 50);
     window.addEventListener("resize", resizeCanvas);
-    return () => window.removeEventListener("resize", resizeCanvas);
-  }, [draw]);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("resize", resizeCanvas);
+    };
+  }, [mounted, draw]);
 
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
