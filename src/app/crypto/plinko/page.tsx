@@ -23,10 +23,18 @@ interface Ball {
   y: number;
   vx: number;
   vy: number;
-  row: number;
-  path: number[];
+  radius: number;
   active: boolean;
-  result?: number;
+  opacity: number;
+  landed: boolean;
+  landedTime: number;
+}
+
+interface Peg {
+  x: number;
+  y: number;
+  radius: number;
+  glow: number; // 0-1 for hit effect
 }
 
 interface GameResult {
@@ -36,10 +44,33 @@ interface GameResult {
   time: Date;
 }
 
+// Helper to draw rounded rectangle
+function drawRoundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
 export default function PlinkoPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | null>(null);
   const ballsRef = useRef<Ball[]>([]);
+  const pegsRef = useRef<Peg[]>([]);
   const nextBallId = useRef(0);
   
   const [mounted, setMounted] = useState(false);
@@ -63,12 +94,10 @@ export default function PlinkoPage() {
     const baseMultipliers = RISK_MULTIPLIERS[risk];
     const numSlots = rows + 1;
     
-    // Generate multipliers symmetrically based on row count
     if (numSlots === baseMultipliers.length) {
       return baseMultipliers;
     }
     
-    // Interpolate for different row counts
     const multipliers: number[] = [];
     const center = numSlots / 2;
     
@@ -92,12 +121,41 @@ export default function PlinkoPage() {
 
   // Get color for multiplier
   const getMultiplierColor = (multiplier: number) => {
-    if (multiplier >= 10) return "#ef4444"; // red
-    if (multiplier >= 5) return "#f97316"; // orange
-    if (multiplier >= 2) return "#eab308"; // yellow
-    if (multiplier >= 1) return "#22c55e"; // green
-    return "#6b7280"; // gray
+    if (multiplier >= 10) return "#ef4444";
+    if (multiplier >= 5) return "#f97316";
+    if (multiplier >= 2) return "#eab308";
+    if (multiplier >= 1) return "#22c55e";
+    return "#6b7280";
   };
+
+  // Calculate peg positions
+  const calculatePegs = useCallback((width: number, height: number) => {
+    const pegs: Peg[] = [];
+    const pegRadius = 5;
+    const startY = 50;
+    const endY = height - 90;
+    const rowHeight = (endY - startY) / rows;
+    const baseWidth = width * 0.85;
+    
+    for (let row = 0; row <= rows; row++) {
+      const numPegs = row + 3;
+      const rowWidth = (baseWidth * (row + 3)) / (rows + 3);
+      const startX = (width - rowWidth) / 2;
+      const pegSpacing = numPegs > 1 ? rowWidth / (numPegs - 1) : 0;
+      
+      for (let col = 0; col < numPegs; col++) {
+        pegs.push({
+          x: startX + col * pegSpacing,
+          y: startY + row * rowHeight,
+          radius: pegRadius,
+          glow: 0,
+        });
+      }
+    }
+    
+    pegsRef.current = pegs;
+    return pegs;
+  }, [rows]);
 
   // Draw the game
   const draw = useCallback(() => {
@@ -110,120 +168,245 @@ export default function PlinkoPage() {
     const width = canvas.width;
     const height = canvas.height;
     
-    // Clear canvas
-    ctx.fillStyle = "#1a1d23";
+    // Clear canvas with gradient background
+    const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
+    bgGradient.addColorStop(0, "#0f1419");
+    bgGradient.addColorStop(1, "#1a1d23");
+    ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, width, height);
     
-    // Calculate peg positions
-    const pegRadius = 4;
-    const startY = 40;
-    const endY = height - 80;
-    const rowHeight = (endY - startY) / rows;
-    const baseWidth = width * 0.8;
-    
-    // Draw pegs
-    for (let row = 0; row <= rows; row++) {
-      const numPegs = row + 3;
-      const rowWidth = (baseWidth * (row + 3)) / (rows + 3);
-      const startX = (width - rowWidth) / 2;
-      const pegSpacing = rowWidth / (numPegs - 1);
-      
-      for (let col = 0; col < numPegs; col++) {
-        const x = startX + col * pegSpacing;
-        const y = startY + row * rowHeight;
-        
+    // Draw pegs with glow effect
+    pegsRef.current.forEach((peg) => {
+      // Glow effect
+      if (peg.glow > 0) {
+        const glowGradient = ctx.createRadialGradient(peg.x, peg.y, 0, peg.x, peg.y, peg.radius * 4);
+        glowGradient.addColorStop(0, `rgba(251, 191, 36, ${peg.glow * 0.8})`);
+        glowGradient.addColorStop(0.5, `rgba(251, 191, 36, ${peg.glow * 0.3})`);
+        glowGradient.addColorStop(1, "rgba(251, 191, 36, 0)");
+        ctx.fillStyle = glowGradient;
         ctx.beginPath();
-        ctx.arc(x, y, pegRadius, 0, Math.PI * 2);
-        ctx.fillStyle = "#ffffff";
+        ctx.arc(peg.x, peg.y, peg.radius * 4, 0, Math.PI * 2);
         ctx.fill();
+        
+        // Decay glow
+        peg.glow = Math.max(0, peg.glow - 0.08);
       }
-    }
+      
+      // Draw peg with gradient
+      const pegGradient = ctx.createRadialGradient(
+        peg.x - 1, peg.y - 1, 0,
+        peg.x, peg.y, peg.radius
+      );
+      pegGradient.addColorStop(0, "#ffffff");
+      pegGradient.addColorStop(0.7, "#e0e0e0");
+      pegGradient.addColorStop(1, "#a0a0a0");
+      
+      ctx.beginPath();
+      ctx.arc(peg.x, peg.y, peg.radius, 0, Math.PI * 2);
+      ctx.fillStyle = pegGradient;
+      ctx.fill();
+      
+      // Peg shadow
+      ctx.shadowColor = "rgba(0,0,0,0.3)";
+      ctx.shadowBlur = 3;
+      ctx.shadowOffsetX = 1;
+      ctx.shadowOffsetY = 1;
+    });
     
-    // Draw slots at bottom
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    
+    // Draw slots at bottom with rounded corners
+    const baseWidth = width * 0.85;
     const slotWidth = baseWidth / multipliers.length;
     const slotStartX = (width - baseWidth) / 2;
-    const slotY = height - 50;
+    const slotY = height - 55;
+    const slotHeight = 40;
+    const cornerRadius = 6;
     
     multipliers.forEach((mult, i) => {
-      const x = slotStartX + i * slotWidth;
+      const x = slotStartX + i * slotWidth + 2;
+      const w = slotWidth - 4;
       const color = getMultiplierColor(mult);
       
-      // Slot background
-      ctx.fillStyle = color;
-      ctx.fillRect(x + 2, slotY, slotWidth - 4, 35);
+      // Slot shadow
+      ctx.shadowColor = "rgba(0,0,0,0.4)";
+      ctx.shadowBlur = 6;
+      ctx.shadowOffsetY = 2;
+      
+      // Draw rounded rectangle
+      drawRoundRect(ctx, x, slotY, w, slotHeight, cornerRadius);
+      
+      // Gradient fill
+      const slotGradient = ctx.createLinearGradient(x, slotY, x, slotY + slotHeight);
+      slotGradient.addColorStop(0, color);
+      slotGradient.addColorStop(1, adjustColor(color, -30));
+      ctx.fillStyle = slotGradient;
+      ctx.fill();
+      
+      // Reset shadow
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+      
+      // Highlight at top
+      drawRoundRect(ctx, x, slotY, w, slotHeight / 3, cornerRadius);
+      ctx.fillStyle = "rgba(255,255,255,0.2)";
+      ctx.fill();
       
       // Multiplier text
       ctx.fillStyle = "#ffffff";
       ctx.font = "bold 11px system-ui";
       ctx.textAlign = "center";
-      ctx.fillText(`${mult}x`, x + slotWidth / 2, slotY + 22);
+      ctx.textBaseline = "middle";
+      ctx.fillText(`${mult}x`, x + w / 2, slotY + slotHeight / 2 + 2);
     });
     
     // Draw balls
     ballsRef.current.forEach((ball) => {
-      if (ball.active || ball.y < height) {
-        ctx.beginPath();
-        ctx.arc(ball.x, ball.y, 8, 0, Math.PI * 2);
-        const gradient = ctx.createRadialGradient(ball.x - 2, ball.y - 2, 0, ball.x, ball.y, 8);
-        gradient.addColorStop(0, "#fbbf24");
-        gradient.addColorStop(1, "#f97316");
-        ctx.fillStyle = gradient;
-        ctx.fill();
-        ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      }
+      if (!ball.active && ball.opacity <= 0) return;
+      
+      ctx.globalAlpha = ball.opacity;
+      
+      // Ball shadow
+      ctx.shadowColor = "rgba(0,0,0,0.5)";
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetY = 3;
+      
+      // Ball gradient
+      const ballGradient = ctx.createRadialGradient(
+        ball.x - ball.radius * 0.3,
+        ball.y - ball.radius * 0.3,
+        0,
+        ball.x,
+        ball.y,
+        ball.radius
+      );
+      ballGradient.addColorStop(0, "#ffe066");
+      ballGradient.addColorStop(0.3, "#fbbf24");
+      ballGradient.addColorStop(0.7, "#f97316");
+      ballGradient.addColorStop(1, "#ea580c");
+      
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+      ctx.fillStyle = ballGradient;
+      ctx.fill();
+      
+      // Ball highlight
+      ctx.beginPath();
+      ctx.arc(ball.x - ball.radius * 0.3, ball.y - ball.radius * 0.3, ball.radius * 0.3, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255,255,255,0.6)";
+      ctx.fill();
+      
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+      ctx.globalAlpha = 1;
     });
   }, [rows, multipliers]);
 
-  // Animation loop
+  // Helper to adjust color brightness
+  function adjustColor(hex: string, amount: number): string {
+    const num = parseInt(hex.slice(1), 16);
+    const r = Math.min(255, Math.max(0, (num >> 16) + amount));
+    const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amount));
+    const b = Math.min(255, Math.max(0, (num & 0x0000FF) + amount));
+    return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+  }
+
+  // Animation loop with realistic physics
   const animate = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
     const width = canvas.width;
     const height = canvas.height;
-    const startY = 40;
-    const endY = height - 80;
-    const rowHeight = (endY - startY) / rows;
-    const baseWidth = width * 0.8;
+    const baseWidth = width * 0.85;
+    const slotY = height - 55;
+    
+    const gravity = 0.25;
+    const friction = 0.99;
+    const bounciness = 0.7;
+    const ballRadius = 8;
     
     // Update balls
     ballsRef.current = ballsRef.current.map((ball) => {
-      if (!ball.active) return ball;
-      
-      // Apply gravity
-      ball.vy += 0.3;
-      ball.y += ball.vy;
-      ball.x += ball.vx;
-      
-      // Check for peg collisions
-      const currentRow = Math.floor((ball.y - startY) / rowHeight);
-      
-      if (currentRow > ball.row && currentRow <= rows) {
-        // Ball has reached a new row
-        ball.row = currentRow;
-        
-        // Random bounce left or right
-        const bounce = Math.random() > 0.5 ? 1 : -1;
-        ball.path.push(bounce);
-        ball.vx = bounce * (2 + Math.random());
-        ball.vy = Math.abs(ball.vy) * 0.5;
+      if (!ball.active) {
+        // Fade out landed balls
+        if (ball.landed) {
+          ball.opacity = Math.max(0, ball.opacity - 0.05);
+        }
+        return ball;
       }
       
-      // Dampen horizontal velocity
-      ball.vx *= 0.98;
+      // Apply gravity
+      ball.vy += gravity;
       
-      // Check if ball has reached bottom
-      if (ball.y >= endY + 30) {
+      // Apply friction
+      ball.vx *= friction;
+      
+      // Update position
+      ball.x += ball.vx;
+      ball.y += ball.vy;
+      
+      // Check collision with pegs
+      pegsRef.current.forEach((peg) => {
+        const dx = ball.x - peg.x;
+        const dy = ball.y - peg.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const minDist = ball.radius + peg.radius;
+        
+        if (dist < minDist) {
+          // Collision detected - activate peg glow
+          peg.glow = 1;
+          
+          // Calculate collision normal
+          const nx = dx / dist;
+          const ny = dy / dist;
+          
+          // Separate balls from peg
+          const overlap = minDist - dist;
+          ball.x += nx * overlap;
+          ball.y += ny * overlap;
+          
+          // Reflect velocity
+          const dot = ball.vx * nx + ball.vy * ny;
+          ball.vx = (ball.vx - 2 * dot * nx) * bounciness;
+          ball.vy = (ball.vy - 2 * dot * ny) * bounciness;
+          
+          // Add some randomness
+          ball.vx += (Math.random() - 0.5) * 1.5;
+        }
+      });
+      
+      // Wall boundaries
+      const minX = (width - baseWidth) / 2 + ball.radius;
+      const maxX = (width + baseWidth) / 2 - ball.radius;
+      
+      if (ball.x < minX) {
+        ball.x = minX;
+        ball.vx = Math.abs(ball.vx) * bounciness;
+      }
+      if (ball.x > maxX) {
+        ball.x = maxX;
+        ball.vx = -Math.abs(ball.vx) * bounciness;
+      }
+      
+      // Check if ball has reached the slots
+      if (ball.y >= slotY - ball.radius && !ball.landed) {
+        ball.landed = true;
+        ball.landedTime = Date.now();
         ball.active = false;
+        ball.vy = 0;
+        ball.vx = 0;
         
         // Calculate which slot
         const slotWidth = baseWidth / multipliers.length;
         const slotStartX = (width - baseWidth) / 2;
         const slotIndex = Math.floor((ball.x - slotStartX) / slotWidth);
         const clampedIndex = Math.max(0, Math.min(multipliers.length - 1, slotIndex));
-        ball.result = clampedIndex;
         
         // Calculate winnings
         const multiplier = multipliers[clampedIndex];
@@ -239,9 +422,9 @@ export default function PlinkoPage() {
       return ball;
     });
     
-    // Remove inactive balls after animation
+    // Remove fully faded balls
     ballsRef.current = ballsRef.current.filter(
-      (ball) => ball.active || ball.y < height + 50
+      (ball) => ball.active || ball.opacity > 0
     );
     
     if (ballsRef.current.length === 0) {
@@ -250,14 +433,17 @@ export default function PlinkoPage() {
     
     draw();
     animationRef.current = requestAnimationFrame(animate);
-  }, [rows, multipliers, amount, draw]);
+  }, [multipliers, amount, draw]);
 
   // Start animation loop
   useEffect(() => {
     if (!mounted) return;
     
-    // Initial draw
     const timer = setTimeout(() => {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        calculatePegs(canvas.width, canvas.height);
+      }
       draw();
       animationRef.current = requestAnimationFrame(animate);
     }, 100);
@@ -268,7 +454,7 @@ export default function PlinkoPage() {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [mounted, animate, draw]);
+  }, [mounted, animate, draw, calculatePegs]);
 
   // Drop a ball
   const dropBall = useCallback(() => {
@@ -282,13 +468,15 @@ export default function PlinkoPage() {
     
     const ball: Ball = {
       id: nextBallId.current++,
-      x: canvas.width / 2 + (Math.random() - 0.5) * 20,
+      x: canvas.width / 2 + (Math.random() - 0.5) * 10,
       y: 20,
-      vx: 0,
-      vy: 2,
-      row: -1,
-      path: [],
+      vx: (Math.random() - 0.5) * 2,
+      vy: 0,
+      radius: 8,
       active: true,
+      opacity: 1,
+      landed: false,
+      landedTime: 0,
     };
     
     ballsRef.current.push(ball);
@@ -305,19 +493,19 @@ export default function PlinkoPage() {
       const container = canvas.parentElement;
       if (container) {
         canvas.width = Math.min(600, container.clientWidth);
-        canvas.height = 500;
+        canvas.height = 520;
+        calculatePegs(canvas.width, canvas.height);
         draw();
       }
     };
     
-    // Delay initial resize to ensure DOM is ready
     const timer = setTimeout(resizeCanvas, 50);
     window.addEventListener("resize", resizeCanvas);
     return () => {
       clearTimeout(timer);
       window.removeEventListener("resize", resizeCanvas);
     };
-  }, [mounted, draw]);
+  }, [mounted, draw, calculatePegs]);
 
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
@@ -471,11 +659,11 @@ export default function PlinkoPage() {
 
               {/* Game Canvas */}
               <div className="lg:col-span-2">
-                <div className="bg-[#1a1d23] border border-[color:var(--border-soft)] rounded-xl overflow-hidden">
+                <div className="bg-gradient-to-b from-[#0f1419] to-[#1a1d23] border border-[color:var(--border-soft)] rounded-xl overflow-hidden shadow-2xl">
                   <canvas
                     ref={canvasRef}
                     className="w-full"
-                    style={{ aspectRatio: "6/5" }}
+                    style={{ aspectRatio: "6/5.2" }}
                   />
                 </div>
               </div>
@@ -509,7 +697,7 @@ export default function PlinkoPage() {
                         >
                           <div className="flex items-center gap-3">
                             <span
-                              className="px-2 py-1 rounded text-xs font-bold text-white"
+                              className="px-2 py-1 rounded-md text-xs font-bold text-white"
                               style={{ backgroundColor: getMultiplierColor(result.multiplier) }}
                             >
                               {result.multiplier}x
