@@ -31,6 +31,13 @@ const MIN_BET = 0.10;
 // Row options (only valid rows shown based on risk)
 const ALL_ROW_OPTIONS = [12, 14, 16];
 
+// =============================================================================
+// DROP SAFETY CONFIGURATION
+// =============================================================================
+const DROP_TIMEOUT_MS = 8000;  // Force-resolve after 8 seconds
+const STUCK_THRESHOLD_MS = 800; // Consider stuck if no movement for 800ms
+const STUCK_EPSILON = 0.5;      // Minimum movement to not be considered stuck
+
 interface Ball {
   id: number;
   x: number;
@@ -45,7 +52,15 @@ interface Ball {
   bounceCount: number;
   slotBouncing: boolean;
   resultRecorded: boolean;
-  betAmount: number; // Track bet for this ball
+  betAmount: number;
+  // Pre-computed outcome (used for force-resolve)
+  precomputedSlotIndex: number;
+  precomputedMultiplier: number;
+  // Stuck detection
+  spawnTime: number;
+  lastY: number;
+  lastMoveTime: number;
+  forceResolved: boolean;
 }
 
 interface Peg {
@@ -160,12 +175,14 @@ export default function PlinkoPage() {
   const pegsRef = useRef<Peg[]>([]);
   const nextBallId = useRef(0);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const dropTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const [mounted, setMounted] = useState(false);
   const [amount, setAmount] = useState<number>(10);
   const [risk, setRisk] = useState<"low" | "medium" | "high">("low");
   const [rows, setRows] = useState(12);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isDropping, setIsDropping] = useState(false); // Single ball lock
   const [results, setResults] = useState<GameResult[]>([]);
   const [isAutoMode, setIsAutoMode] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -198,9 +215,10 @@ export default function PlinkoPage() {
     return validateBetAgainstPool(amount, risk, demoPoolBalance, reservedLiability);
   }, [amount, risk, demoPoolBalance, reservedLiability]);
   
-  // Can play check
+  // Can play check (includes single ball lock)
   const canPlay = useMemo(() => {
     return (
+      !isDropping && // Single ball lock
       currentModeStatus.enabled &&
       isRiskRowValid &&
       betValidation.valid &&
@@ -208,7 +226,7 @@ export default function PlinkoPage() {
       amount <= demoBalance &&
       amount <= currentModeStatus.maxBet
     );
-  }, [currentModeStatus, isRiskRowValid, betValidation, amount, demoBalance]);
+  }, [isDropping, currentModeStatus, isRiskRowValid, betValidation, amount, demoBalance]);
   
   // Debug logging
   useEffect(() => {
@@ -520,7 +538,61 @@ export default function PlinkoPage() {
     return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
   }
 
-  // Animation loop with realistic physics
+  // Force-resolve a ball using pre-computed outcome
+  const forceResolveBall = useCallback((ball: Ball, reason: string) => {
+    if (ball.resultRecorded || ball.forceResolved) return;
+    
+    console.log(`[DROP FORCE-RESOLVED] Ball ${ball.id} - ${reason}`);
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const width = canvas.width;
+    const baseWidth = width * 0.85;
+    const slotY = canvas.height - 55;
+    const slotWidth = baseWidth / multipliers.length;
+    const slotStartX = (width - baseWidth) / 2;
+    
+    // Use pre-computed outcome (DO NOT re-roll RNG)
+    const slotIndex = ball.precomputedSlotIndex;
+    const multiplier = ball.precomputedMultiplier;
+    const payout = ball.betAmount * multiplier;
+    const profit = payout - ball.betAmount;
+    const maxPayout = ball.betAmount * getMaxMultiplier(risk);
+    
+    // Teleport ball to the slot
+    ball.x = slotStartX + slotIndex * slotWidth + slotWidth / 2;
+    ball.y = slotY + 10;
+    ball.vx = 0;
+    ball.vy = 0;
+    ball.active = false;
+    ball.slotBouncing = false;
+    ball.landed = true;
+    ball.landedTime = Date.now();
+    ball.resultRecorded = true;
+    ball.forceResolved = true;
+    
+    // ATOMIC PAYOUT FLOW
+    setDemoPoolBalance((prev) => {
+      const newPool = Math.round((prev - payout) * 100) / 100;
+      console.log(`[DEMO POOL] Force-resolve payout: $${payout.toFixed(2)}, Pool: $${prev.toFixed(2)} -> $${newPool.toFixed(2)}`);
+      return Math.max(0, newPool);
+    });
+    
+    setDemoBalance((prev) => Math.round((prev + payout) * 100) / 100);
+    setReservedLiability((prev) => Math.max(0, prev - maxPayout));
+    
+    if (multiplier >= 2) {
+      playSound("win");
+    }
+    
+    setResults((prev) => [
+      { multiplier, amount: ball.betAmount, profit, time: new Date() },
+      ...prev.slice(0, 9),
+    ]);
+  }, [multipliers, risk, playSound]);
+
+  // Animation loop with realistic physics + stuck detection
   const animate = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -530,6 +602,7 @@ export default function PlinkoPage() {
     const baseWidth = width * 0.85;
     const slotY = height - 55;
     const slotBottom = slotY + 40;
+    const now = Date.now();
     
     const gravity = 0.25;
     const friction = 0.99;
@@ -541,8 +614,41 @@ export default function PlinkoPage() {
       if (!ball.active && !ball.slotBouncing) {
         if (ball.landed) {
           ball.opacity = Math.max(0, ball.opacity - 0.05);
+          // Cleanup complete when fully faded
+          if (ball.opacity <= 0) {
+            console.log(`[CLEANUP COMPLETE] Ball ${ball.id}`);
+            setIsDropping(false);
+          }
         }
         return ball;
+      }
+      
+      // =========================================================
+      // STUCK DETECTION - Check if ball hasn't moved
+      // =========================================================
+      if (ball.active && !ball.slotBouncing && !ball.forceResolved) {
+        const moved = Math.abs(ball.y - ball.lastY) > STUCK_EPSILON;
+        
+        if (moved) {
+          ball.lastY = ball.y;
+          ball.lastMoveTime = now;
+        } else {
+          // Check if stuck for too long
+          const stuckDuration = now - ball.lastMoveTime;
+          if (stuckDuration > STUCK_THRESHOLD_MS) {
+            console.log(`[STUCK DETECTED] Ball ${ball.id} stuck for ${stuckDuration}ms`);
+            forceResolveBall(ball, `stuck for ${stuckDuration}ms`);
+            return ball;
+          }
+        }
+        
+        // Check timeout
+        const dropDuration = now - ball.spawnTime;
+        if (dropDuration > DROP_TIMEOUT_MS) {
+          console.log(`[TIMEOUT] Ball ${ball.id} exceeded ${DROP_TIMEOUT_MS}ms`);
+          forceResolveBall(ball, `timeout after ${dropDuration}ms`);
+          return ball;
+        }
       }
       
       // Ball is bouncing in slot
@@ -565,6 +671,7 @@ export default function PlinkoPage() {
             ball.active = false;
             ball.landed = true;
             ball.landedTime = Date.now();
+            console.log(`[DROP RESOLVED] Ball ${ball.id} - normal landing`);
           }
         }
         
@@ -616,7 +723,9 @@ export default function PlinkoPage() {
           ball.vx = (ball.vx - 2 * dot * nx) * bounciness;
           ball.vy = (ball.vy - 2 * dot * ny) * bounciness;
           
+          // Add randomness but ensure downward momentum
           ball.vx += (Math.random() - 0.5) * 1.5;
+          ball.vy = Math.max(ball.vy, 0.5); // Ensure ball keeps falling
         }
       });
       
@@ -639,7 +748,7 @@ export default function PlinkoPage() {
         ball.bounceCount = 0;
         ball.vy = Math.abs(ball.vy) * 0.6;
         
-        // Record the result
+        // Use the actual slot the ball landed in (may differ from pre-computed)
         const slotWidth = baseWidth / multipliers.length;
         const slotStartX = (width - baseWidth) / 2;
         const slotIndex = Math.floor((ball.x - slotStartX) / slotWidth);
@@ -652,22 +761,16 @@ export default function PlinkoPage() {
         
         ball.resultRecorded = true;
         
-        // ATOMIC PAYOUT FLOW:
-        // 1. Payout is subtracted from pool
-        // 2. Payout credited to user balance
-        // 3. Release reserved liability
+        // ATOMIC PAYOUT FLOW
         setDemoPoolBalance((prev) => {
           const newPool = Math.round((prev - payout) * 100) / 100;
           console.log(`[DEMO POOL] Payout: $${payout.toFixed(2)}, Pool: $${prev.toFixed(2)} -> $${newPool.toFixed(2)}`);
-          return Math.max(0, newPool); // NEVER go below 0
+          return Math.max(0, newPool);
         });
         
         setDemoBalance((prev) => Math.round((prev + payout) * 100) / 100);
-        
-        // Release liability hold
         setReservedLiability((prev) => Math.max(0, prev - maxPayout));
         
-        // Play win sound for good multipliers
         if (multiplier >= 2) {
           playSound("win");
         }
@@ -687,11 +790,12 @@ export default function PlinkoPage() {
     
     if (ballsRef.current.length === 0) {
       setIsPlaying(false);
+      setIsDropping(false);
     }
     
     draw();
     animationRef.current = requestAnimationFrame(animate);
-  }, [multipliers, risk, draw, playSound]);
+  }, [multipliers, risk, draw, playSound, forceResolveBall]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -714,19 +818,30 @@ export default function PlinkoPage() {
   }, [mounted, animate, draw, calculatePegs]);
 
   const dropBall = useCallback(() => {
-    if (!canPlay) return;
+    if (!canPlay || isDropping) {
+      console.log("[DROP BLOCKED] Already dropping or can't play");
+      return;
+    }
     
     const canvas = canvasRef.current;
     if (!canvas) return;
     
+    // Set single ball lock IMMEDIATELY
+    setIsDropping(true);
+    
     const maxPayout = amount * getMaxMultiplier(risk);
+    
+    // Pre-compute outcome using RNG (used for force-resolve if needed)
+    const precomputedSlotIndex = Math.floor(Math.random() * multipliers.length);
+    const precomputedMultiplier = multipliers[precomputedSlotIndex];
+    
+    console.log(`[DROP STARTED] Ball ${nextBallId.current}, Amount: $${amount}, Risk: ${risk}`);
+    console.log(`[PRECOMPUTED] Slot: ${precomputedSlotIndex}, Multiplier: ${precomputedMultiplier}x`);
     
     // ATOMIC BET FLOW:
     // 1. Reserve liability (max payout hold)
     // 2. Deduct bet from user balance
     // 3. Add bet to pool
-    
-    console.log(`[DEMO BET] Amount: $${amount}, MaxPayout: $${maxPayout.toFixed(2)}, Risk: ${risk}`);
     
     // Reserve liability
     setReservedLiability((prev) => prev + maxPayout);
@@ -743,6 +858,7 @@ export default function PlinkoPage() {
     
     setIsPlaying(true);
     
+    const now = Date.now();
     const ball: Ball = {
       id: nextBallId.current++,
       x: canvas.width / 2 + (Math.random() - 0.5) * 10,
@@ -757,11 +873,33 @@ export default function PlinkoPage() {
       bounceCount: 0,
       slotBouncing: false,
       resultRecorded: false,
-      betAmount: amount, // Track bet for this ball
+      betAmount: amount,
+      // Pre-computed outcome for force-resolve
+      precomputedSlotIndex,
+      precomputedMultiplier,
+      // Stuck detection
+      spawnTime: now,
+      lastY: 20,
+      lastMoveTime: now,
+      forceResolved: false,
     };
     
     ballsRef.current.push(ball);
-  }, [canPlay, amount, risk]);
+    
+    // Clear any existing timeout
+    if (dropTimeoutRef.current) {
+      clearTimeout(dropTimeoutRef.current);
+    }
+    
+    // Set failsafe timeout
+    dropTimeoutRef.current = setTimeout(() => {
+      const activeBall = ballsRef.current.find(b => b.active && !b.resultRecorded && !b.forceResolved);
+      if (activeBall) {
+        console.log(`[TIMEOUT FAILSAFE] Ball ${activeBall.id} force-resolving after ${DROP_TIMEOUT_MS}ms`);
+        // The animate loop will handle the force-resolve via stuck detection
+      }
+    }, DROP_TIMEOUT_MS);
+  }, [canPlay, isDropping, amount, risk, multipliers]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -789,6 +927,7 @@ export default function PlinkoPage() {
 
   // Get play button text
   const getPlayButtonText = () => {
+    if (isDropping) return "Dropping...";
     if (!currentModeStatus.enabled) return "Risk Mode Locked";
     if (!isRiskRowValid) return `Need ${getMinRows(risk)} rows`;
     if (amount <= 0) return "Enter Amount";
@@ -1005,11 +1144,16 @@ export default function PlinkoPage() {
                   {/* Play Button */}
                   <Button
                     onClick={dropBall}
-                    disabled={!canPlay}
+                    disabled={!canPlay || isDropping}
                     className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {!canPlay && <Lock className="h-4 w-4 mr-2" />}
-                    <Play className="h-5 w-5 mr-2" />
+                    {isDropping ? (
+                      <RotateCcw className="h-5 w-5 mr-2 animate-spin" />
+                    ) : !canPlay ? (
+                      <Lock className="h-4 w-4 mr-2" />
+                    ) : (
+                      <Play className="h-5 w-5 mr-2" />
+                    )}
                     {getPlayButtonText()}
                   </Button>
 
