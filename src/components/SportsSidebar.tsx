@@ -27,9 +27,9 @@ const topMenu = [
   { id: "futures", label: "Futures", icon: <BarChart3 className="h-4 w-4" />, href: "/sports" },
 ];
 
-// Crypto games menu
-const cryptoMenu = [
-  { id: "plinko", label: "Plinko", icon: <CircleDot className="h-4 w-4" />, href: "/crypto/plinko", enabled: true },
+// Games menu
+const gamesMenu = [
+  { id: "plinko", label: "Plinko", icon: <CircleDot className="h-4 w-4" />, href: "/games/plinko", enabled: true },
 ];
 
 // Sidebar content component (shared between desktop and mobile)
@@ -59,15 +59,15 @@ function SidebarContent({
         ))}
       </div>
 
-      {/* Crypto Games Section */}
+      {/* Games Section */}
       <div className="px-4 py-2">
         <div className="text-xs font-semibold text-[color:var(--text-subtle)] uppercase tracking-wider flex items-center gap-2">
           <Coins className="h-3 w-3" />
-          Crypto Games
+          Games
         </div>
       </div>
       <div className="px-2 pb-2 space-y-0.5">
-        {cryptoMenu.map((game) => {
+        {gamesMenu.map((game) => {
           const isActive = activeGame === game.id;
           return (
             <Link
@@ -223,7 +223,7 @@ export function SportsSidebar({ activeSport = "nfl", activeGame }: { activeSport
             ))}
             <div className="h-px bg-[color:var(--border-soft)] mx-2 my-2" />
             {/* Crypto games icons */}
-            {cryptoMenu.map((game) => {
+            {gamesMenu.map((game) => {
               const isActive = activeGame === game.id;
               return (
                 <Link

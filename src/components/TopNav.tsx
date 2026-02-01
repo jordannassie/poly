@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
-import { ChevronDown, Moon, Sun, Bell, Zap, Menu, X, Home, Trophy, Settings, Wallet, Radio, BarChart3 } from "lucide-react";
+import { ChevronDown, Moon, Sun, Bell, Zap, Menu, X, Home, Trophy, Settings, Wallet, Radio, BarChart3, Gamepad2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { AuthModal } from "./AuthModal";
 import { HowItWorksModal } from "./HowItWorksModal";
@@ -307,6 +307,14 @@ export function TopNav() {
                     >
                       <BarChart3 className="h-5 w-5" />
                       <span className="font-medium">Sports</span>
+                    </Link>
+                    <Link
+                      href="/games"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-3 py-3 rounded-lg text-[color:var(--text-muted)] hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-strong)] transition"
+                    >
+                      <Gamepad2 className="h-5 w-5 text-purple-500" />
+                      <span className="font-medium">Games</span>
                     </Link>
                     <Link
                       href="/leaderboard"
