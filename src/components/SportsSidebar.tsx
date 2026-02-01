@@ -9,8 +9,6 @@ import {
   Lock,
   PanelLeftClose,
   PanelLeft,
-  Coins,
-  CircleDot,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import {
@@ -27,10 +25,10 @@ const topMenu = [
   { id: "futures", label: "Futures", icon: <BarChart3 className="h-4 w-4" />, href: "/sports" },
 ];
 
-// Games menu - Plinko only
-const gamesMenu = [
-  { id: "plinko", label: "Plinko", icon: <CircleDot className="h-4 w-4" />, href: "/crypto/plinko", enabled: true },
-];
+// Games menu - HIDDEN (Plinko code saved but not shown in nav)
+// const gamesMenu = [
+//   { id: "plinko", label: "Plinko", icon: <CircleDot className="h-4 w-4" />, href: "/crypto/plinko", enabled: true },
+// ];
 
 // Sidebar content component (shared between desktop and mobile)
 function SidebarContent({ 
@@ -59,39 +57,7 @@ function SidebarContent({
         ))}
       </div>
 
-      {/* Games Section */}
-      <div className="px-4 py-2">
-        <div className="text-xs font-semibold text-[color:var(--text-subtle)] uppercase tracking-wider flex items-center gap-2">
-          <Coins className="h-3 w-3" />
-          Games
-        </div>
-      </div>
-      <div className="px-2 pb-2 space-y-0.5">
-        {gamesMenu.map((game) => {
-          const isActive = activeGame === game.id;
-          return (
-            <Link
-              key={game.id}
-              href={game.href}
-              onClick={onNavigate}
-            >
-              <div
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition ${
-                  isActive
-                    ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-[color:var(--text-strong)] border border-purple-500/30"
-                    : "text-[color:var(--text-muted)] hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-strong)]"
-                }`}
-              >
-                <span className="text-purple-400">{game.icon}</span>
-                <span className="flex-1 font-medium text-sm">{game.label}</span>
-                <span className="text-[10px] text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded">
-                  NEW
-                </span>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
+      {/* Games Section - HIDDEN (Plinko saved but not shown) */}
 
       <div className="px-4 py-2">
         <div className="text-xs font-semibold text-[color:var(--text-subtle)] uppercase tracking-wider">
@@ -221,25 +187,7 @@ export function SportsSidebar({ activeSport = "nfl", activeGame }: { activeSport
                 {item.icon}
               </Link>
             ))}
-            <div className="h-px bg-[color:var(--border-soft)] mx-2 my-2" />
-            {/* Crypto games icons */}
-            {gamesMenu.map((game) => {
-              const isActive = activeGame === game.id;
-              return (
-                <Link
-                  key={game.id}
-                  href={game.href}
-                  className={`flex items-center justify-center h-10 mx-2 rounded-lg cursor-pointer transition ${
-                    isActive
-                      ? "bg-purple-500/20 text-purple-400"
-                      : "text-purple-400/60 hover:bg-[color:var(--surface-2)] hover:text-purple-400"
-                  }`}
-                  title={game.label}
-                >
-                  {game.icon}
-                </Link>
-              );
-            })}
+            {/* Crypto games icons - HIDDEN (Plinko saved but not shown) */}
             <div className="h-px bg-[color:var(--border-soft)] mx-2 my-2" />
             {/* Sport icons */}
             {sportsMenu.slice(0, 8).map((sport) => {
