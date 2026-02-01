@@ -1,17 +1,35 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { TopNav } from "@/components/TopNav";
 import { SportsSidebar } from "@/components/SportsSidebar";
 import { MainFooter } from "@/components/MainFooter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Play, RotateCcw, RefreshCw, Volume2, VolumeX } from "lucide-react";
+import { Play, RotateCcw, RefreshCw, Volume2, VolumeX, Lock, AlertTriangle } from "lucide-react";
 
-// Demo Mode Configuration
+// =============================================================================
+// DEMO MODE CONFIGURATION - SAME RULES AS REAL MODE
+// =============================================================================
 const DEMO_START_BALANCE = 5000;
+const DEMO_POOL_START = 5000; // Demo pool starts with same amount
+const MIN_BET = 0.10;
 
-// Plinko configuration
+// Row restrictions by risk level
+const RISK_ROW_REQUIREMENTS: Record<string, number> = {
+  low: 12,    // Low risk: rows >= 12
+  medium: 14, // Medium risk: rows >= 14
+  high: 16,   // High risk: rows >= 16
+};
+
+// Max multipliers by risk (used for solvency checks)
+const MAX_MULTIPLIERS: Record<string, number> = {
+  low: 1.5,
+  medium: 5.6,
+  high: 110,
+};
+
+// Plinko configuration - multiplier tables
 const RISK_MULTIPLIERS: Record<string, number[]> = {
   low: [1.5, 1.2, 1.1, 1, 0.5, 1, 1.1, 1.2, 1.5],
   medium: [5.6, 2.1, 1.1, 1, 0.5, 0.3, 0.5, 1, 1.1, 2.1, 5.6],
@@ -34,6 +52,7 @@ interface Ball {
   bounceCount: number;
   slotBouncing: boolean;
   resultRecorded: boolean;
+  betAmount: number; // Track bet for this ball
 }
 
 interface Peg {
@@ -48,6 +67,12 @@ interface GameResult {
   amount: number;
   profit: number;
   time: Date;
+}
+
+interface RiskModeStatus {
+  enabled: boolean;
+  maxBet: number;
+  reason?: string;
 }
 
 // Helper to draw rounded rectangle
@@ -72,6 +97,67 @@ function drawRoundRect(
   ctx.closePath();
 }
 
+// =============================================================================
+// SOLVENCY CHECK - Same logic as real mode
+// =============================================================================
+function checkDemoPoolSolvency(
+  poolBalance: number,
+  reservedLiability: number = 0
+): Record<string, RiskModeStatus> {
+  const availableToPay = poolBalance - reservedLiability;
+  const modes: Record<string, RiskModeStatus> = {};
+  
+  for (const [mode, maxMult] of Object.entries(MAX_MULTIPLIERS)) {
+    // Max bet = availableToPay / maxMultiplier
+    const maxBet = availableToPay / maxMult;
+    
+    if (maxBet < MIN_BET) {
+      modes[mode] = {
+        enabled: false,
+        maxBet: 0,
+        reason: `Pool too small (need $${(MIN_BET * maxMult).toFixed(2)} for ${mode} risk)`,
+      };
+    } else {
+      modes[mode] = {
+        enabled: true,
+        maxBet: Math.floor(maxBet * 100) / 100, // Round down to 2 decimals
+      };
+    }
+  }
+  
+  return modes;
+}
+
+// =============================================================================
+// VALIDATE BET AGAINST POOL - Same logic as real mode
+// =============================================================================
+function validateBetAgainstPool(
+  betAmount: number,
+  mode: string,
+  poolBalance: number,
+  reservedLiability: number = 0
+): { valid: boolean; error?: string; maxBet: number; maxPayout: number } {
+  const maxMultiplier = MAX_MULTIPLIERS[mode] || 110;
+  const maxPayout = betAmount * maxMultiplier;
+  const availableToPay = poolBalance - reservedLiability;
+  const maxBet = Math.floor((availableToPay / maxMultiplier) * 100) / 100;
+  
+  if (betAmount < MIN_BET) {
+    return { valid: false, error: `Minimum bet is $${MIN_BET.toFixed(2)}`, maxBet, maxPayout };
+  }
+  
+  if (maxPayout > availableToPay) {
+    return {
+      valid: false,
+      error: `Max payout ($${maxPayout.toFixed(2)}) exceeds pool ($${availableToPay.toFixed(2)}). Max bet: $${maxBet.toFixed(2)}`,
+      maxBet,
+      maxPayout,
+    };
+  }
+  
+  return { valid: true, maxBet, maxPayout };
+}
+
 export default function PlinkoPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | null>(null);
@@ -82,16 +168,73 @@ export default function PlinkoPage() {
   
   const [mounted, setMounted] = useState(false);
   const [amount, setAmount] = useState<number>(10);
-  const [risk, setRisk] = useState<"low" | "medium" | "high">("medium");
-  const [rows, setRows] = useState(16);
+  const [risk, setRisk] = useState<"low" | "medium" | "high">("low");
+  const [rows, setRows] = useState(12);
   const [isPlaying, setIsPlaying] = useState(false);
   const [results, setResults] = useState<GameResult[]>([]);
   const [isAutoMode, setIsAutoMode] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   
-  // Demo Mode State
-  const [isDemoMode, setIsDemoMode] = useState(true);
+  // Demo Mode State - with POOL (same as real mode)
   const [demoBalance, setDemoBalance] = useState(DEMO_START_BALANCE);
+  const [demoPoolBalance, setDemoPoolBalance] = useState(DEMO_POOL_START);
+  const [reservedLiability, setReservedLiability] = useState(0);
+  
+  // Calculate risk mode status based on pool solvency
+  const riskModes = useMemo(() => {
+    return checkDemoPoolSolvency(demoPoolBalance, reservedLiability);
+  }, [demoPoolBalance, reservedLiability]);
+  
+  // Check if current risk mode is valid for current rows
+  const isRiskRowValid = useMemo(() => {
+    const requiredRows = RISK_ROW_REQUIREMENTS[risk];
+    return rows >= requiredRows;
+  }, [risk, rows]);
+  
+  // Get available rows for current risk
+  const availableRows = useMemo(() => {
+    const requiredRows = RISK_ROW_REQUIREMENTS[risk];
+    return ROW_OPTIONS.filter(r => r >= requiredRows);
+  }, [risk]);
+  
+  // Current mode status
+  const currentModeStatus = riskModes[risk] || { enabled: false, maxBet: 0 };
+  
+  // Validate current bet
+  const betValidation = useMemo(() => {
+    return validateBetAgainstPool(amount, risk, demoPoolBalance, reservedLiability);
+  }, [amount, risk, demoPoolBalance, reservedLiability]);
+  
+  // Can play check
+  const canPlay = useMemo(() => {
+    return (
+      currentModeStatus.enabled &&
+      isRiskRowValid &&
+      betValidation.valid &&
+      amount > 0 &&
+      amount <= demoBalance &&
+      amount <= currentModeStatus.maxBet
+    );
+  }, [currentModeStatus, isRiskRowValid, betValidation, amount, demoBalance]);
+  
+  // Debug logging
+  useEffect(() => {
+    if (mounted) {
+      console.log("[DEMO POOL DEBUG]", {
+        demoBalance,
+        demoPoolBalance,
+        reservedLiability,
+        availableToPay: demoPoolBalance - reservedLiability,
+        riskModes,
+        currentRisk: risk,
+        currentRows: rows,
+        isRiskRowValid,
+        betAmount: amount,
+        betValidation,
+        canPlay,
+      });
+    }
+  }, [mounted, demoBalance, demoPoolBalance, reservedLiability, riskModes, risk, rows, isRiskRowValid, amount, betValidation, canPlay]);
 
   // Initialize audio context
   useEffect(() => {
@@ -140,23 +283,20 @@ export default function PlinkoPage() {
     }
   }, [soundEnabled]);
 
-  // Track when component is mounted
+  // Track when component is mounted + load from localStorage
   useEffect(() => {
     setMounted(true);
     
-    // Load demo balance from localStorage
     const savedDemoBalance = localStorage.getItem("plinko_demo_balance");
     if (savedDemoBalance) {
       setDemoBalance(parseFloat(savedDemoBalance));
     }
     
-    // Load demo mode preference
-    const savedDemoMode = localStorage.getItem("plinko_demo_mode");
-    if (savedDemoMode !== null) {
-      setIsDemoMode(savedDemoMode === "true");
+    const savedDemoPool = localStorage.getItem("plinko_demo_pool");
+    if (savedDemoPool) {
+      setDemoPoolBalance(parseFloat(savedDemoPool));
     }
     
-    // Load sound preference
     const savedSound = localStorage.getItem("plinko_sound_enabled");
     if (savedSound !== null) {
       setSoundEnabled(savedSound === "true");
@@ -172,12 +312,12 @@ export default function PlinkoPage() {
     }
   }, [demoBalance, mounted]);
   
-  // Save demo mode preference
+  // Save demo pool to localStorage
   useEffect(() => {
     if (mounted) {
-      localStorage.setItem("plinko_demo_mode", isDemoMode.toString());
+      localStorage.setItem("plinko_demo_pool", demoPoolBalance.toString());
     }
-  }, [isDemoMode, mounted]);
+  }, [demoPoolBalance, mounted]);
   
   // Save sound preference
   useEffect(() => {
@@ -186,14 +326,22 @@ export default function PlinkoPage() {
     }
   }, [soundEnabled, mounted]);
   
-  // Current balance based on mode
-  const balance = demoBalance;
-  
-  // Reset demo balance
+  // Reset demo (resets both balance AND pool)
   const resetDemo = () => {
     setDemoBalance(DEMO_START_BALANCE);
+    setDemoPoolBalance(DEMO_POOL_START);
+    setReservedLiability(0);
     setResults([]);
+    console.log("[DEMO RESET] Balance and Pool reset to $5000");
   };
+  
+  // Auto-adjust rows when risk changes
+  useEffect(() => {
+    const requiredRows = RISK_ROW_REQUIREMENTS[risk];
+    if (rows < requiredRows) {
+      setRows(requiredRows);
+    }
+  }, [risk, rows]);
   
   // Calculate multipliers based on rows
   const getMultipliers = useCallback(() => {
@@ -511,7 +659,7 @@ export default function PlinkoPage() {
       if (ball.y >= slotY - ball.radius && !ball.slotBouncing && !ball.resultRecorded) {
         ball.slotBouncing = true;
         ball.bounceCount = 0;
-        ball.vy = Math.abs(ball.vy) * 0.6; // Reduce velocity for slot bounce
+        ball.vy = Math.abs(ball.vy) * 0.6;
         
         // Record the result
         const slotWidth = baseWidth / multipliers.length;
@@ -520,19 +668,34 @@ export default function PlinkoPage() {
         const clampedIndex = Math.max(0, Math.min(multipliers.length - 1, slotIndex));
         
         const multiplier = multipliers[clampedIndex];
-        const profit = amount * multiplier - amount;
+        const payout = ball.betAmount * multiplier;
+        const profit = payout - ball.betAmount;
+        const maxPayout = ball.betAmount * MAX_MULTIPLIERS[risk];
         
         ball.resultRecorded = true;
+        
+        // ATOMIC PAYOUT FLOW:
+        // 1. Payout is subtracted from pool
+        // 2. Payout credited to user balance
+        // 3. Release reserved liability
+        setDemoPoolBalance((prev) => {
+          const newPool = Math.round((prev - payout) * 100) / 100;
+          console.log(`[DEMO POOL] Payout: $${payout.toFixed(2)}, Pool: $${prev.toFixed(2)} -> $${newPool.toFixed(2)}`);
+          return Math.max(0, newPool); // NEVER go below 0
+        });
+        
+        setDemoBalance((prev) => Math.round((prev + payout) * 100) / 100);
+        
+        // Release liability hold
+        setReservedLiability((prev) => Math.max(0, prev - maxPayout));
         
         // Play win sound for good multipliers
         if (multiplier >= 2) {
           playSound("win");
         }
         
-        // Update demo balance
-        setDemoBalance((prev) => Math.round((prev + amount * multiplier) * 100) / 100);
         setResults((prev) => [
-          { multiplier, amount, profit, time: new Date() },
+          { multiplier, amount: ball.betAmount, profit, time: new Date() },
           ...prev.slice(0, 9),
         ]);
       }
@@ -550,7 +713,7 @@ export default function PlinkoPage() {
     
     draw();
     animationRef.current = requestAnimationFrame(animate);
-  }, [multipliers, amount, draw, playSound]);
+  }, [multipliers, risk, draw, playSound]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -573,13 +736,33 @@ export default function PlinkoPage() {
   }, [mounted, animate, draw, calculatePegs]);
 
   const dropBall = useCallback(() => {
-    if (amount <= 0 || amount > balance) return;
+    if (!canPlay) return;
     
     const canvas = canvasRef.current;
     if (!canvas) return;
     
-    // Deduct from demo balance
+    const maxPayout = amount * MAX_MULTIPLIERS[risk];
+    
+    // ATOMIC BET FLOW:
+    // 1. Reserve liability (max payout hold)
+    // 2. Deduct bet from user balance
+    // 3. Add bet to pool
+    
+    console.log(`[DEMO BET] Amount: $${amount}, MaxPayout: $${maxPayout.toFixed(2)}, Risk: ${risk}`);
+    
+    // Reserve liability
+    setReservedLiability((prev) => prev + maxPayout);
+    
+    // Deduct from user balance
     setDemoBalance((prev) => Math.round((prev - amount) * 100) / 100);
+    
+    // Add to pool (bet goes into pool)
+    setDemoPoolBalance((prev) => {
+      const newPool = Math.round((prev + amount) * 100) / 100;
+      console.log(`[DEMO POOL] Bet added: $${amount}, Pool: $${prev.toFixed(2)} -> $${newPool.toFixed(2)}`);
+      return newPool;
+    });
+    
     setIsPlaying(true);
     
     const ball: Ball = {
@@ -596,10 +779,11 @@ export default function PlinkoPage() {
       bounceCount: 0,
       slotBouncing: false,
       resultRecorded: false,
+      betAmount: amount, // Track bet for this ball
     };
     
     ballsRef.current.push(ball);
-  }, [amount, balance]);
+  }, [canPlay, amount, risk]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -624,6 +808,16 @@ export default function PlinkoPage() {
       window.removeEventListener("resize", resizeCanvas);
     };
   }, [mounted, draw, calculatePegs]);
+
+  // Get play button text
+  const getPlayButtonText = () => {
+    if (!currentModeStatus.enabled) return "Risk Mode Locked";
+    if (!isRiskRowValid) return `Need ${RISK_ROW_REQUIREMENTS[risk]} rows`;
+    if (amount <= 0) return "Enter Amount";
+    if (amount > demoBalance) return "Insufficient Balance";
+    if (!betValidation.valid) return "Bet Too High";
+    return "Play";
+  };
 
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
@@ -662,13 +856,25 @@ export default function PlinkoPage() {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
               {/* Controls Panel */}
               <div className="lg:col-span-1 space-y-4">
-                {/* Mode Toggle */}
                 <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4">
                   {/* Demo Mode Indicator */}
                   <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-yellow-400">Demo Mode</span>
                       <span className="text-xs text-yellow-500/80">Not real funds</span>
+                    </div>
+                  </div>
+                  
+                  {/* Demo Pool Status */}
+                  <div className="mb-4 p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-purple-300">Demo Pool</span>
+                      <span className="text-sm font-bold text-purple-400">
+                        ${demoPoolBalance.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-purple-300/60">
+                      Available: ${(demoPoolBalance - reservedLiability).toFixed(2)}
                     </div>
                   </div>
 
@@ -697,9 +903,16 @@ export default function PlinkoPage() {
 
                   {/* Amount */}
                   <div className="mb-4">
-                    <label className="block text-sm text-[color:var(--text-muted)] mb-2">
-                      Amount
-                    </label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm text-[color:var(--text-muted)]">
+                        Amount
+                      </label>
+                      {currentModeStatus.enabled && (
+                        <span className="text-xs text-[color:var(--text-subtle)]">
+                          Max: ${currentModeStatus.maxBet.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
                     <div className="flex gap-2">
                       <div className="relative flex-1">
                         <Input
@@ -707,6 +920,8 @@ export default function PlinkoPage() {
                           value={amount || ""}
                           onChange={(e) => setAmount(Number(e.target.value) || 0)}
                           placeholder="0.00"
+                          min={MIN_BET}
+                          max={Math.min(demoBalance, currentModeStatus.maxBet)}
                           className="bg-[color:var(--surface-2)] border-[color:var(--border-soft)] pr-12"
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[color:var(--text-muted)]">
@@ -716,7 +931,7 @@ export default function PlinkoPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setAmount(Math.floor(amount / 2))}
+                        onClick={() => setAmount(Math.max(MIN_BET, Math.floor(amount / 2 * 100) / 100))}
                         className="border-[color:var(--border-soft)]"
                       >
                         ½
@@ -724,12 +939,18 @@ export default function PlinkoPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setAmount(Math.min(amount * 2, balance))}
+                        onClick={() => setAmount(Math.min(amount * 2, demoBalance, currentModeStatus.maxBet))}
                         className="border-[color:var(--border-soft)]"
                       >
                         2x
                       </Button>
                     </div>
+                    {!betValidation.valid && amount > 0 && (
+                      <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        {betValidation.error}
+                      </p>
+                    )}
                   </div>
 
                   {/* Risk */}
@@ -737,43 +958,74 @@ export default function PlinkoPage() {
                     <label className="block text-sm text-[color:var(--text-muted)] mb-2">
                       Risk
                     </label>
-                    <select
-                      value={risk}
-                      onChange={(e) => setRisk(e.target.value as "low" | "medium" | "high")}
-                      className="w-full px-3 py-2 bg-[color:var(--surface-2)] border border-[color:var(--border-soft)] rounded-lg text-[color:var(--text-strong)]"
-                    >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                    </select>
+                    <div className="grid grid-cols-3 gap-1 p-1 bg-[color:var(--surface-2)] rounded-lg">
+                      {(["low", "medium", "high"] as const).map((r) => {
+                        const modeStatus = riskModes[r];
+                        const isLocked = !modeStatus?.enabled;
+                        const isActive = risk === r;
+                        
+                        return (
+                          <button
+                            key={r}
+                            onClick={() => !isLocked && setRisk(r)}
+                            disabled={isLocked}
+                            className={`py-2 rounded-md text-sm font-medium transition relative ${
+                              isActive
+                                ? "bg-[color:var(--surface)] text-[color:var(--text-strong)] shadow"
+                                : isLocked
+                                ? "text-[color:var(--text-subtle)] opacity-50 cursor-not-allowed"
+                                : "text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
+                            }`}
+                          >
+                            {isLocked && <Lock className="h-3 w-3 absolute top-1 right-1" />}
+                            {r.charAt(0).toUpperCase() + r.slice(1)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {!riskModes[risk]?.enabled && (
+                      <p className="text-xs text-yellow-500 mt-2 flex items-center gap-1">
+                        <Lock className="h-3 w-3" />
+                        {riskModes[risk]?.reason || "Mode locked until pool grows"}
+                      </p>
+                    )}
                   </div>
 
                   {/* Rows */}
                   <div className="mb-4">
-                    <label className="block text-sm text-[color:var(--text-muted)] mb-2">
-                      Rows
-                    </label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm text-[color:var(--text-muted)]">
+                        Rows
+                      </label>
+                      <span className="text-xs text-[color:var(--text-subtle)]">
+                        Min: {RISK_ROW_REQUIREMENTS[risk]} for {risk} risk
+                      </span>
+                    </div>
                     <select
                       value={rows}
                       onChange={(e) => setRows(Number(e.target.value))}
                       className="w-full px-3 py-2 bg-[color:var(--surface-2)] border border-[color:var(--border-soft)] rounded-lg text-[color:var(--text-strong)]"
                     >
-                      {ROW_OPTIONS.map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
-                      ))}
+                      {ROW_OPTIONS.map((r) => {
+                        const isDisabled = r < RISK_ROW_REQUIREMENTS[risk];
+                        return (
+                          <option key={r} value={r} disabled={isDisabled}>
+                            {r} {isDisabled ? "(locked)" : ""}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
                   {/* Play Button */}
                   <Button
                     onClick={dropBall}
-                    disabled={amount <= 0 || amount > balance}
-                    className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-6 text-lg"
+                    disabled={!canPlay}
+                    className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   >
+                    {!canPlay && <Lock className="h-4 w-4 mr-2" />}
                     <Play className="h-5 w-5 mr-2" />
-                    Play
+                    {getPlayButtonText()}
                   </Button>
 
                   {/* Balance */}
@@ -781,7 +1033,7 @@ export default function PlinkoPage() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-[color:var(--text-muted)]">Demo Balance</span>
                       <span className="font-bold text-yellow-400">
-                        ${balance.toFixed(2)}
+                        ${demoBalance.toFixed(2)}
                       </span>
                     </div>
                   </div>
