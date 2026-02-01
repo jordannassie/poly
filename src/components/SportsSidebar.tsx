@@ -27,9 +27,9 @@ const topMenu = [
   { id: "futures", label: "Futures", icon: <BarChart3 className="h-4 w-4" />, href: "/sports" },
 ];
 
-// Games menu
+// Games menu - Plinko only
 const gamesMenu = [
-  { id: "plinko", label: "Plinko", icon: <CircleDot className="h-4 w-4" />, href: "/games/plinko", enabled: true },
+  { id: "plinko", label: "Plinko", icon: <CircleDot className="h-4 w-4" />, href: "/crypto/plinko", enabled: true },
 ];
 
 // Sidebar content component (shared between desktop and mobile)

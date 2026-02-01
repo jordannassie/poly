@@ -6,7 +6,10 @@ import { SportsSidebar } from "@/components/SportsSidebar";
 import { MainFooter } from "@/components/MainFooter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
+import { Play, RotateCcw, RefreshCw } from "lucide-react";
+
+// Demo Mode Configuration
+const DEMO_START_BALANCE = 5000;
 
 // Plinko configuration
 const RISK_MULTIPLIERS: Record<string, number[]> = {
@@ -34,7 +37,7 @@ interface Peg {
   x: number;
   y: number;
   radius: number;
-  glow: number; // 0-1 for hit effect
+  glow: number;
 }
 
 interface GameResult {
@@ -74,20 +77,58 @@ export default function PlinkoPage() {
   const nextBallId = useRef(0);
   
   const [mounted, setMounted] = useState(false);
-  const [amount, setAmount] = useState<number>(0);
+  const [amount, setAmount] = useState<number>(10);
   const [risk, setRisk] = useState<"low" | "medium" | "high">("medium");
   const [rows, setRows] = useState(16);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [balance, setBalance] = useState(1000);
   const [results, setResults] = useState<GameResult[]>([]);
-  const [soundEnabled, setSoundEnabled] = useState(true);
   const [isAutoMode, setIsAutoMode] = useState(false);
+  
+  // Demo Mode State
+  const [isDemoMode, setIsDemoMode] = useState(true);
+  const [demoBalance, setDemoBalance] = useState(DEMO_START_BALANCE);
 
   // Track when component is mounted
   useEffect(() => {
     setMounted(true);
+    
+    // Load demo balance from localStorage
+    const savedDemoBalance = localStorage.getItem("plinko_demo_balance");
+    if (savedDemoBalance) {
+      setDemoBalance(parseFloat(savedDemoBalance));
+    }
+    
+    // Load demo mode preference
+    const savedDemoMode = localStorage.getItem("plinko_demo_mode");
+    if (savedDemoMode !== null) {
+      setIsDemoMode(savedDemoMode === "true");
+    }
+    
     return () => setMounted(false);
   }, []);
+  
+  // Save demo balance to localStorage
+  useEffect(() => {
+    if (mounted) {
+      localStorage.setItem("plinko_demo_balance", demoBalance.toString());
+    }
+  }, [demoBalance, mounted]);
+  
+  // Save demo mode preference
+  useEffect(() => {
+    if (mounted) {
+      localStorage.setItem("plinko_demo_mode", isDemoMode.toString());
+    }
+  }, [isDemoMode, mounted]);
+  
+  // Current balance based on mode
+  const balance = demoBalance;
+  
+  // Reset demo balance
+  const resetDemo = () => {
+    setDemoBalance(DEMO_START_BALANCE);
+    setResults([]);
+  };
   
   // Calculate multipliers based on rows
   const getMultipliers = useCallback(() => {
@@ -177,7 +218,6 @@ export default function PlinkoPage() {
     
     // Draw pegs with glow effect
     pegsRef.current.forEach((peg) => {
-      // Glow effect
       if (peg.glow > 0) {
         const glowGradient = ctx.createRadialGradient(peg.x, peg.y, 0, peg.x, peg.y, peg.radius * 4);
         glowGradient.addColorStop(0, `rgba(251, 191, 36, ${peg.glow * 0.8})`);
@@ -187,16 +227,10 @@ export default function PlinkoPage() {
         ctx.beginPath();
         ctx.arc(peg.x, peg.y, peg.radius * 4, 0, Math.PI * 2);
         ctx.fill();
-        
-        // Decay glow
         peg.glow = Math.max(0, peg.glow - 0.08);
       }
       
-      // Draw peg with gradient
-      const pegGradient = ctx.createRadialGradient(
-        peg.x - 1, peg.y - 1, 0,
-        peg.x, peg.y, peg.radius
-      );
+      const pegGradient = ctx.createRadialGradient(peg.x - 1, peg.y - 1, 0, peg.x, peg.y, peg.radius);
       pegGradient.addColorStop(0, "#ffffff");
       pegGradient.addColorStop(0.7, "#e0e0e0");
       pegGradient.addColorStop(1, "#a0a0a0");
@@ -205,18 +239,7 @@ export default function PlinkoPage() {
       ctx.arc(peg.x, peg.y, peg.radius, 0, Math.PI * 2);
       ctx.fillStyle = pegGradient;
       ctx.fill();
-      
-      // Peg shadow
-      ctx.shadowColor = "rgba(0,0,0,0.3)";
-      ctx.shadowBlur = 3;
-      ctx.shadowOffsetX = 1;
-      ctx.shadowOffsetY = 1;
     });
-    
-    ctx.shadowColor = "transparent";
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
     
     // Draw slots at bottom with rounded corners
     const baseWidth = width * 0.85;
@@ -231,32 +254,26 @@ export default function PlinkoPage() {
       const w = slotWidth - 4;
       const color = getMultiplierColor(mult);
       
-      // Slot shadow
       ctx.shadowColor = "rgba(0,0,0,0.4)";
       ctx.shadowBlur = 6;
       ctx.shadowOffsetY = 2;
       
-      // Draw rounded rectangle
       drawRoundRect(ctx, x, slotY, w, slotHeight, cornerRadius);
       
-      // Gradient fill
       const slotGradient = ctx.createLinearGradient(x, slotY, x, slotY + slotHeight);
       slotGradient.addColorStop(0, color);
       slotGradient.addColorStop(1, adjustColor(color, -30));
       ctx.fillStyle = slotGradient;
       ctx.fill();
       
-      // Reset shadow
       ctx.shadowColor = "transparent";
       ctx.shadowBlur = 0;
       ctx.shadowOffsetY = 0;
       
-      // Highlight at top
       drawRoundRect(ctx, x, slotY, w, slotHeight / 3, cornerRadius);
       ctx.fillStyle = "rgba(255,255,255,0.2)";
       ctx.fill();
       
-      // Multiplier text
       ctx.fillStyle = "#ffffff";
       ctx.font = "bold 11px system-ui";
       ctx.textAlign = "center";
@@ -270,12 +287,10 @@ export default function PlinkoPage() {
       
       ctx.globalAlpha = ball.opacity;
       
-      // Ball shadow
       ctx.shadowColor = "rgba(0,0,0,0.5)";
       ctx.shadowBlur = 8;
       ctx.shadowOffsetY = 3;
       
-      // Ball gradient
       const ballGradient = ctx.createRadialGradient(
         ball.x - ball.radius * 0.3,
         ball.y - ball.radius * 0.3,
@@ -294,7 +309,6 @@ export default function PlinkoPage() {
       ctx.fillStyle = ballGradient;
       ctx.fill();
       
-      // Ball highlight
       ctx.beginPath();
       ctx.arc(ball.x - ball.radius * 0.3, ball.y - ball.radius * 0.3, ball.radius * 0.3, 0, Math.PI * 2);
       ctx.fillStyle = "rgba(255,255,255,0.6)";
@@ -307,7 +321,6 @@ export default function PlinkoPage() {
     });
   }, [rows, multipliers]);
 
-  // Helper to adjust color brightness
   function adjustColor(hex: string, amount: number): string {
     const num = parseInt(hex.slice(1), 16);
     const r = Math.min(255, Math.max(0, (num >> 16) + amount));
@@ -329,29 +342,20 @@ export default function PlinkoPage() {
     const gravity = 0.25;
     const friction = 0.99;
     const bounciness = 0.7;
-    const ballRadius = 8;
     
-    // Update balls
     ballsRef.current = ballsRef.current.map((ball) => {
       if (!ball.active) {
-        // Fade out landed balls
         if (ball.landed) {
           ball.opacity = Math.max(0, ball.opacity - 0.05);
         }
         return ball;
       }
       
-      // Apply gravity
       ball.vy += gravity;
-      
-      // Apply friction
       ball.vx *= friction;
-      
-      // Update position
       ball.x += ball.vx;
       ball.y += ball.vy;
       
-      // Check collision with pegs
       pegsRef.current.forEach((peg) => {
         const dx = ball.x - peg.x;
         const dy = ball.y - peg.y;
@@ -359,29 +363,23 @@ export default function PlinkoPage() {
         const minDist = ball.radius + peg.radius;
         
         if (dist < minDist) {
-          // Collision detected - activate peg glow
           peg.glow = 1;
           
-          // Calculate collision normal
           const nx = dx / dist;
           const ny = dy / dist;
           
-          // Separate balls from peg
           const overlap = minDist - dist;
           ball.x += nx * overlap;
           ball.y += ny * overlap;
           
-          // Reflect velocity
           const dot = ball.vx * nx + ball.vy * ny;
           ball.vx = (ball.vx - 2 * dot * nx) * bounciness;
           ball.vy = (ball.vy - 2 * dot * ny) * bounciness;
           
-          // Add some randomness
           ball.vx += (Math.random() - 0.5) * 1.5;
         }
       });
       
-      // Wall boundaries
       const minX = (width - baseWidth) / 2 + ball.radius;
       const maxX = (width + baseWidth) / 2 - ball.radius;
       
@@ -394,7 +392,6 @@ export default function PlinkoPage() {
         ball.vx = -Math.abs(ball.vx) * bounciness;
       }
       
-      // Check if ball has reached the slots
       if (ball.y >= slotY - ball.radius && !ball.landed) {
         ball.landed = true;
         ball.landedTime = Date.now();
@@ -402,17 +399,16 @@ export default function PlinkoPage() {
         ball.vy = 0;
         ball.vx = 0;
         
-        // Calculate which slot
         const slotWidth = baseWidth / multipliers.length;
         const slotStartX = (width - baseWidth) / 2;
         const slotIndex = Math.floor((ball.x - slotStartX) / slotWidth);
         const clampedIndex = Math.max(0, Math.min(multipliers.length - 1, slotIndex));
         
-        // Calculate winnings
         const multiplier = multipliers[clampedIndex];
         const profit = amount * multiplier - amount;
         
-        setBalance((prev) => prev + amount * multiplier);
+        // Update demo balance
+        setDemoBalance((prev) => Math.round((prev + amount * multiplier) * 100) / 100);
         setResults((prev) => [
           { multiplier, amount, profit, time: new Date() },
           ...prev.slice(0, 9),
@@ -422,7 +418,6 @@ export default function PlinkoPage() {
       return ball;
     });
     
-    // Remove fully faded balls
     ballsRef.current = ballsRef.current.filter(
       (ball) => ball.active || ball.opacity > 0
     );
@@ -435,7 +430,6 @@ export default function PlinkoPage() {
     animationRef.current = requestAnimationFrame(animate);
   }, [multipliers, amount, draw]);
 
-  // Start animation loop
   useEffect(() => {
     if (!mounted) return;
     
@@ -456,14 +450,14 @@ export default function PlinkoPage() {
     };
   }, [mounted, animate, draw, calculatePegs]);
 
-  // Drop a ball
   const dropBall = useCallback(() => {
     if (amount <= 0 || amount > balance) return;
     
     const canvas = canvasRef.current;
     if (!canvas) return;
     
-    setBalance((prev) => prev - amount);
+    // Deduct from demo balance
+    setDemoBalance((prev) => Math.round((prev - amount) * 100) / 100);
     setIsPlaying(true);
     
     const ball: Ball = {
@@ -482,7 +476,6 @@ export default function PlinkoPage() {
     ballsRef.current.push(ball);
   }, [amount, balance]);
 
-  // Handle canvas resize
   useEffect(() => {
     if (!mounted) return;
     
@@ -526,14 +519,6 @@ export default function PlinkoPage() {
                   Drop the ball and win up to 110x
                 </p>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                className="text-[color:var(--text-muted)]"
-              >
-                {soundEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
-              </Button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -541,6 +526,14 @@ export default function PlinkoPage() {
               <div className="lg:col-span-1 space-y-4">
                 {/* Mode Toggle */}
                 <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4">
+                  {/* Demo Mode Indicator */}
+                  <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-yellow-400">Demo Mode</span>
+                      <span className="text-xs text-yellow-500/80">Not real funds</span>
+                    </div>
+                  </div>
+
                   <div className="flex gap-2 p-1 bg-[color:var(--surface-2)] rounded-lg mb-4">
                     <button
                       onClick={() => setIsAutoMode(false)}
@@ -648,12 +641,22 @@ export default function PlinkoPage() {
                   {/* Balance */}
                   <div className="mt-4 p-3 bg-[color:var(--surface-2)] rounded-lg">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-[color:var(--text-muted)]">Balance</span>
-                      <span className="font-bold text-[color:var(--text-strong)]">
+                      <span className="text-sm text-[color:var(--text-muted)]">Demo Balance</span>
+                      <span className="font-bold text-yellow-400">
                         ${balance.toFixed(2)}
                       </span>
                     </div>
                   </div>
+
+                  {/* Reset Demo Button */}
+                  <Button
+                    onClick={resetDemo}
+                    variant="outline"
+                    className="w-full mt-2 border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Reset Demo ($5,000)
+                  </Button>
                 </div>
               </div>
 

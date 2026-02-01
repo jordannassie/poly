@@ -309,12 +309,12 @@ export function TopNav() {
                       <span className="font-medium">Sports</span>
                     </Link>
                     <Link
-                      href="/games"
+                      href="/crypto/plinko"
                       onClick={() => setMobileMenuOpen(false)}
                       className="flex items-center gap-3 px-3 py-3 rounded-lg text-[color:var(--text-muted)] hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-strong)] transition"
                     >
                       <Gamepad2 className="h-5 w-5 text-purple-500" />
-                      <span className="font-medium">Games</span>
+                      <span className="font-medium">Plinko</span>
                     </Link>
                     <Link
                       href="/leaderboard"
