@@ -6,7 +6,7 @@ import { SportsSidebar } from "@/components/SportsSidebar";
 import { MainFooter } from "@/components/MainFooter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Play, RotateCcw, RefreshCw } from "lucide-react";
+import { Play, RotateCcw, RefreshCw, Volume2, VolumeX } from "lucide-react";
 
 // Demo Mode Configuration
 const DEMO_START_BALANCE = 5000;
@@ -31,6 +31,9 @@ interface Ball {
   opacity: number;
   landed: boolean;
   landedTime: number;
+  bounceCount: number;
+  slotBouncing: boolean;
+  resultRecorded: boolean;
 }
 
 interface Peg {
@@ -75,6 +78,7 @@ export default function PlinkoPage() {
   const ballsRef = useRef<Ball[]>([]);
   const pegsRef = useRef<Peg[]>([]);
   const nextBallId = useRef(0);
+  const audioContextRef = useRef<AudioContext | null>(null);
   
   const [mounted, setMounted] = useState(false);
   const [amount, setAmount] = useState<number>(10);
@@ -83,10 +87,58 @@ export default function PlinkoPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [results, setResults] = useState<GameResult[]>([]);
   const [isAutoMode, setIsAutoMode] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
   
   // Demo Mode State
   const [isDemoMode, setIsDemoMode] = useState(true);
   const [demoBalance, setDemoBalance] = useState(DEMO_START_BALANCE);
+
+  // Initialize audio context
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      audioContextRef.current = new (window.AudioContext || (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    }
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+    };
+  }, []);
+
+  // Play sound effect
+  const playSound = useCallback((type: "peg" | "slot" | "win") => {
+    if (!soundEnabled || !audioContextRef.current) return;
+    
+    const ctx = audioContextRef.current;
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    if (type === "peg") {
+      oscillator.frequency.value = 800 + Math.random() * 400;
+      oscillator.type = "sine";
+      gainNode.gain.setValueAtTime(0.05, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+      oscillator.start(ctx.currentTime);
+      oscillator.stop(ctx.currentTime + 0.05);
+    } else if (type === "slot") {
+      oscillator.frequency.value = 300;
+      oscillator.type = "triangle";
+      gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      oscillator.start(ctx.currentTime);
+      oscillator.stop(ctx.currentTime + 0.15);
+    } else if (type === "win") {
+      oscillator.frequency.value = 523.25;
+      oscillator.type = "sine";
+      gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      oscillator.start(ctx.currentTime);
+      oscillator.stop(ctx.currentTime + 0.3);
+    }
+  }, [soundEnabled]);
 
   // Track when component is mounted
   useEffect(() => {
@@ -102,6 +154,12 @@ export default function PlinkoPage() {
     const savedDemoMode = localStorage.getItem("plinko_demo_mode");
     if (savedDemoMode !== null) {
       setIsDemoMode(savedDemoMode === "true");
+    }
+    
+    // Load sound preference
+    const savedSound = localStorage.getItem("plinko_sound_enabled");
+    if (savedSound !== null) {
+      setSoundEnabled(savedSound === "true");
     }
     
     return () => setMounted(false);
@@ -120,6 +178,13 @@ export default function PlinkoPage() {
       localStorage.setItem("plinko_demo_mode", isDemoMode.toString());
     }
   }, [isDemoMode, mounted]);
+  
+  // Save sound preference
+  useEffect(() => {
+    if (mounted) {
+      localStorage.setItem("plinko_sound_enabled", soundEnabled.toString());
+    }
+  }, [soundEnabled, mounted]);
   
   // Current balance based on mode
   const balance = demoBalance;
@@ -338,24 +403,72 @@ export default function PlinkoPage() {
     const height = canvas.height;
     const baseWidth = width * 0.85;
     const slotY = height - 55;
+    const slotBottom = slotY + 40;
     
     const gravity = 0.25;
     const friction = 0.99;
     const bounciness = 0.7;
+    const slotBounciness = 0.5;
     
     ballsRef.current = ballsRef.current.map((ball) => {
-      if (!ball.active) {
+      // Ball is done bouncing, fade out
+      if (!ball.active && !ball.slotBouncing) {
         if (ball.landed) {
           ball.opacity = Math.max(0, ball.opacity - 0.05);
         }
         return ball;
       }
       
+      // Ball is bouncing in slot
+      if (ball.slotBouncing) {
+        ball.vy += gravity * 0.8;
+        ball.vx *= 0.95;
+        ball.x += ball.vx;
+        ball.y += ball.vy;
+        
+        // Bounce off slot bottom
+        if (ball.y >= slotBottom - ball.radius) {
+          ball.y = slotBottom - ball.radius;
+          ball.vy = -Math.abs(ball.vy) * slotBounciness;
+          ball.bounceCount++;
+          playSound("slot");
+          
+          // Stop bouncing after 3-4 bounces
+          if (ball.bounceCount >= 3 || Math.abs(ball.vy) < 1) {
+            ball.slotBouncing = false;
+            ball.active = false;
+            ball.landed = true;
+            ball.landedTime = Date.now();
+          }
+        }
+        
+        // Keep ball within its slot
+        const slotWidth = baseWidth / multipliers.length;
+        const slotStartX = (width - baseWidth) / 2;
+        const slotIndex = Math.floor((ball.x - slotStartX) / slotWidth);
+        const clampedIndex = Math.max(0, Math.min(multipliers.length - 1, slotIndex));
+        const slotLeft = slotStartX + clampedIndex * slotWidth + 4;
+        const slotRight = slotLeft + slotWidth - 8;
+        
+        if (ball.x < slotLeft + ball.radius) {
+          ball.x = slotLeft + ball.radius;
+          ball.vx = Math.abs(ball.vx) * 0.5;
+        }
+        if (ball.x > slotRight - ball.radius) {
+          ball.x = slotRight - ball.radius;
+          ball.vx = -Math.abs(ball.vx) * 0.5;
+        }
+        
+        return ball;
+      }
+      
+      // Normal ball physics (falling through pegs)
       ball.vy += gravity;
       ball.vx *= friction;
       ball.x += ball.vx;
       ball.y += ball.vy;
       
+      // Collision with pegs
       pegsRef.current.forEach((peg) => {
         const dx = ball.x - peg.x;
         const dy = ball.y - peg.y;
@@ -364,6 +477,7 @@ export default function PlinkoPage() {
         
         if (dist < minDist) {
           peg.glow = 1;
+          playSound("peg");
           
           const nx = dx / dist;
           const ny = dy / dist;
@@ -380,6 +494,7 @@ export default function PlinkoPage() {
         }
       });
       
+      // Wall boundaries
       const minX = (width - baseWidth) / 2 + ball.radius;
       const maxX = (width + baseWidth) / 2 - ball.radius;
       
@@ -392,13 +507,13 @@ export default function PlinkoPage() {
         ball.vx = -Math.abs(ball.vx) * bounciness;
       }
       
-      if (ball.y >= slotY - ball.radius && !ball.landed) {
-        ball.landed = true;
-        ball.landedTime = Date.now();
-        ball.active = false;
-        ball.vy = 0;
-        ball.vx = 0;
+      // Ball enters slot - start bouncing animation
+      if (ball.y >= slotY - ball.radius && !ball.slotBouncing && !ball.resultRecorded) {
+        ball.slotBouncing = true;
+        ball.bounceCount = 0;
+        ball.vy = Math.abs(ball.vy) * 0.6; // Reduce velocity for slot bounce
         
+        // Record the result
         const slotWidth = baseWidth / multipliers.length;
         const slotStartX = (width - baseWidth) / 2;
         const slotIndex = Math.floor((ball.x - slotStartX) / slotWidth);
@@ -406,6 +521,13 @@ export default function PlinkoPage() {
         
         const multiplier = multipliers[clampedIndex];
         const profit = amount * multiplier - amount;
+        
+        ball.resultRecorded = true;
+        
+        // Play win sound for good multipliers
+        if (multiplier >= 2) {
+          playSound("win");
+        }
         
         // Update demo balance
         setDemoBalance((prev) => Math.round((prev + amount * multiplier) * 100) / 100);
@@ -419,7 +541,7 @@ export default function PlinkoPage() {
     });
     
     ballsRef.current = ballsRef.current.filter(
-      (ball) => ball.active || ball.opacity > 0
+      (ball) => ball.active || ball.slotBouncing || ball.opacity > 0
     );
     
     if (ballsRef.current.length === 0) {
@@ -428,7 +550,7 @@ export default function PlinkoPage() {
     
     draw();
     animationRef.current = requestAnimationFrame(animate);
-  }, [multipliers, amount, draw]);
+  }, [multipliers, amount, draw, playSound]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -471,6 +593,9 @@ export default function PlinkoPage() {
       opacity: 1,
       landed: false,
       landedTime: 0,
+      bounceCount: 0,
+      slotBouncing: false,
+      resultRecorded: false,
     };
     
     ballsRef.current.push(ball);
@@ -519,6 +644,19 @@ export default function PlinkoPage() {
                   Drop the ball and win up to 110x
                 </p>
               </div>
+              {/* Sound Toggle */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                className="text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
+              >
+                {soundEnabled ? (
+                  <Volume2 className="h-5 w-5" />
+                ) : (
+                  <VolumeX className="h-5 w-5" />
+                )}
+              </Button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
