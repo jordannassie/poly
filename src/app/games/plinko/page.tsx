@@ -105,6 +105,14 @@ function adjustColor(hex: string, amount: number): string {
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
 }
 
+interface ModeInfo {
+  mode: PlinkoMode;
+  maxMultiplier: number;
+  enabled: boolean;
+  maxBet: number;
+  reason?: string;
+}
+
 export default function PlinkoGamePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | null>(null);
@@ -114,10 +122,15 @@ export default function PlinkoGamePage() {
   
   const [mounted, setMounted] = useState(false);
   const [amount, setAmount] = useState<number>(1);
-  const [mode, setMode] = useState<PlinkoMode>("medium");
+  const [mode, setMode] = useState<PlinkoMode>("low"); // Start with low (most likely available)
   const [isPlaying, setIsPlaying] = useState(false);
   const [balance, setBalance] = useState<number>(0);
-  const [maxBet, setMaxBet] = useState<number>(10);
+  const [modes, setModes] = useState<ModeInfo[]>([
+    { mode: "low", maxMultiplier: 2, enabled: false, maxBet: 0 },
+    { mode: "medium", maxMultiplier: 10, enabled: false, maxBet: 0 },
+    { mode: "high", maxMultiplier: 25, enabled: false, maxBet: 0 },
+  ]);
+  const [poolBalance, setPoolBalance] = useState<number>(0);
   const [history, setHistory] = useState<GameHistory[]>([]);
   const [session, setSession] = useState<GameSession | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -128,6 +141,10 @@ export default function PlinkoGamePage() {
 
   const rows = 16;
   const multipliers = MULTIPLIER_TABLES[mode];
+  
+  // Get current mode info
+  const currentModeInfo = modes.find(m => m.mode === mode) || modes[0];
+  const maxBet = currentModeInfo.maxBet;
 
   // Track when component is mounted
   useEffect(() => {
@@ -135,13 +152,13 @@ export default function PlinkoGamePage() {
     return () => setMounted(false);
   }, []);
 
-  // Fetch initial balance and session
+  // Fetch initial balance, pool status, and session
   useEffect(() => {
     if (!mounted) return;
     
     async function init() {
       try {
-        // Fetch balance
+        // Fetch balance and pool status
         const balRes = await fetch("/api/games/balance", {
           headers: { "x-demo-mode": "true" }
         });
@@ -149,8 +166,16 @@ export default function PlinkoGamePage() {
         if (balData.balance !== undefined) {
           setBalance(balData.balance);
         }
-        if (balData.limits?.maxBetsByMode) {
-          setMaxBet(balData.limits.maxBetsByMode[mode] || 10);
+        if (balData.pool?.balance !== undefined) {
+          setPoolBalance(balData.pool.balance);
+        }
+        if (balData.modes) {
+          setModes(balData.modes);
+          // Auto-select first available mode
+          const firstEnabled = balData.modes.find((m: ModeInfo) => m.enabled);
+          if (firstEnabled && !modes.find(m => m.mode === mode)?.enabled) {
+            setMode(firstEnabled.mode);
+          }
         }
         
         // Fetch session
@@ -167,7 +192,7 @@ export default function PlinkoGamePage() {
     }
     
     init();
-  }, [mounted, mode]);
+  }, [mounted]);
 
   // Get color for multiplier
   const getMultiplierColor = (multiplier: number) => {
@@ -497,8 +522,15 @@ export default function PlinkoGamePage() {
       
       // Update state
       setBalance(data.balance);
-      if (data.maxBet) setMaxBet(data.maxBet);
       if (data.session) setSession(data.session);
+      
+      // Update pool status and mode availability
+      if (data.poolStatus) {
+        setPoolBalance(data.poolStatus.balance || 0);
+        if (data.poolStatus.modes) {
+          setModes(data.poolStatus.modes);
+        }
+      }
       
       // Add to history
       setHistory(prev => [{
@@ -550,6 +582,18 @@ export default function PlinkoGamePage() {
       const data = await res.json();
       if (data.balance !== undefined) {
         setBalance(data.balance);
+      }
+      
+      // Refresh pool status after adding funds
+      const balRes = await fetch("/api/games/balance", {
+        headers: { "x-demo-mode": "true" }
+      });
+      const balData = await balRes.json();
+      if (balData.pool?.balance !== undefined) {
+        setPoolBalance(balData.pool.balance);
+      }
+      if (balData.modes) {
+        setModes(balData.modes);
       }
     } catch (err) {
       console.error("Add funds error:", err);
@@ -618,24 +662,52 @@ export default function PlinkoGamePage() {
           {/* Controls Panel */}
           <div className="lg:col-span-1 space-y-4">
             <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4">
+              {/* Pool Status */}
+              <div className="mb-4 p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-purple-300">Pool Balance</span>
+                  <span className="font-bold text-purple-400">${poolBalance.toFixed(2)}</span>
+                </div>
+                {poolBalance === 0 && (
+                  <p className="text-[10px] text-purple-300/70 mt-1">
+                    Pool grows from player losses. Higher modes unlock as pool grows.
+                  </p>
+                )}
+              </div>
+
               {/* Mode Toggle */}
               <div className="mb-4">
                 <label className="block text-sm text-[color:var(--text-muted)] mb-2">Risk Level</label>
                 <div className="flex gap-1 p-1 bg-[color:var(--surface-2)] rounded-lg">
-                  {(["low", "medium", "high"] as PlinkoMode[]).map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => setMode(m)}
-                      className={`flex-1 py-2 rounded-md text-sm font-medium transition capitalize ${
-                        mode === m
-                          ? "bg-[color:var(--surface)] text-[color:var(--text-strong)] shadow"
-                          : "text-[color:var(--text-muted)]"
-                      }`}
-                    >
-                      {m}
-                    </button>
-                  ))}
+                  {modes.map((modeInfo) => {
+                    const isSelected = mode === modeInfo.mode;
+                    const isEnabled = modeInfo.enabled;
+                    
+                    return (
+                      <button
+                        key={modeInfo.mode}
+                        onClick={() => isEnabled && setMode(modeInfo.mode)}
+                        disabled={!isEnabled}
+                        title={!isEnabled ? modeInfo.reason : `Max ${modeInfo.maxMultiplier}x`}
+                        className={`flex-1 py-2 rounded-md text-sm font-medium transition capitalize ${
+                          isSelected && isEnabled
+                            ? "bg-[color:var(--surface)] text-[color:var(--text-strong)] shadow"
+                            : isEnabled
+                            ? "text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
+                            : "text-[color:var(--text-subtle)] opacity-50 cursor-not-allowed"
+                        }`}
+                      >
+                        <span>{modeInfo.mode}</span>
+                        {!isEnabled && <span className="block text-[10px]">🔒</span>}
+                      </button>
+                    );
+                  })}
                 </div>
+                {!currentModeInfo.enabled && (
+                  <p className="text-xs text-yellow-500 mt-2">
+                    {currentModeInfo.reason || "Mode unavailable"}
+                  </p>
+                )}
               </div>
 
               {/* Amount */}
@@ -688,15 +760,15 @@ export default function PlinkoGamePage() {
               {/* Play Button */}
               <Button
                 onClick={dropBall}
-                disabled={amount <= 0 || amount > balance || amount > maxBet || loading}
-                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-6 text-lg"
+                disabled={!currentModeInfo.enabled || amount <= 0 || amount > balance || amount > maxBet || loading}
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                 ) : (
                   <Play className="h-5 w-5 mr-2" />
                 )}
-                {loading ? "Playing..." : "Drop Ball"}
+                {loading ? "Playing..." : !currentModeInfo.enabled ? "Mode Locked" : "Drop Ball"}
               </Button>
 
               {/* Balance */}

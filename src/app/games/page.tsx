@@ -22,7 +22,7 @@ export default function GamesPage() {
         </div>
 
         {/* Features */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
           <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-6 text-center">
             <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-green-500/10 flex items-center justify-center">
               <Shield className="h-6 w-6 text-green-500" />
@@ -48,6 +48,15 @@ export default function GamesPage() {
             <h3 className="font-semibold mb-2">Instant Payouts</h3>
             <p className="text-sm text-[color:var(--text-muted)]">
               Winnings credited immediately to your balance
+            </p>
+          </div>
+          <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-6 text-center">
+            <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-yellow-500/10 flex items-center justify-center">
+              <Shield className="h-6 w-6 text-yellow-500" />
+            </div>
+            <h3 className="font-semibold mb-2">Never Negative</h3>
+            <p className="text-sm text-[color:var(--text-muted)]">
+              Pool-funded payouts. System can never go insolvent.
             </p>
           </div>
         </div>
@@ -107,18 +116,31 @@ export default function GamesPage() {
 
         {/* Transparency Section */}
         <div className="mt-12 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-6">
-          <h2 className="text-xl font-bold mb-4">Transparency</h2>
-          <p className="text-[color:var(--text-muted)] mb-4">
-            All game outcomes are determined using a provably fair system. Before each session, 
-            we commit to a server seed hash. You can verify that outcomes match the committed hash 
-            after each play.
-          </p>
+          <h2 className="text-xl font-bold mb-4">Transparency & Solvency</h2>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="font-semibold mb-2 text-green-400">Provably Fair</h3>
+              <p className="text-[color:var(--text-muted)] text-sm mb-4">
+                All game outcomes are determined using a cryptographic system. Before each session, 
+                we commit to a server seed hash. You can verify that outcomes match the committed hash 
+                after each play.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-semibold mb-2 text-yellow-400">Loss-Funded Pool</h3>
+              <p className="text-[color:var(--text-muted)] text-sm mb-4">
+                The games pool starts at $0 and is funded by player losses. Payouts can only come 
+                from the pool. Higher multiplier modes unlock as the pool grows. The system can 
+                never go negative or insolvent.
+              </p>
+            </div>
+          </div>
           <Link 
             href="/api/games/plinko/rtp" 
             target="_blank"
             className="text-purple-400 hover:text-purple-300 text-sm font-medium"
           >
-            View RTP calculations →
+            View RTP calculations & pool status →
           </Link>
         </div>
       </main>

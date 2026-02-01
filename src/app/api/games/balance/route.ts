@@ -4,13 +4,12 @@ import { cookies } from "next/headers";
 import {
   PLINKO_CONFIG,
   PlinkoMode,
-  calculateMaxBet,
-  getMaxMultiplier,
+  checkPoolSolvency,
 } from "@/lib/games/plinko-config";
 
 /**
  * GET /api/games/balance
- * Get user's game balance and treasury info
+ * Get user's game balance and pool status (for mode availability)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -51,20 +50,15 @@ export async function GET(request: NextRequest) {
       .eq("user_id", userId)
       .single();
     
-    // Get treasury balance (for max bet calculation)
-    const { data: treasuryData } = await supabase
-      .from("game_treasury")
-      .select("balance")
-      .single();
+    // Get pool status
+    const { data: poolStatus, error: poolError } = await supabase.rpc("get_pool_status");
     
     const userBalance = balanceData?.balance || 0;
-    const treasuryBalance = treasuryData?.balance || 0;
+    const poolBalance = poolStatus?.balance || 0;
+    const reservedLiability = poolStatus?.reserved_liability || 0;
     
-    // Calculate max bets for each mode
-    const modes: PlinkoMode[] = ["low", "medium", "high"];
-    const maxBets = Object.fromEntries(
-      modes.map(mode => [mode, calculateMaxBet(treasuryBalance, mode)])
-    );
+    // Calculate mode availability based on pool solvency
+    const solvency = checkPoolSolvency(poolBalance, reservedLiability);
     
     return NextResponse.json({
       balance: userBalance,
@@ -76,10 +70,16 @@ export async function GET(request: NextRequest) {
         playCount: balanceData.play_count,
         netProfit: balanceData.total_won - balanceData.total_wagered,
       } : null,
+      pool: {
+        balance: poolBalance,
+        available: solvency.availableToPay,
+        totalBets: poolStatus?.total_bets || 0,
+        totalPayouts: poolStatus?.total_payouts || 0,
+        playCount: poolStatus?.play_count || 0,
+      },
+      modes: solvency.modes,
       limits: {
         minBet: PLINKO_CONFIG.MIN_BET_USD,
-        maxPayoutCap: PLINKO_CONFIG.MAX_PAYOUT_CAP_USD,
-        maxBetsByMode: maxBets,
       },
     });
     
@@ -131,51 +131,20 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Upsert user balance
-    const { data, error } = await supabase
-      .from("game_balances")
-      .upsert(
-        {
-          user_id: userId,
-          balance: amount,
-          total_deposited: amount,
-        },
-        {
-          onConflict: "user_id",
-        }
-      )
-      .select()
-      .single();
+    // Add balance using function
+    const { data: newBalance, error } = await supabase.rpc("add_game_balance", {
+      p_user_id: userId,
+      p_amount: amount,
+    });
     
-    // If exists, add to balance instead
-    if (error?.code === "23505" || !data) {
-      const { data: updated, error: updateError } = await supabase
-        .from("game_balances")
-        .update({
-          balance: supabase.rpc("increment_balance", { amount }),
-          total_deposited: supabase.rpc("increment_deposited", { amount }),
-        })
-        .eq("user_id", userId)
-        .select()
-        .single();
-      
-      // Fallback: direct update
-      await supabase.rpc("add_game_balance", {
-        p_user_id: userId,
-        p_amount: amount,
-      }).then(() => {});
+    if (error) {
+      console.error("Add balance error:", error);
+      return NextResponse.json({ error: "Failed to add balance" }, { status: 500 });
     }
-    
-    // Get updated balance
-    const { data: balanceData } = await supabase
-      .from("game_balances")
-      .select("balance")
-      .eq("user_id", userId)
-      .single();
     
     return NextResponse.json({
       success: true,
-      balance: balanceData?.balance || amount,
+      balance: newBalance,
     });
     
   } catch (error) {

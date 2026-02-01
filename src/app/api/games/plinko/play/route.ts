@@ -6,9 +6,9 @@ import {
   PlinkoMode,
   MULTIPLIER_TABLES,
   getMaxMultiplier,
-  validateBet,
+  validateBetAgainstPool,
   getSlotFromRandom,
-  calculateMaxBet,
+  checkPoolSolvency,
 } from "@/lib/games/plinko-config";
 import {
   generateServerSeed,
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     // Round to 2 decimal places
     const bet = Math.round(betAmount * 100) / 100;
     
-    // Create Supabase client with service role for treasury access
+    // Create Supabase client with service role for pool access
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
@@ -92,10 +92,8 @@ export async function POST(request: NextRequest) {
     
     // For demo purposes, allow demo user
     if (!userId) {
-      // Check for demo mode header
       const demoMode = request.headers.get("x-demo-mode");
       if (demoMode === "true") {
-        // Use a fixed demo user ID
         userId = "00000000-0000-0000-0000-000000000001";
       } else {
         return NextResponse.json(
@@ -113,29 +111,38 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Get current treasury balance
-    const { data: treasuryData, error: treasuryError } = await supabase
-      .from("game_treasury")
-      .select("balance")
-      .single();
+    // Get current pool status
+    const { data: poolStatus, error: poolError } = await supabase.rpc("get_pool_status");
     
-    if (treasuryError || !treasuryData) {
-      console.error("Treasury error:", treasuryError);
+    if (poolError || !poolStatus) {
+      console.error("Pool status error:", poolError);
       return NextResponse.json(
-        { error: "Unable to verify treasury. Please try again." },
+        { error: "Unable to verify pool status. Please try again." },
         { status: 500 }
       );
     }
     
-    const treasuryBalance = Number(treasuryData.balance);
+    const poolBalance = Number(poolStatus.balance);
+    const reservedLiability = Number(poolStatus.reserved_liability);
     
-    // Validate bet against treasury
-    const validation = validateBet(bet, mode as PlinkoMode, treasuryBalance);
+    // ========================================
+    // CRITICAL: Validate bet against pool solvency
+    // ========================================
+    const validation = validateBetAgainstPool(bet, mode as PlinkoMode, poolBalance, reservedLiability);
+    
     if (!validation.valid) {
+      // Get available modes for response
+      const solvency = checkPoolSolvency(poolBalance, reservedLiability);
+      
       return NextResponse.json(
         { 
           error: validation.error,
-          maxBet: validation.maxBet
+          maxBet: validation.maxBet,
+          poolStatus: {
+            balance: poolBalance,
+            available: poolStatus.available_to_pay,
+            modes: solvency.modes,
+          }
         },
         { status: 400 }
       );
@@ -198,21 +205,24 @@ export async function POST(request: NextRequest) {
       getSlotFromRandom
     );
     
-    // Get multiplier and calculate payout
-    const multiplier = MULTIPLIER_TABLES[mode as PlinkoMode][slot];
-    const payout = Math.round(bet * multiplier * 100) / 100;
+    // Get multipliers
+    const maxMultiplier = getMaxMultiplier(mode as PlinkoMode);
+    const actualMultiplier = MULTIPLIER_TABLES[mode as PlinkoMode][slot];
     
-    // Execute the play atomically using database function
+    // ========================================
+    // Execute atomic play via database function
+    // This handles all safety checks and transactions atomically
+    // ========================================
     const { data: playResult, error: playError } = await supabase.rpc(
-      "execute_plinko_play",
+      "execute_plinko_play_atomic",
       {
         p_user_id: userId,
         p_session_id: session.id,
         p_mode: mode,
         p_bet_amount: bet,
+        p_max_multiplier: maxMultiplier,
         p_slot: slot,
-        p_multiplier: multiplier,
-        p_payout: payout,
+        p_actual_multiplier: actualMultiplier,
         p_server_seed_hash: session.server_seed_hash,
         p_client_seed: session.client_seed,
         p_nonce: session.nonce,
@@ -236,18 +246,19 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Calculate max bet for next play
-    const newTreasuryBalance = playResult.treasury_balance;
-    const maxBet = calculateMaxBet(newTreasuryBalance, mode as PlinkoMode);
+    // Get updated pool solvency for response
+    const newPoolBalance = playResult.pool_balance;
+    const newSolvency = checkPoolSolvency(newPoolBalance, 0); // Reserved was just released
     
-    // Return result (server seed is NOT revealed yet)
+    // Return result
     return NextResponse.json({
       success: true,
       play: {
-        slot,
-        multiplier,
-        payout,
-        profit: payout - bet,
+        id: playResult.play_id,
+        slot: playResult.slot,
+        multiplier: playResult.multiplier,
+        payout: playResult.payout,
+        profit: playResult.profit,
         betAmount: bet,
         mode,
       },
@@ -257,7 +268,10 @@ export async function POST(request: NextRequest) {
         nonce: session.nonce,
       },
       balance: playResult.user_balance,
-      maxBet,
+      poolStatus: {
+        balance: newPoolBalance,
+        modes: newSolvency.modes,
+      },
     });
     
   } catch (error) {

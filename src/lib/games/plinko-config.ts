@@ -1,11 +1,14 @@
 /**
  * Plinko Game Configuration
  * 
+ * CRITICAL SAFETY RULES:
+ * 1. Pool starts at $0.00 and can NEVER go negative
+ * 2. All payouts funded by previous losses (loss-funded model)
+ * 3. Max payout limited by current pool balance
+ * 4. High multiplier modes locked until pool has sufficient funds
+ * 
  * HOUSE EDGE: 4% (RTP = 96%)
  * All multiplier tables are mathematically verified to achieve this RTP.
- * 
- * Probabilities are based on binomial distribution for 16 rows:
- * P(k) = C(16,k) / 2^16 where k is the slot index (0-16)
  */
 
 export const PLINKO_CONFIG = {
@@ -15,11 +18,11 @@ export const PLINKO_CONFIG = {
   HOUSE_EDGE: 0.04,
   
   // Safety limits
-  MAX_PAYOUT_CAP_USD: 250,
   MIN_BET_USD: 0.10,
+  SAFETY_BUFFER: 0, // Additional buffer on top of reserved liability
   
-  // Treasury requirements
-  TREASURY_RESERVE_RATIO: 1.5, // Extra buffer on top of max payout
+  // Absolute max payout cap (even if pool is larger)
+  ABSOLUTE_MAX_PAYOUT_CAP: 10000,
 } as const;
 
 export type PlinkoMode = "low" | "medium" | "high";
@@ -149,52 +152,146 @@ export function verifyAllRTP(): { mode: PlinkoMode; rtp: number; valid: boolean 
 }
 
 /**
- * Calculate max bet based on treasury and mode
+ * Pool solvency check result
  */
-export function calculateMaxBet(treasuryBalance: number, mode: PlinkoMode): number {
-  const maxMultiplier = getMaxMultiplier(mode);
-  const maxFromTreasury = Math.floor(treasuryBalance / maxMultiplier * 100) / 100;
-  const maxFromCap = Math.floor(PLINKO_CONFIG.MAX_PAYOUT_CAP_USD / maxMultiplier * 100) / 100;
-  
-  return Math.min(maxFromTreasury, maxFromCap);
+export interface PoolSolvencyCheck {
+  poolBalance: number;
+  reservedLiability: number;
+  safetyBuffer: number;
+  availableToPay: number;
+  modes: {
+    mode: PlinkoMode;
+    maxMultiplier: number;
+    enabled: boolean;
+    maxBet: number;
+    reason?: string;
+  }[];
 }
 
 /**
- * Validate a bet can be covered by treasury
+ * Check which modes are available based on pool balance
+ * 
+ * CRITICAL: A mode is only enabled if the pool can cover its max payout
+ * 
+ * @param poolBalance Current pool balance
+ * @param reservedLiability Sum of max payouts for in-flight plays
+ * @param safetyBuffer Additional buffer (default 0)
  */
-export function validateBet(
+export function checkPoolSolvency(
+  poolBalance: number,
+  reservedLiability: number = 0,
+  safetyBuffer: number = PLINKO_CONFIG.SAFETY_BUFFER
+): PoolSolvencyCheck {
+  const availableToPay = Math.max(0, poolBalance - reservedLiability - safetyBuffer);
+  
+  const modes: PlinkoMode[] = ["low", "medium", "high"];
+  
+  const modeDetails = modes.map(mode => {
+    const maxMultiplier = getMaxMultiplier(mode);
+    
+    // Calculate max bet for this mode based on available funds
+    // maxBet * maxMultiplier <= availableToPay
+    let maxBet = Math.floor((availableToPay / maxMultiplier) * 100) / 100;
+    
+    // Apply absolute cap
+    const absoluteMaxBet = PLINKO_CONFIG.ABSOLUTE_MAX_PAYOUT_CAP / maxMultiplier;
+    maxBet = Math.min(maxBet, absoluteMaxBet);
+    
+    // Must be at least min bet to be enabled
+    const enabled = maxBet >= PLINKO_CONFIG.MIN_BET_USD;
+    
+    let reason: string | undefined;
+    if (!enabled) {
+      if (availableToPay < PLINKO_CONFIG.MIN_BET_USD * maxMultiplier) {
+        reason = `Pool needs $${(PLINKO_CONFIG.MIN_BET_USD * maxMultiplier).toFixed(2)} to enable`;
+      }
+    }
+    
+    return {
+      mode,
+      maxMultiplier,
+      enabled,
+      maxBet: enabled ? maxBet : 0,
+      reason,
+    };
+  });
+  
+  return {
+    poolBalance,
+    reservedLiability,
+    safetyBuffer,
+    availableToPay,
+    modes: modeDetails,
+  };
+}
+
+/**
+ * Validate a bet against pool solvency
+ * 
+ * CRITICAL: This check MUST pass before accepting ANY play
+ * 
+ * @returns Object with valid flag, error message, and suggested max bet
+ */
+export function validateBetAgainstPool(
   betAmount: number,
   mode: PlinkoMode,
-  treasuryBalance: number
-): { valid: boolean; error?: string; maxBet?: number } {
+  poolBalance: number,
+  reservedLiability: number = 0
+): { valid: boolean; error?: string; maxBet: number; maxPayout: number } {
+  // Check minimum bet
   if (betAmount < PLINKO_CONFIG.MIN_BET_USD) {
-    return { valid: false, error: `Minimum bet is $${PLINKO_CONFIG.MIN_BET_USD}` };
-  }
-  
-  const maxMultiplier = getMaxMultiplier(mode);
-  const maxPayout = betAmount * maxMultiplier;
-  
-  // Check treasury can cover max payout
-  if (maxPayout > treasuryBalance) {
-    const maxBet = calculateMaxBet(treasuryBalance, mode);
-    return { 
-      valid: false, 
-      error: `Max payout exceeds available treasury. Reduce bet to $${maxBet} or try later.`,
-      maxBet
-    };
-  }
-  
-  // Check payout cap
-  if (maxPayout > PLINKO_CONFIG.MAX_PAYOUT_CAP_USD) {
-    const maxBet = calculateMaxBet(treasuryBalance, mode);
     return {
       valid: false,
-      error: `Max payout exceeds $${PLINKO_CONFIG.MAX_PAYOUT_CAP_USD} cap. Reduce bet to $${maxBet}.`,
-      maxBet
+      error: `Minimum bet is $${PLINKO_CONFIG.MIN_BET_USD}`,
+      maxBet: 0,
+      maxPayout: 0,
     };
   }
   
-  return { valid: true };
+  const solvency = checkPoolSolvency(poolBalance, reservedLiability);
+  const modeInfo = solvency.modes.find(m => m.mode === mode);
+  
+  if (!modeInfo) {
+    return { valid: false, error: "Invalid mode", maxBet: 0, maxPayout: 0 };
+  }
+  
+  // Check if mode is available
+  if (!modeInfo.enabled) {
+    return {
+      valid: false,
+      error: modeInfo.reason || `${mode} mode unavailable - insufficient pool balance`,
+      maxBet: 0,
+      maxPayout: 0,
+    };
+  }
+  
+  const maxPayout = betAmount * modeInfo.maxMultiplier;
+  
+  // Check if pool can cover max payout
+  if (betAmount > modeInfo.maxBet) {
+    return {
+      valid: false,
+      error: `Max bet for ${mode} mode is $${modeInfo.maxBet.toFixed(2)} (pool limit)`,
+      maxBet: modeInfo.maxBet,
+      maxPayout: modeInfo.maxBet * modeInfo.maxMultiplier,
+    };
+  }
+  
+  // Additional safety: verify pool can absolutely cover max payout
+  if (maxPayout > solvency.availableToPay) {
+    return {
+      valid: false,
+      error: "Insufficient pool to cover potential payout",
+      maxBet: modeInfo.maxBet,
+      maxPayout: 0,
+    };
+  }
+  
+  return {
+    valid: true,
+    maxBet: modeInfo.maxBet,
+    maxPayout,
+  };
 }
 
 /**

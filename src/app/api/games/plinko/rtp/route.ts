@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import {
   PLINKO_CONFIG,
   MULTIPLIER_TABLES,
@@ -8,6 +9,7 @@ import {
   calculateRTP,
   getMaxMultiplier,
   verifyAllRTP,
+  checkPoolSolvency,
   PlinkoMode,
 } from "@/lib/games/plinko-config";
 
@@ -51,6 +53,38 @@ export async function GET() {
   const verification = verifyAllRTP();
   const allValid = verification.every(v => v.valid);
   
+  // Get pool status if Supabase is configured
+  let poolInfo = null;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (supabaseUrl && supabaseServiceKey) {
+    try {
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      const { data: poolStatus } = await supabase.rpc("get_pool_status");
+      
+      if (poolStatus) {
+        const solvency = checkPoolSolvency(
+          poolStatus.balance,
+          poolStatus.reserved_liability
+        );
+        
+        poolInfo = {
+          balance: poolStatus.balance,
+          availableToPay: solvency.availableToPay,
+          modeAvailability: solvency.modes.map(m => ({
+            mode: m.mode,
+            enabled: m.enabled,
+            maxBet: m.maxBet,
+            reason: m.reason,
+          })),
+        };
+      }
+    } catch (e) {
+      // Pool info is optional
+    }
+  }
+  
   return NextResponse.json({
     config: {
       rows: PLINKO_CONFIG.ROWS,
@@ -58,13 +92,23 @@ export async function GET() {
       rtpTolerance: PLINKO_CONFIG.RTP_TOLERANCE,
       houseEdge: PLINKO_CONFIG.HOUSE_EDGE,
       totalOutcomes: TOTAL_OUTCOMES,
-      maxPayoutCap: PLINKO_CONFIG.MAX_PAYOUT_CAP_USD,
+      absoluteMaxPayoutCap: PLINKO_CONFIG.ABSOLUTE_MAX_PAYOUT_CAP,
       minBet: PLINKO_CONFIG.MIN_BET_USD,
     },
     modes: modeDetails,
     verification: {
       allValid,
       details: verification,
+    },
+    pool: poolInfo,
+    solvencyModel: {
+      description: "Loss-funded pool model. Pool starts at $0 and can never go negative.",
+      rules: [
+        "Bets go into pool BEFORE outcome is determined",
+        "Payouts come FROM pool AFTER outcome",
+        "Max payout limited by pool balance minus reserved liability",
+        "Modes are dynamically enabled/disabled based on pool solvency",
+      ],
     },
     formula: {
       description: "RTP is calculated as: Σ P(k) × m[k] where P(k) = C(16,k) / 2^16",
