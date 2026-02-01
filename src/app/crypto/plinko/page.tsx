@@ -6,7 +6,20 @@ import { SportsSidebar } from "@/components/SportsSidebar";
 import { MainFooter } from "@/components/MainFooter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Play, RotateCcw, RefreshCw, Volume2, VolumeX, Lock, AlertTriangle } from "lucide-react";
+import { Play, RotateCcw, RefreshCw, Volume2, VolumeX, Lock, AlertTriangle, Info } from "lucide-react";
+
+// Import verified RTP math utilities
+import {
+  MULTIPLIER_TABLES,
+  getMultipliers,
+  getMaxMultiplier,
+  getAllowedRows,
+  getMinRows,
+  isValidCombination,
+  computeRtp,
+  printRtpVerification,
+  type RiskLevel,
+} from "@/lib/plinko-math";
 
 // =============================================================================
 // DEMO MODE CONFIGURATION - SAME RULES AS REAL MODE
@@ -15,28 +28,8 @@ const DEMO_START_BALANCE = 5000;
 const DEMO_POOL_START = 5000; // Demo pool starts with same amount
 const MIN_BET = 0.10;
 
-// Row restrictions by risk level
-const RISK_ROW_REQUIREMENTS: Record<string, number> = {
-  low: 12,    // Low risk: rows >= 12
-  medium: 14, // Medium risk: rows >= 14
-  high: 16,   // High risk: rows >= 16
-};
-
-// Max multipliers by risk (used for solvency checks)
-const MAX_MULTIPLIERS: Record<string, number> = {
-  low: 1.5,
-  medium: 5.6,
-  high: 110,
-};
-
-// Plinko configuration - multiplier tables
-const RISK_MULTIPLIERS: Record<string, number[]> = {
-  low: [1.5, 1.2, 1.1, 1, 0.5, 1, 1.1, 1.2, 1.5],
-  medium: [5.6, 2.1, 1.1, 1, 0.5, 0.3, 0.5, 1, 1.1, 2.1, 5.6],
-  high: [110, 41, 10, 5, 3, 1.5, 1, 0.5, 0.3, 0.5, 1, 1.5, 3, 5, 10, 41, 110],
-};
-
-const ROW_OPTIONS = [8, 10, 12, 14, 16];
+// Row options (only valid rows shown based on risk)
+const ALL_ROW_OPTIONS = [12, 14, 16];
 
 interface Ball {
   id: number;
@@ -106,8 +99,10 @@ function checkDemoPoolSolvency(
 ): Record<string, RiskModeStatus> {
   const availableToPay = poolBalance - reservedLiability;
   const modes: Record<string, RiskModeStatus> = {};
+  const riskLevels: RiskLevel[] = ["low", "medium", "high"];
   
-  for (const [mode, maxMult] of Object.entries(MAX_MULTIPLIERS)) {
+  for (const mode of riskLevels) {
+    const maxMult = getMaxMultiplier(mode);
     // Max bet = availableToPay / maxMultiplier
     const maxBet = availableToPay / maxMult;
     
@@ -133,11 +128,11 @@ function checkDemoPoolSolvency(
 // =============================================================================
 function validateBetAgainstPool(
   betAmount: number,
-  mode: string,
+  mode: RiskLevel,
   poolBalance: number,
   reservedLiability: number = 0
 ): { valid: boolean; error?: string; maxBet: number; maxPayout: number } {
-  const maxMultiplier = MAX_MULTIPLIERS[mode] || 110;
+  const maxMultiplier = getMaxMultiplier(mode);
   const maxPayout = betAmount * maxMultiplier;
   const availableToPay = poolBalance - reservedLiability;
   const maxBet = Math.floor((availableToPay / maxMultiplier) * 100) / 100;
@@ -187,14 +182,12 @@ export default function PlinkoPage() {
   
   // Check if current risk mode is valid for current rows
   const isRiskRowValid = useMemo(() => {
-    const requiredRows = RISK_ROW_REQUIREMENTS[risk];
-    return rows >= requiredRows;
+    return isValidCombination(risk, rows);
   }, [risk, rows]);
   
   // Get available rows for current risk
   const availableRows = useMemo(() => {
-    const requiredRows = RISK_ROW_REQUIREMENTS[risk];
-    return ROW_OPTIONS.filter(r => r >= requiredRows);
+    return getAllowedRows(risk);
   }, [risk]);
   
   // Current mode status
@@ -337,41 +330,26 @@ export default function PlinkoPage() {
   
   // Auto-adjust rows when risk changes
   useEffect(() => {
-    const requiredRows = RISK_ROW_REQUIREMENTS[risk];
-    if (rows < requiredRows) {
-      setRows(requiredRows);
+    const minRows = getMinRows(risk);
+    if (rows < minRows) {
+      setRows(minRows);
+      console.log(`[ROWS AUTO-ADJUST] ${risk} risk requires ${minRows}+ rows. Adjusted.`);
     }
   }, [risk, rows]);
   
-  // Calculate multipliers based on rows
-  const getMultipliers = useCallback(() => {
-    const baseMultipliers = RISK_MULTIPLIERS[risk];
-    const numSlots = rows + 1;
-    
-    if (numSlots === baseMultipliers.length) {
-      return baseMultipliers;
+  // Get verified multipliers from math library (96% RTP)
+  const multipliers = useMemo(() => {
+    const verified = getMultipliers(risk, rows);
+    if (verified) {
+      // Log RTP for this combination
+      const rtp = computeRtp(rows, verified);
+      console.log(`[RTP] ${risk} risk, ${rows} rows: ${rtp.toFixed(4)} (target: 0.9600)`);
+      return verified;
     }
-    
-    const multipliers: number[] = [];
-    const center = numSlots / 2;
-    
-    for (let i = 0; i < numSlots; i++) {
-      const distFromCenter = Math.abs(i - center + 0.5);
-      const normalizedDist = distFromCenter / center;
-      
-      if (risk === "low") {
-        multipliers.push(Math.max(0.2, 1.5 - normalizedDist * 1.3));
-      } else if (risk === "medium") {
-        multipliers.push(Math.max(0.3, Math.pow(normalizedDist * 3 + 0.5, 2)));
-      } else {
-        multipliers.push(Math.max(0.2, Math.pow(normalizedDist * 5 + 0.3, 3)));
-      }
-    }
-    
-    return multipliers.map(m => Math.round(m * 10) / 10);
+    // Fallback to low risk 12 rows if invalid combination
+    console.warn(`[RTP WARNING] Invalid combination: ${risk} risk, ${rows} rows. Using fallback.`);
+    return getMultipliers("low", 12) || [1.8, 1.5, 1.3, 1.1, 0.9, 0.7, 0.5, 0.7, 0.9, 1.1, 1.3, 1.5, 1.8];
   }, [risk, rows]);
-
-  const multipliers = getMultipliers();
 
   // Get color for multiplier
   const getMultiplierColor = (multiplier: number) => {
@@ -670,7 +648,7 @@ export default function PlinkoPage() {
         const multiplier = multipliers[clampedIndex];
         const payout = ball.betAmount * multiplier;
         const profit = payout - ball.betAmount;
-        const maxPayout = ball.betAmount * MAX_MULTIPLIERS[risk];
+        const maxPayout = ball.betAmount * getMaxMultiplier(risk);
         
         ball.resultRecorded = true;
         
@@ -741,7 +719,7 @@ export default function PlinkoPage() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
-    const maxPayout = amount * MAX_MULTIPLIERS[risk];
+    const maxPayout = amount * getMaxMultiplier(risk);
     
     // ATOMIC BET FLOW:
     // 1. Reserve liability (max payout hold)
@@ -812,7 +790,7 @@ export default function PlinkoPage() {
   // Get play button text
   const getPlayButtonText = () => {
     if (!currentModeStatus.enabled) return "Risk Mode Locked";
-    if (!isRiskRowValid) return `Need ${RISK_ROW_REQUIREMENTS[risk]} rows`;
+    if (!isRiskRowValid) return `Need ${getMinRows(risk)} rows`;
     if (amount <= 0) return "Enter Amount";
     if (amount > demoBalance) return "Insufficient Balance";
     if (!betValidation.valid) return "Bet Too High";
@@ -997,8 +975,9 @@ export default function PlinkoPage() {
                       <label className="text-sm text-[color:var(--text-muted)]">
                         Rows
                       </label>
-                      <span className="text-xs text-[color:var(--text-subtle)]">
-                        Min: {RISK_ROW_REQUIREMENTS[risk]} for {risk} risk
+                      <span className="text-xs text-[color:var(--text-subtle)] flex items-center gap-1">
+                        <Info className="h-3 w-3" />
+                        Min: {getMinRows(risk)} for {risk} risk
                       </span>
                     </div>
                     <select
@@ -1006,15 +985,21 @@ export default function PlinkoPage() {
                       onChange={(e) => setRows(Number(e.target.value))}
                       className="w-full px-3 py-2 bg-[color:var(--surface-2)] border border-[color:var(--border-soft)] rounded-lg text-[color:var(--text-strong)]"
                     >
-                      {ROW_OPTIONS.map((r) => {
-                        const isDisabled = r < RISK_ROW_REQUIREMENTS[risk];
+                      {ALL_ROW_OPTIONS.map((r) => {
+                        const isAllowed = availableRows.includes(r);
                         return (
-                          <option key={r} value={r} disabled={isDisabled}>
-                            {r} {isDisabled ? "(locked)" : ""}
+                          <option key={r} value={r} disabled={!isAllowed}>
+                            {r} {!isAllowed ? "(locked)" : ""}
                           </option>
                         );
                       })}
                     </select>
+                    {!isRiskRowValid && (
+                      <p className="text-xs text-yellow-500 mt-1 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        {risk.charAt(0).toUpperCase() + risk.slice(1)} risk requires {getMinRows(risk)}+ rows
+                      </p>
+                    )}
                   </div>
 
                   {/* Play Button */}
