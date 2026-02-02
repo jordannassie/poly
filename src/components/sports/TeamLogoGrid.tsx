@@ -23,6 +23,8 @@ interface TeamsResponse {
   count: number;
   expectedCount?: number;
   isMissingTeams?: boolean;
+  syncRequired?: boolean;
+  message?: string;
   teams: Team[];
 }
 
@@ -36,12 +38,14 @@ export function TeamLogoGrid({ league = "nfl" }: TeamLogoGridProps) {
   const [error, setError] = useState<string | null>(null);
   const [source, setSource] = useState<string>("sportsdataio");
   const [isMissingTeams, setIsMissingTeams] = useState(false);
+  const [syncRequired, setSyncRequired] = useState(false);
 
   useEffect(() => {
     async function fetchTeams() {
       try {
         setLoading(true);
         setError(null);
+        setSyncRequired(false);
         
         const res = await fetch(`/api/sports/teams?league=${league}`);
         
@@ -54,6 +58,7 @@ export function TeamLogoGrid({ league = "nfl" }: TeamLogoGridProps) {
         setTeams(data.teams);
         setSource(data.source || "sportsdataio");
         setIsMissingTeams(data.isMissingTeams || false);
+        setSyncRequired(data.syncRequired || false);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load teams");
       } finally {
@@ -83,8 +88,22 @@ export function TeamLogoGrid({ league = "nfl" }: TeamLogoGridProps) {
 
   if (teams.length === 0) {
     return (
-      <div className="text-center py-12 text-[color:var(--text-muted)]">
-        No teams found for {league.toUpperCase()}
+      <div className="text-center py-12">
+        {syncRequired ? (
+          <div className="flex flex-col items-center gap-3">
+            <div className="animate-pulse text-4xl">⏳</div>
+            <p className="text-[color:var(--text-muted)]">
+              Teams syncing...
+            </p>
+            <p className="text-sm text-[color:var(--text-subtle)]">
+              {league.toUpperCase()} teams will appear once synced from the Admin panel.
+            </p>
+          </div>
+        ) : (
+          <p className="text-[color:var(--text-muted)]">
+            No teams found for {league.toUpperCase()}
+          </p>
+        )}
       </div>
     );
   }
@@ -148,7 +167,11 @@ export function TeamLogoGrid({ league = "nfl" }: TeamLogoGridProps) {
 
       {/* Data Source */}
       <div className="mt-6 text-center text-xs text-[color:var(--text-subtle)]">
-        Data provided by {source === "api-sports-cache" ? "API-Sports (cached)" : "SportsDataIO"}
+        Data provided by {
+          source === "api-sports-cache" || source === "sports-teams-cache" 
+            ? "API-Sports (cached)" 
+            : "SportsDataIO"
+        }
       </div>
     </div>
   );

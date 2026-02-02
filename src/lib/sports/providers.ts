@@ -3,13 +3,19 @@
  * 
  * Centralizes which data source is used for each league.
  * This allows easy switching between providers without changing component code.
+ * 
+ * Provider types:
+ * - "api-sports-cache": Uses api_sports_nfl_teams/games tables (NFL-specific)
+ * - "sports-teams-cache": Uses the new sports_teams table (NBA, Soccer, etc.)
+ * - "sportsdataio": Uses SportsDataIO API (legacy)
+ * - "mock": Uses mock data (fallback)
  */
 
-export type DataProvider = "api-sports-cache" | "sportsdataio" | "mock";
+export type DataProvider = "api-sports-cache" | "sports-teams-cache" | "sportsdataio" | "mock";
 
 /**
  * Get the data source for NFL
- * Currently hardcoded to use API-Sports cached tables only.
+ * Uses API-Sports cached tables (api_sports_nfl_teams).
  */
 export function getNflDataSource(): DataProvider {
   return "api-sports-cache";
@@ -17,10 +23,18 @@ export function getNflDataSource(): DataProvider {
 
 /**
  * Get the data source for NBA
- * Still using SportsDataIO for now.
+ * Uses sports_teams table.
  */
 export function getNbaDataSource(): DataProvider {
-  return "sportsdataio";
+  return "sports-teams-cache";
+}
+
+/**
+ * Get the data source for Soccer
+ * Uses sports_teams table.
+ */
+export function getSoccerDataSource(): DataProvider {
+  return "sports-teams-cache";
 }
 
 /**
@@ -48,6 +62,8 @@ export function getDataSource(league: string): DataProvider {
       return getNflDataSource();
     case "nba":
       return getNbaDataSource();
+    case "soccer":
+      return getSoccerDataSource();
     case "mlb":
       return getMlbDataSource();
     case "nhl":
@@ -58,10 +74,17 @@ export function getDataSource(league: string): DataProvider {
 }
 
 /**
- * Check if a league should use API-Sports cache
+ * Check if a league should use API-Sports cache (NFL-specific tables)
  */
 export function usesApiSportsCache(league: string): boolean {
   return getDataSource(league) === "api-sports-cache";
+}
+
+/**
+ * Check if a league should use the new sports_teams cache
+ */
+export function usesSportsTeamsCache(league: string): boolean {
+  return getDataSource(league) === "sports-teams-cache";
 }
 
 /**

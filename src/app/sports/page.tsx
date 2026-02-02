@@ -19,7 +19,7 @@ import { Settings, ToggleRight, ChevronDown, MoreHorizontal, Heart } from "lucid
 import { LightningLoader } from "@/components/ui/LightningLoader";
 
 // Valid leagues
-const VALID_LEAGUES = ["nfl", "nba", "mlb", "nhl"] as const;
+const VALID_LEAGUES = ["nfl", "nba", "mlb", "nhl", "soccer"] as const;
 type ValidLeague = (typeof VALID_LEAGUES)[number];
 
 // League display config
@@ -28,6 +28,7 @@ const LEAGUE_CONFIG: Record<ValidLeague, { name: string; icon: string; color: st
   nba: { name: "NBA", icon: "🏀", color: "#C9082A" },
   mlb: { name: "MLB", icon: "⚾", color: "#002D72" },
   nhl: { name: "NHL", icon: "🏒", color: "#000000" },
+  soccer: { name: "Soccer", icon: "⚽", color: "#37003C" },
 };
 
 // Team logo lookup type
