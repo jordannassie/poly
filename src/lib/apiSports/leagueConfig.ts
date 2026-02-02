@@ -5,15 +5,21 @@
  * Each league has its own API-Sports subdomain and endpoint structure.
  */
 
-export type SupportedLeague = "NFL" | "NBA" | "SOCCER";
+export type SupportedLeague = "NFL" | "NBA" | "MLB" | "NHL" | "SOCCER";
 
 export interface LeagueConfig {
   league: SupportedLeague;
   displayName: string;
   baseUrl: string;
   teamsEndpoint: string;
+  gamesEndpoint: string; // Endpoint for fetching games
+  liveEndpoint: string; // Endpoint for live games
+  leagueId: number; // API-Sports league ID
+  currentSeason: number; // Current season year
   // Some APIs return teams nested differently
   teamExtractor: (response: any) => ApiSportsTeamRaw[];
+  // Games may also be nested differently
+  gameExtractor: (response: any) => any[];
 }
 
 // Raw team data from API-Sports (varies slightly by sport)
@@ -37,7 +43,12 @@ const NFL_CONFIG: LeagueConfig = {
   displayName: "NFL",
   baseUrl: process.env.API_SPORTS_NFL_BASE_URL || "https://v1.american-football.api-sports.io",
   teamsEndpoint: "/teams?league=1",
+  gamesEndpoint: "/games",
+  liveEndpoint: "/games?live=all",
+  leagueId: 1,
+  currentSeason: 2025,
   teamExtractor: (response: any) => response.response || [],
+  gameExtractor: (response: any) => response.response || [],
 };
 
 /**
@@ -50,7 +61,48 @@ const NBA_CONFIG: LeagueConfig = {
   displayName: "NBA",
   baseUrl: process.env.API_SPORTS_NBA_BASE_URL || "https://v1.basketball.api-sports.io",
   teamsEndpoint: "/teams?league=12",
+  gamesEndpoint: "/games",
+  liveEndpoint: "/games?live=all",
+  leagueId: 12,
+  currentSeason: 2024, // NBA season is 2024-25
   teamExtractor: (response: any) => response.response || [],
+  gameExtractor: (response: any) => response.response || [],
+};
+
+/**
+ * MLB Configuration
+ * API: v1.baseball.api-sports.io
+ * Using league=1 for MLB
+ */
+const MLB_CONFIG: LeagueConfig = {
+  league: "MLB",
+  displayName: "MLB",
+  baseUrl: process.env.API_SPORTS_MLB_BASE_URL || "https://v1.baseball.api-sports.io",
+  teamsEndpoint: "/teams?league=1",
+  gamesEndpoint: "/games",
+  liveEndpoint: "/games?live=all",
+  leagueId: 1,
+  currentSeason: 2025,
+  teamExtractor: (response: any) => response.response || [],
+  gameExtractor: (response: any) => response.response || [],
+};
+
+/**
+ * NHL Configuration
+ * API: v1.hockey.api-sports.io
+ * Using league=57 for NHL
+ */
+const NHL_CONFIG: LeagueConfig = {
+  league: "NHL",
+  displayName: "NHL",
+  baseUrl: process.env.API_SPORTS_NHL_BASE_URL || "https://v1.hockey.api-sports.io",
+  teamsEndpoint: "/teams?league=57",
+  gamesEndpoint: "/games",
+  liveEndpoint: "/games?live=all",
+  leagueId: 57,
+  currentSeason: 2024, // NHL season is 2024-25
+  teamExtractor: (response: any) => response.response || [],
+  gameExtractor: (response: any) => response.response || [],
 };
 
 /**
@@ -63,12 +115,16 @@ const SOCCER_CONFIG: LeagueConfig = {
   league: "SOCCER",
   displayName: "Soccer",
   baseUrl: process.env.API_SPORTS_SOCCER_BASE_URL || "https://v3.football.api-sports.io",
-  // Premier League teams - league 39, season 2024
   teamsEndpoint: "/teams?league=39&season=2024",
+  gamesEndpoint: "/fixtures",
+  liveEndpoint: "/fixtures?live=all",
+  leagueId: 39, // Premier League default
+  currentSeason: 2024,
   teamExtractor: (response: any) => {
     // Soccer API returns { team: {...}, venue: {...} } structure
     return (response.response || []).map((item: any) => item.team || item);
   },
+  gameExtractor: (response: any) => response.response || [],
 };
 
 /**
@@ -80,10 +136,26 @@ export function getLeagueConfig(league: SupportedLeague): LeagueConfig {
       return NFL_CONFIG;
     case "NBA":
       return NBA_CONFIG;
+    case "MLB":
+      return MLB_CONFIG;
+    case "NHL":
+      return NHL_CONFIG;
     case "SOCCER":
       return SOCCER_CONFIG;
     default:
       throw new Error(`Unsupported league: ${league}`);
+  }
+}
+
+/**
+ * Get league config by string (case-insensitive)
+ */
+export function getLeagueConfigByString(league: string): LeagueConfig | null {
+  const normalized = league.toUpperCase() as SupportedLeague;
+  try {
+    return getLeagueConfig(normalized);
+  } catch {
+    return null;
   }
 }
 
@@ -93,8 +165,15 @@ export function getLeagueConfig(league: SupportedLeague): LeagueConfig {
 export const LEAGUE_CONFIGS: Record<SupportedLeague, LeagueConfig> = {
   NFL: NFL_CONFIG,
   NBA: NBA_CONFIG,
+  MLB: MLB_CONFIG,
+  NHL: NHL_CONFIG,
   SOCCER: SOCCER_CONFIG,
 };
+
+/**
+ * List of all supported leagues
+ */
+export const ALL_LEAGUES: SupportedLeague[] = ["NFL", "NBA", "MLB", "NHL", "SOCCER"];
 
 /**
  * Soccer league IDs for fetching multiple leagues
