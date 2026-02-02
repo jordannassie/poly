@@ -15,7 +15,8 @@ import {
   Zap,
   Mail,
   Globe,
-  Trophy
+  Trophy,
+  Layers
 } from "lucide-react";
 
 const navItems = [
@@ -28,7 +29,8 @@ const navItems = [
   { href: "/admin/payouts", label: "Payouts", icon: CreditCard },
   { href: "/admin/logs", label: "System Logs", icon: FileText },
   { href: "/admin/sports", label: "SportsDataIO", icon: Database },
-  { href: "/admin/api-sports", label: "API Sports", icon: Globe },
+  { href: "/admin/api-sports/leagues", label: "League Sync", icon: Layers },
+  { href: "/admin/api-sports", label: "API Sports Sandbox", icon: Globe },
   { href: "/admin/api-sports-nfl", label: "API Sports (NFL)", icon: Trophy },
 ];
 

@@ -15,7 +15,7 @@ export interface TeamViewModel {
 
 export interface MarketViewModel {
   // Core identifiers
-  league: "nfl" | "nba" | "mlb" | "nhl";
+  league: "nfl" | "nba" | "mlb" | "nhl" | "soccer";
   slug: string;
   
   // Display

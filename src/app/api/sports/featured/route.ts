@@ -7,7 +7,7 @@
  * - Other leagues: Return the next upcoming game.
  * 
  * Query params:
- * - league: "nfl" | "nba" | "mlb" | "nhl" (required)
+ * - league: "nfl" | "nba" | "mlb" | "nhl" | "soccer" (required)
  * 
  * Response:
  * {
@@ -19,26 +19,19 @@
  *   } | null,
  *   reason: "championship" | "next_game" | "no_games"
  * }
+ * 
+ * All leagues use cached Supabase data - no live API calls.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { 
-  getTeams, 
-  getGamesByDate, 
   getTeamLogoUrl,
-  getGameId,
-  getGameStatus,
-  getAwayScore,
-  getHomeScore,
-  getGameDate,
-  SUPPORTED_LEAGUES,
-  type Score, 
   type Team,
-  type League,
 } from "@/lib/sportsdataio/client";
 import { getFromCache, setInCache, getCacheKey } from "@/lib/sportsdataio/cache";
-import { usesApiSportsCache } from "@/lib/sports/providers";
+import { usesApiSportsCache, usesSportsGamesCache, isValidFrontendLeague, ALL_FRONTEND_LEAGUES } from "@/lib/sports/providers";
 import { getNflGamesFromCache, getNflTeamMap, type CachedNflGame, type CachedNflTeam } from "@/lib/sports/nfl-cache";
+import { getUpcomingGamesFromCache, getTeamMapFromCache, transformCachedGame } from "@/lib/sports/games-cache";
 
 // Cache TTL
 const CACHE_TTL_LIVE = 5 * 60 * 1000;       // 5 minutes for live/upcoming
@@ -204,15 +197,15 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const leagueParam = url.searchParams.get("league")?.toLowerCase() || "nfl";
 
-    // Validate league
-    if (!SUPPORTED_LEAGUES.includes(leagueParam as League)) {
+    // Validate league (includes soccer)
+    if (!isValidFrontendLeague(leagueParam)) {
       return NextResponse.json(
-        { error: `Invalid league. Must be one of: ${SUPPORTED_LEAGUES.join(", ")}` },
+        { error: `Invalid league. Must be one of: ${ALL_FRONTEND_LEAGUES.join(", ")}` },
         { status: 400 }
       );
     }
 
-    const league = leagueParam as League;
+    const league = leagueParam;
 
     // Check cache
     const cacheKey = getCacheKey(league, "featured", "main");
@@ -267,76 +260,95 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(response);
     }
 
-    // Other leagues use SportsDataIO
-    // Fetch teams for joining
-    const teams = await getTeams(league);
-    const teamMap = new Map<string, Team>();
-    for (const team of teams) {
-      teamMap.set(team.Key, team);
-    }
+    // All other leagues use sports_games cache
+    if (usesSportsGamesCache(league)) {
+      const [cachedGames, teamMap] = await Promise.all([
+        getUpcomingGamesFromCache(league, 14),
+        getTeamMapFromCache(league),
+      ]);
 
-    // Fetch next 14 days of games
-    const dates = getDateRange(14);
-    const allScores: Score[] = [];
+      // Filter to upcoming/live games only
+      const upcomingGames = cachedGames.filter((g) => {
+        const statusLower = (g.status || "").toLowerCase();
+        const isOver = statusLower.includes("final") || statusLower.includes("finished");
+        return !isOver;
+      });
 
-    for (const date of dates) {
-      try {
-        const scores = await getGamesByDate(league, date);
-        allScores.push(...scores);
-      } catch {
-        // Continue if a date fails
+      // Sort by start time
+      upcomingGames.sort((a, b) => 
+        new Date(a.start_time || 0).getTime() - new Date(b.start_time || 0).getTime()
+      );
+
+      let response: FeaturedResponse;
+
+      if (upcomingGames.length > 0) {
+        const firstGame = transformCachedGame(upcomingGames[0], teamMap);
+        response = {
+          featured: {
+            gameId: firstGame.GameKey,
+            name: `${firstGame.AwayTeamData?.Name || "Away"} @ ${firstGame.HomeTeamData?.Name || "Home"}`,
+            startTime: firstGame.DateTime,
+            status: firstGame.IsOver ? "final" : firstGame.IsInProgress ? "in_progress" : "scheduled",
+            homeTeam: {
+              teamId: firstGame.HomeTeamData?.TeamID || 0,
+              name: firstGame.HomeTeamData?.Name || "",
+              city: "",
+              abbreviation: firstGame.HomeTeam,
+              fullName: firstGame.HomeTeamData?.FullName || "",
+              logoUrl: firstGame.HomeTeamData?.WikipediaLogoUrl || null,
+              primaryColor: null,
+            },
+            awayTeam: {
+              teamId: firstGame.AwayTeamData?.TeamID || 0,
+              name: firstGame.AwayTeamData?.Name || "",
+              city: "",
+              abbreviation: firstGame.AwayTeam,
+              fullName: firstGame.AwayTeamData?.FullName || "",
+              logoUrl: firstGame.AwayTeamData?.WikipediaLogoUrl || null,
+              primaryColor: null,
+            },
+            homeScore: firstGame.HomeScore,
+            awayScore: firstGame.AwayScore,
+            venue: null,
+            week: 0,
+            channel: null,
+            isChampionship: false,
+          },
+          reason: "next_game",
+        };
+      } else {
+        response = {
+          featured: null,
+          reason: "no_games",
+        };
       }
+
+      const hasUpcoming = response.featured && response.featured.status !== "final";
+      const cacheTtl = hasUpcoming ? CACHE_TTL_LIVE : CACHE_TTL_NO_GAMES;
+      setInCache(cacheKey, response, cacheTtl);
+
+      console.log(`[/api/sports/featured] ${league.toUpperCase()} (cache): ${response.reason}`);
+
+      return NextResponse.json(response);
     }
 
-    // Filter to upcoming/live games only
-    const upcomingGames = allScores.filter((s) => {
-      const status = getGameStatus(s);
-      return status === "scheduled" || status === "in_progress";
-    });
+    // Fallback: no data source
+    const response: FeaturedResponse = {
+      featured: null,
+      reason: "no_games",
+    };
 
-    // Sort by start time
-    upcomingGames.sort((a, b) => 
-      new Date(getGameDate(a)).getTime() - new Date(getGameDate(b)).getTime()
-    );
-
-    let response: FeaturedResponse;
-
-    // Look for championship game first (NFL only for now)
-    const championshipGame = upcomingGames.find((s) => isChampionshipGame(s, league));
-    
-    if (championshipGame) {
-      response = {
-        featured: createFeaturedGame(championshipGame, teamMap, league),
-        reason: "championship",
-      };
-    } else if (upcomingGames.length > 0) {
-      // Return next upcoming game
-      response = {
-        featured: createFeaturedGame(upcomingGames[0], teamMap, league),
-        reason: "next_game",
-      };
-    } else {
-      // No games found
-      response = {
-        featured: null,
-        reason: "no_games",
-      };
-    }
-
-    // Cache the result
-    const hasUpcoming = response.featured && response.featured.status !== "final";
-    const cacheTtl = hasUpcoming ? CACHE_TTL_LIVE : CACHE_TTL_NO_GAMES;
-    setInCache(cacheKey, response, cacheTtl);
-
-    console.log(`[/api/sports/featured] ${league.toUpperCase()}: ${response.reason}`);
+    console.log(`[/api/sports/featured] ${league.toUpperCase()}: no data source`);
 
     return NextResponse.json(response);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("[/api/sports/featured] Error:", message);
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    );
+    
+    // Return no_games instead of error for frontend
+    return NextResponse.json({
+      featured: null,
+      reason: "no_games",
+    });
   }
 }

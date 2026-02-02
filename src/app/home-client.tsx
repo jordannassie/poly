@@ -54,7 +54,7 @@ interface HotGame {
 function getGameHref(game: HotGame): string {
   const league = game.league.toLowerCase();
   // For sports leagues with dedicated game pages
-  if (["nfl", "nba", "mlb", "nhl"].includes(league)) {
+  if (["nfl", "nba", "mlb", "nhl", "soccer"].includes(league)) {
     return `/${league}/game/${game.id}`;
   }
   // Fallback to market page for other leagues

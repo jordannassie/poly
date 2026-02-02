@@ -39,18 +39,18 @@ export function getSoccerDataSource(): DataProvider {
 
 /**
  * Get the data source for MLB
- * Still using SportsDataIO for now.
+ * Uses sports_teams/sports_games cache.
  */
 export function getMlbDataSource(): DataProvider {
-  return "sportsdataio";
+  return "sports-teams-cache";
 }
 
 /**
  * Get the data source for NHL
- * Still using SportsDataIO for now.
+ * Uses sports_teams/sports_games cache.
  */
 export function getNhlDataSource(): DataProvider {
-  return "sportsdataio";
+  return "sports-teams-cache";
 }
 
 /**
@@ -92,4 +92,34 @@ export function usesSportsTeamsCache(league: string): boolean {
  */
 export function usesSportsDataIO(league: string): boolean {
   return getDataSource(league) === "sportsdataio";
+}
+
+/**
+ * Check if a league should use the unified sports_games cache
+ * (All leagues except NFL which uses api_sports_nfl_games)
+ */
+export function usesSportsGamesCache(league: string): boolean {
+  const source = getDataSource(league);
+  return source === "sports-teams-cache";
+}
+
+/**
+ * Check if a league uses any cache (not live API)
+ */
+export function usesAnyCache(league: string): boolean {
+  const source = getDataSource(league);
+  return source === "api-sports-cache" || source === "sports-teams-cache";
+}
+
+/**
+ * All supported leagues for frontend
+ */
+export const ALL_FRONTEND_LEAGUES = ["nfl", "nba", "mlb", "nhl", "soccer"] as const;
+export type FrontendLeague = (typeof ALL_FRONTEND_LEAGUES)[number];
+
+/**
+ * Check if a league is valid for frontend
+ */
+export function isValidFrontendLeague(league: string): league is FrontendLeague {
+  return ALL_FRONTEND_LEAGUES.includes(league.toLowerCase() as FrontendLeague);
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { AlertCircle, Calendar, ChevronRight } from "lucide-react";
+import { Calendar, ChevronRight } from "lucide-react";
 import { LightningLoader } from "@/components/ui/LightningLoader";
 import { Button } from "@/components/ui/button";
 
@@ -33,6 +33,7 @@ interface UpcomingResponse {
   range: { startDate: string; endDate: string };
   count: number;
   games: Game[];
+  message?: string;
 }
 
 interface UpcomingGamesProps {
@@ -50,11 +51,12 @@ const DATE_FILTERS = [
 
 // Get game detail route based on league
 function getGameRoute(league: string, gameId: string): string {
-  // NFL has a dedicated route, others use the sports page for now
-  if (league === "nfl") {
-    return `/nfl/game/${gameId}`;
+  // All leagues can use their dedicated game routes
+  const validLeagues = ["nfl", "nba", "mlb", "nhl", "soccer"];
+  if (validLeagues.includes(league.toLowerCase())) {
+    return `/${league.toLowerCase()}/game/${gameId}`;
   }
-  // For other leagues, link to sports page with league param
+  // Fallback to sports page
   return `/sports?league=${league}`;
 }
 
@@ -64,25 +66,27 @@ export function UpcomingGames({ league = "nfl", days: initialDays }: UpcomingGam
   const [selectedDays, setSelectedDays] = useState(initialDays || defaultDays);
   const [data, setData] = useState<UpcomingResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchGames() {
       try {
         setLoading(true);
-        setError(null);
+        setSyncMessage(null);
         
         const res = await fetch(`/api/sports/upcoming?league=${league}&days=${selectedDays}`);
+        const responseData: UpcomingResponse = await res.json();
         
-        if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.error || `Failed to fetch games: ${res.status}`);
+        // Store message for friendly empty state
+        if (responseData.message) {
+          setSyncMessage(responseData.message);
         }
         
-        const responseData: UpcomingResponse = await res.json();
         setData(responseData);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load upcoming games");
+        // Set friendly message instead of error
+        setSyncMessage("Games will appear once synced from Admin.");
+        setData({ range: { startDate: "", endDate: "" }, count: 0, games: [] });
       } finally {
         setLoading(false);
       }
@@ -99,45 +103,34 @@ export function UpcomingGames({ league = "nfl", days: initialDays }: UpcomingGam
     );
   }
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center py-12 text-red-500">
-        <AlertCircle className="h-6 w-6 mr-2" />
-        <span>{error}</span>
-      </div>
-    );
-  }
-
   if (!data || data.games.length === 0) {
     return (
       <div className="space-y-4">
-        {/* Filter Buttons - Show for NFL */}
-        {league === "nfl" && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm text-[color:var(--text-muted)]">Show:</span>
-            {DATE_FILTERS.map((filter) => (
-              <Button
-                key={filter.days}
-                variant={selectedDays === filter.days ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedDays(filter.days)}
-                className={selectedDays === filter.days ? "bg-orange-500 hover:bg-orange-600" : ""}
-              >
-                {filter.label}
-              </Button>
-            ))}
-          </div>
-        )}
+        {/* Filter Buttons - Show for all leagues */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-[color:var(--text-muted)]">Show:</span>
+          {DATE_FILTERS.map((filter) => (
+            <Button
+              key={filter.days}
+              variant={selectedDays === filter.days ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedDays(filter.days)}
+              className={selectedDays === filter.days ? "bg-orange-500 hover:bg-orange-600" : ""}
+            >
+              {filter.label}
+            </Button>
+          ))}
+        </div>
         
         <div className="text-center py-12 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl">
           <Calendar className="h-12 w-12 mx-auto mb-4 text-[color:var(--text-muted)]" />
           <p className="text-[color:var(--text-muted)]">
-            No cached {league.toUpperCase()} games in the next {selectedDays} days
+            No {league.toUpperCase()} games in the next {selectedDays} days
           </p>
           <p className="text-sm text-[color:var(--text-subtle)] mt-2 max-w-md mx-auto">
-            {league === "nfl" 
-              ? "Sync more games in Admin → API Sports (NFL) using \"Sync Next 365 Days\"."
-              : "Check back when the season is active."}
+            {syncMessage || (league === "nfl" 
+              ? "Sync more games in Admin → API Sports using \"Sync Next 365 Days\"."
+              : "Games will appear once synced from Admin.")}
           </p>
         </div>
       </div>

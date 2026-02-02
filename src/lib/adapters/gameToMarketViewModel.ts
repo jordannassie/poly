@@ -34,7 +34,7 @@ interface GameInput {
 }
 
 interface ConversionInput {
-  league: "nfl" | "nba" | "mlb" | "nhl";
+  league: "nfl" | "nba" | "mlb" | "nhl" | "soccer";
   game: GameInput;
 }
 
@@ -184,7 +184,7 @@ export function mockGameToMarketViewModel(
     || 45000;
   
   return {
-    league: gameData.league.toLowerCase() as "nfl" | "nba" | "mlb" | "nhl",
+    league: gameData.league.toLowerCase() as "nfl" | "nba" | "mlb" | "nhl" | "soccer",
     slug: gameData.id,
     title: `${gameData.team1.name} vs ${gameData.team2.name}`,
     

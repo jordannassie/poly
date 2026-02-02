@@ -18,9 +18,13 @@ import { upsertCache } from "./persistCache";
 const API_KEY = process.env.SPORTSDATAIO_API_KEY || "";
 const BASE_URL = "https://api.sportsdata.io/v3";
 
-// Supported leagues
+// Supported leagues (SportsDataIO)
 export const SUPPORTED_LEAGUES = ["nfl", "nba", "mlb", "nhl"] as const;
 export type League = (typeof SUPPORTED_LEAGUES)[number];
+
+// Extended leagues including soccer (for API-Sports/cache-based data)
+export const ALL_LEAGUES = ["nfl", "nba", "mlb", "nhl", "soccer"] as const;
+export type ExtendedLeague = (typeof ALL_LEAGUES)[number];
 
 /**
  * Internal fetch helper with timing and status tracking

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { AlertCircle, Calendar } from "lucide-react";
+import { Calendar } from "lucide-react";
 import { LightningLoader } from "@/components/ui/LightningLoader";
 import { TeamOutcomeButtonPair } from "@/components/market/TeamOutcomeButton";
 
@@ -38,6 +38,7 @@ interface GamesResponse {
   date: string;
   count: number;
   games: Game[];
+  message?: string;
 }
 
 interface TodayGamesProps {
@@ -48,30 +49,33 @@ interface TodayGamesProps {
 export function TodayGames({ league = "nfl", date }: TodayGamesProps) {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [displayDate, setDisplayDate] = useState<string>("");
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchGames() {
       try {
         setLoading(true);
         setError(null);
+        setSyncMessage(null);
         
         // Use provided date or today
         const targetDate = date || new Date().toISOString().split("T")[0];
         setDisplayDate(targetDate);
         
         const res = await fetch(`/api/sports/games?league=${league}&date=${targetDate}`);
+        const data: GamesResponse = await res.json();
         
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || `Failed to fetch games: ${res.status}`);
+        // Check for message (friendly empty state from cache)
+        if (data.message) {
+          setSyncMessage(data.message);
         }
         
-        const data: GamesResponse = await res.json();
-        setGames(data.games);
+        setGames(data.games || []);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load games");
+        // Set sync message instead of error for better UX
+        setSyncMessage("Games will appear once synced from Admin.");
+        setGames([]);
       } finally {
         setLoading(false);
       }
@@ -97,14 +101,7 @@ export function TodayGames({ league = "nfl", date }: TodayGamesProps) {
     );
   }
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center py-12 text-red-500">
-        <AlertCircle className="h-6 w-6 mr-2" />
-        <span>{error}</span>
-      </div>
-    );
-  }
+  // No longer show red error - we use syncMessage for friendly empty state
 
   return (
     <div>
@@ -121,7 +118,7 @@ export function TodayGames({ league = "nfl", date }: TodayGamesProps) {
             No {league.toUpperCase()} games today
           </p>
           <p className="text-sm text-[color:var(--text-subtle)] mt-1">
-            Check back on game days for live updates
+            {syncMessage || "Check back on game days for live updates"}
           </p>
         </div>
       ) : (

@@ -44,7 +44,7 @@ interface GameResponse {
 }
 
 interface SportGamePageProps {
-  league: "nfl" | "nba" | "mlb" | "nhl";
+  league: "nfl" | "nba" | "mlb" | "nhl" | "soccer";
   gameId: string;
 }
 
@@ -53,6 +53,7 @@ const LEAGUE_CONFIG = {
   nba: { name: "NBA", backUrl: "/sports?league=nba", color: "red" },
   mlb: { name: "MLB", backUrl: "/sports?league=mlb", color: "blue" },
   nhl: { name: "NHL", backUrl: "/sports?league=nhl", color: "gray" },
+  soccer: { name: "Soccer", backUrl: "/sports?league=soccer", color: "purple" },
 };
 
 export function SportGamePage({ league, gameId }: SportGamePageProps) {

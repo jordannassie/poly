@@ -3,7 +3,7 @@
  * Returns upcoming games for the next N days.
  * 
  * Query params:
- * - league: "nfl" | "nba" | "mlb" | "nhl" (required)
+ * - league: "nfl" | "nba" | "mlb" | "nhl" | "soccer" (required)
  * - days: number of days to look ahead (default: 7, max: 14)
  * 
  * Response:
@@ -17,26 +17,19 @@
  *     homeScore, awayScore, venue
  *   }]
  * }
+ * 
+ * All leagues use cached Supabase data - no live API calls.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { 
-  getTeams, 
-  getGamesByDate, 
   getTeamLogoUrl,
-  getGameId,
-  getGameStatus,
-  getAwayScore,
-  getHomeScore,
-  getGameDate,
-  SUPPORTED_LEAGUES,
-  type Score, 
   type Team,
-  type League,
 } from "@/lib/sportsdataio/client";
 import { getFromCache, setInCache, getCacheKey } from "@/lib/sportsdataio/cache";
-import { usesApiSportsCache } from "@/lib/sports/providers";
+import { usesApiSportsCache, usesSportsGamesCache, isValidFrontendLeague, ALL_FRONTEND_LEAGUES } from "@/lib/sports/providers";
 import { getNflGamesFromCache, getNflTeamMap, type CachedNflTeam } from "@/lib/sports/nfl-cache";
+import { getUpcomingGamesWithTeamsFromCache } from "@/lib/sports/games-cache";
 
 // Cache TTL
 const CACHE_TTL_WITH_GAMES = 30 * 60 * 1000; // 30 minutes
@@ -159,14 +152,14 @@ export async function GET(request: NextRequest) {
     const days = Math.min(Math.max(parseInt(daysParam || String(defaultDays), 10) || defaultDays, 1), maxDays);
 
     // Validate league
-    if (!SUPPORTED_LEAGUES.includes(leagueParam as League)) {
+    if (!isValidFrontendLeague(leagueParam)) {
       return NextResponse.json(
-        { error: `Invalid league. Must be one of: ${SUPPORTED_LEAGUES.join(", ")}` },
+        { error: `Invalid league. Must be one of: ${ALL_FRONTEND_LEAGUES.join(", ")}` },
         { status: 400 }
       );
     }
 
-    const league = leagueParam as League;
+    const league = leagueParam;
 
     // Check cache
     const cacheKey = getCacheKey(league, "upcoming", `${days}`);
@@ -227,52 +220,74 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(response);
     }
 
-    // Other leagues use SportsDataIO
-    // Fetch teams first for joining
-    const teams = await getTeams(league);
-    const teamMap = new Map<string, Team>();
-    for (const team of teams) {
-      teamMap.set(team.Key, team);
+    // All other leagues use sports_games cache
+    if (usesSportsGamesCache(league)) {
+      const cachedGames = await getUpcomingGamesWithTeamsFromCache(league, days);
+
+      // Transform to normalized format
+      const allGames: NormalizedGame[] = cachedGames.map((game) => ({
+        gameId: game.GameKey,
+        status: game.IsOver ? "final" : game.IsInProgress ? "in_progress" : "scheduled",
+        startTime: game.DateTime,
+        homeTeam: {
+          teamId: game.HomeTeamData?.TeamID || 0,
+          abbreviation: game.HomeTeam,
+          name: game.HomeTeamData?.Name || game.HomeTeam,
+          city: "",
+          fullName: game.HomeTeamData?.FullName || game.HomeTeam,
+          logoUrl: game.HomeTeamData?.WikipediaLogoUrl || null,
+          primaryColor: null,
+        },
+        awayTeam: {
+          teamId: game.AwayTeamData?.TeamID || 0,
+          abbreviation: game.AwayTeam,
+          name: game.AwayTeamData?.Name || game.AwayTeam,
+          city: "",
+          fullName: game.AwayTeamData?.FullName || game.AwayTeam,
+          logoUrl: game.AwayTeamData?.WikipediaLogoUrl || null,
+          primaryColor: null,
+        },
+        homeScore: game.HomeScore,
+        awayScore: game.AwayScore,
+        venue: null,
+        channel: null,
+        week: 0,
+      }));
+
+      const response: UpcomingResponse = {
+        range: { startDate, endDate },
+        count: allGames.length,
+        games: allGames,
+      };
+
+      const cacheTtl = allGames.length > 0 ? CACHE_TTL_WITH_GAMES : CACHE_TTL_NO_GAMES;
+      setInCache(cacheKey, response, cacheTtl);
+
+      console.log(`[/api/sports/upcoming] ${league.toUpperCase()} (cache): ${allGames.length} games in next ${days} days`);
+
+      return NextResponse.json(response);
     }
 
-    // Fetch scores for each date in parallel
-    const scoresPromises = dates.map((date) => 
-      getGamesByDate(league, date).catch(() => [] as Score[])
-    );
-    const scoresArrays = await Promise.all(scoresPromises);
-
-    // Combine and normalize all games
-    const allGames: NormalizedGame[] = [];
-    for (const scores of scoresArrays) {
-      for (const score of scores) {
-        allGames.push(normalizeGame(score, teamMap));
-      }
-    }
-
-    // Sort by start time
-    allGames.sort((a, b) => 
-      new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-    );
-
+    // Fallback: no data source
     const response: UpcomingResponse = {
       range: { startDate, endDate },
-      count: allGames.length,
-      games: allGames,
+      count: 0,
+      games: [],
     };
 
-    // Cache the result
-    const cacheTtl = allGames.length > 0 ? CACHE_TTL_WITH_GAMES : CACHE_TTL_NO_GAMES;
-    setInCache(cacheKey, response, cacheTtl);
-
-    console.log(`[/api/sports/upcoming] ${league.toUpperCase()}: ${allGames.length} games in next ${days} days`);
+    console.log(`[/api/sports/upcoming] ${league.toUpperCase()}: no data source`);
 
     return NextResponse.json(response);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("[/api/sports/upcoming] Error:", message);
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    );
+    
+    // Return empty response instead of error for frontend
+    return NextResponse.json({
+      range: { startDate: "", endDate: "" },
+      count: 0,
+      games: [],
+      message: "Games will appear once synced from Admin.",
+    });
   }
 }
