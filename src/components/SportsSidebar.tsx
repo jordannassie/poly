@@ -9,7 +9,9 @@ import {
   Lock,
   PanelLeftClose,
   PanelLeft,
+  Users,
 } from "lucide-react";
+import { SidebarCommunities } from "./SidebarCommunities";
 import { Button } from "./ui/button";
 import {
   Sheet,
@@ -65,7 +67,7 @@ function SidebarContent({
         </div>
       </div>
 
-      <div className="px-2 pb-4 space-y-0.5 max-h-[calc(100vh-200px)] overflow-y-auto">
+      <div className="px-2 pb-4 space-y-0.5">
         {sportsMenu.map((sport) => {
           const isEnabled = sport.enabled;
           const isActive = activeSport === sport.key;
@@ -114,6 +116,9 @@ function SidebarContent({
           );
         })}
       </div>
+
+      {/* Communities Section */}
+      <SidebarCommunities onNavigate={onNavigate} />
     </>
   );
 }
@@ -221,6 +226,8 @@ export function SportsSidebar({ activeSport = "nfl", activeGame }: { activeSport
                 </div>
               );
             })}
+            {/* Communities icon in collapsed view */}
+            <SidebarCommunities collapsed />
           </div>
         ) : (
           /* Expanded state: full content */
