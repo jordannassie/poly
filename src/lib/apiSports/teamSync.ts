@@ -15,6 +15,7 @@ import {
   ApiSportsTeamRaw,
   SOCCER_LEAGUES 
 } from "@/lib/apiSports/leagueConfig";
+import { apiSportsFetch, buildApiSportsUrl } from "@/lib/apiSports/client";
 
 const API_SPORTS_BASE_URL = process.env.API_SPORTS_BASE_URL || "https://v1.american-football.api-sports.io";
 
@@ -58,23 +59,17 @@ export interface SyncTeamsWithSeasonResult extends SyncTeamsResult {
  */
 export async function fetchNFLTeams(apiKey: string): Promise<ApiSportsTeam[]> {
   // Try /teams?league=1 first
-  let endpoint = `${API_SPORTS_BASE_URL}/teams?league=1`;
+  let url = `${API_SPORTS_BASE_URL}/teams?league=1`;
   
-  const res1 = await fetch(endpoint, {
-    headers: { "x-apisports-key": apiKey },
-  });
-  const data1 = await res1.json();
+  const data1 = await apiSportsFetch<{ results: number; response: ApiSportsTeam[] }>(url, apiKey);
   
   if (data1.results && data1.results > 0) {
     return data1.response;
   }
   
   // Fallback to season=2025
-  endpoint = `${API_SPORTS_BASE_URL}/teams?league=1&season=2025`;
-  const res2 = await fetch(endpoint, {
-    headers: { "x-apisports-key": apiKey },
-  });
-  const data2 = await res2.json();
+  url = `${API_SPORTS_BASE_URL}/teams?league=1&season=2025`;
+  const data2 = await apiSportsFetch<{ results: number; response: ApiSportsTeam[] }>(url, apiKey);
   
   return data2.response || [];
 }
@@ -279,19 +274,11 @@ export async function fetchLeagueTeams(
   customEndpoint?: string
 ): Promise<ApiSportsTeam[]> {
   const config = getLeagueConfig(league);
-  const endpoint = customEndpoint 
-    ? `${config.baseUrl}${customEndpoint}`
-    : `${config.baseUrl}${config.teamsEndpoint}`;
+  const url = customEndpoint 
+    ? buildApiSportsUrl(config.baseUrl, customEndpoint)
+    : buildApiSportsUrl(config.baseUrl, config.teamsEndpoint);
   
-  const response = await fetch(endpoint, {
-    headers: { "x-apisports-key": apiKey },
-  });
-  
-  if (!response.ok) {
-    throw new Error(`API-Sports returned ${response.status}: ${response.statusText}`);
-  }
-  
-  const data = await response.json();
+  const data = await apiSportsFetch<{ response: unknown[] }>(url, apiKey);
   
   // Use the league-specific extractor to normalize team data
   const rawTeams = config.teamExtractor(data);
@@ -553,19 +540,11 @@ async function fetchTeamsWithSeason(
   // Build endpoint with season parameter
   // Most API-Sports endpoints use: /teams?league={id}&season={year}
   const endpoint = `/teams?league=${config.leagueId}&season=${season}`;
-  const fullUrl = `${config.baseUrl}${endpoint}`;
+  const fullUrl = buildApiSportsUrl(config.baseUrl, endpoint);
   
   console.log(`[fetchTeamsWithSeason] ${league} trying: ${fullUrl}`);
   
-  const response = await fetch(fullUrl, {
-    headers: { "x-apisports-key": apiKey },
-  });
-  
-  if (!response.ok) {
-    throw new Error(`API-Sports returned ${response.status}: ${response.statusText}`);
-  }
-  
-  const data = await response.json();
+  const data = await apiSportsFetch<{ response: unknown[] }>(fullUrl, apiKey);
   
   // Use the league-specific extractor to normalize team data
   const rawTeams = config.teamExtractor(data);

@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { apiSportsFetch, buildApiSportsUrl } from "@/lib/apiSports/client";
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const COOKIE_NAME = "pp_admin";
@@ -57,6 +58,10 @@ interface ApiSportsGame {
     timestamp: string | number;
   };
   status?: { short: string; long: string } | string;
+}
+
+interface GamesResponse {
+  response: ApiSportsGame[];
 }
 
 // Helper to safely convert timestamp to ISO string
@@ -133,14 +138,16 @@ export async function POST(request: NextRequest) {
       const dateStr = d.toISOString().split("T")[0];
       fetchedDates.push(dateStr);
       
-      const endpoint = `${API_SPORTS_BASE_URL}/games?date=${dateStr}&league=1`;
-      const res = await fetch(endpoint, {
-        headers: { "x-apisports-key": API_SPORTS_KEY },
-      });
-      const data = await res.json();
+      const gamesUrl = buildApiSportsUrl(API_SPORTS_BASE_URL, `/games?date=${dateStr}&league=1`);
       
-      if (data.response && Array.isArray(data.response)) {
-        allGames.push(...data.response);
+      try {
+        const data = await apiSportsFetch<GamesResponse>(gamesUrl, API_SPORTS_KEY);
+        
+        if (data.response && Array.isArray(data.response)) {
+          allGames.push(...data.response);
+        }
+      } catch (fetchErr) {
+        console.warn(`[games sync] Failed to fetch ${dateStr}:`, fetchErr);
       }
     }
 
@@ -169,7 +176,6 @@ export async function POST(request: NextRequest) {
     // Transform and upsert games with proper type handling
     const games = allGames.map((game) => {
       // Handle both nested and flat response structures
-      const gameData = game.game ?? game;
       const gameId = game.game?.id ?? game.id;
       const dateObj = game.game?.date ?? game.date;
       const statusObj = game.game?.status ?? game.status;

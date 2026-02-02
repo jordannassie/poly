@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { apiSportsFetch, buildApiSportsUrl } from "@/lib/apiSports/client";
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const COOKIE_NAME = "pp_admin";
@@ -50,18 +51,13 @@ export async function GET(request: NextRequest) {
   const startTime = Date.now();
   
   try {
-    const res = await fetch(`${baseUrl}/status`, {
-      headers: {
-        "x-apisports-key": API_SPORTS_KEY,
-      },
-    });
-    
+    const statusUrl = buildApiSportsUrl(baseUrl, "/status");
+    const data = await apiSportsFetch(statusUrl, API_SPORTS_KEY);
     const ms = Date.now() - startTime;
-    const data = await res.json();
     
     return NextResponse.json({
-      ok: res.ok,
-      status: res.status,
+      ok: true,
+      status: 200,
       ms,
       sport,
       baseUrl,

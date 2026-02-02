@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { apiSportsFetch, buildApiSportsUrl } from "@/lib/apiSports/client";
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const COOKIE_NAME = "pp_admin";
@@ -57,6 +58,10 @@ interface ApiSportsGame {
     timestamp: string | number;
   };
   status?: { short: string; long: string } | string;
+}
+
+interface GamesResponse {
+  response: ApiSportsGame[];
 }
 
 // Helper to safely convert timestamp to ISO string
@@ -120,31 +125,29 @@ export async function POST(request: NextRequest) {
   try {
     // Try multiple endpoints in order
     const endpointsToTry = [
-      { url: `${API_SPORTS_BASE_URL}/games?live=all`, name: "/games?live=all" },
-      { url: `${API_SPORTS_BASE_URL}/games?live=1`, name: "/games?live=1" },
+      { endpoint: "/games?live=all", name: "/games?live=all" },
+      { endpoint: "/games?live=1", name: "/games?live=1" },
     ];
 
     // Also add today's date as fallback
     const today = new Date().toISOString().split("T")[0];
     endpointsToTry.push({
-      url: `${API_SPORTS_BASE_URL}/games?date=${today}`,
+      endpoint: `/games?date=${today}`,
       name: `/games?date=${today}`,
     });
 
-    for (const endpoint of endpointsToTry) {
+    for (const { endpoint, name } of endpointsToTry) {
       try {
-        const res = await fetch(endpoint.url, {
-          headers: { "x-apisports-key": API_SPORTS_KEY },
-        });
-        const data = await res.json();
+        const url = buildApiSportsUrl(API_SPORTS_BASE_URL, endpoint);
+        const data = await apiSportsFetch<GamesResponse>(url, API_SPORTS_KEY);
 
         if (data.response && Array.isArray(data.response) && data.response.length > 0) {
           allGames = data.response;
-          endpointUsed = endpoint.name;
+          endpointUsed = name;
           break;
         }
       } catch (err) {
-        console.error(`Failed to fetch from ${endpoint.name}:`, err);
+        console.error(`Failed to fetch from ${name}:`, err);
         continue;
       }
     }

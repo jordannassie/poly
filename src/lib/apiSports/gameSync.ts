@@ -7,6 +7,7 @@
 
 import { SupabaseClient } from "@supabase/supabase-js";
 import { getLeagueConfig, SupportedLeague } from "./leagueConfig";
+import { apiSportsFetch, buildApiSportsUrl } from "./client";
 
 const API_SPORTS_KEY = process.env.API_SPORTS_KEY;
 
@@ -182,17 +183,14 @@ export async function fetchGamesForDate(
   let endpoint: string;
   if (league === "SOCCER") {
     // Soccer uses /fixtures?date=YYYY-MM-DD&league=39&season=2024
-    endpoint = `${config.baseUrl}/fixtures?date=${date}&league=${config.leagueId}&season=${config.currentSeason}`;
+    endpoint = `/fixtures?date=${date}&league=${config.leagueId}&season=${config.currentSeason}`;
   } else {
     // Other sports use /games?date=YYYY-MM-DD&league=X
-    endpoint = `${config.baseUrl}/games?date=${date}&league=${config.leagueId}`;
+    endpoint = `/games?date=${date}&league=${config.leagueId}`;
   }
   
-  const res = await fetch(endpoint, {
-    headers: { "x-apisports-key": API_SPORTS_KEY },
-  });
-  
-  const data = await res.json();
+  const url = buildApiSportsUrl(config.baseUrl, endpoint);
+  const data = await apiSportsFetch<{ response: unknown[] }>(url, API_SPORTS_KEY);
   return config.gameExtractor(data);
 }
 
@@ -206,11 +204,8 @@ export async function fetchLiveGames(league: SupportedLeague): Promise<any[]> {
   
   const config = getLeagueConfig(league);
   
-  const res = await fetch(`${config.baseUrl}${config.liveEndpoint}`, {
-    headers: { "x-apisports-key": API_SPORTS_KEY },
-  });
-  
-  const data = await res.json();
+  const url = buildApiSportsUrl(config.baseUrl, config.liveEndpoint);
+  const data = await apiSportsFetch<{ response: unknown[] }>(url, API_SPORTS_KEY);
   return config.gameExtractor(data);
 }
 

@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { apiSportsFetch, buildApiSportsUrl } from "@/lib/apiSports/client";
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const COOKIE_NAME = "pp_admin";
@@ -35,6 +36,11 @@ interface ApiSportsTeam {
   logo: string | null;
 }
 
+interface TeamsResponse {
+  results: number;
+  response: ApiSportsTeam[];
+}
+
 export async function POST(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -59,23 +65,17 @@ export async function POST(request: NextRequest) {
 
   try {
     // Try /teams?league=1 first
-    let teamsData: { response: ApiSportsTeam[]; results: number } | null = null;
-    let endpoint = `${API_SPORTS_BASE_URL}/teams?league=1`;
+    let teamsData: TeamsResponse | null = null;
+    let endpoint = buildApiSportsUrl(API_SPORTS_BASE_URL, "/teams?league=1");
     
-    const res1 = await fetch(endpoint, {
-      headers: { "x-apisports-key": API_SPORTS_KEY },
-    });
-    const data1 = await res1.json();
+    const data1 = await apiSportsFetch<TeamsResponse>(endpoint, API_SPORTS_KEY);
     
     if (data1.results && data1.results > 0) {
       teamsData = data1;
     } else {
       // Fallback to season=2025
-      endpoint = `${API_SPORTS_BASE_URL}/teams?league=1&season=2025`;
-      const res2 = await fetch(endpoint, {
-        headers: { "x-apisports-key": API_SPORTS_KEY },
-      });
-      teamsData = await res2.json();
+      endpoint = buildApiSportsUrl(API_SPORTS_BASE_URL, "/teams?league=1&season=2025");
+      teamsData = await apiSportsFetch<TeamsResponse>(endpoint, API_SPORTS_KEY);
     }
 
     if (!teamsData?.response || teamsData.response.length === 0) {

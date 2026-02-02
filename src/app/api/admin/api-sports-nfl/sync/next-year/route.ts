@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { apiSportsFetch, buildApiSportsUrl } from "@/lib/apiSports/client";
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const COOKIE_NAME = "pp_admin";
@@ -57,6 +58,10 @@ interface ApiSportsGame {
     timestamp: string | number;
   };
   status?: { short: string; long: string } | string;
+}
+
+interface GamesResponse {
+  response: ApiSportsGame[];
 }
 
 // Helper to safely convert timestamp to ISO string
@@ -164,10 +169,6 @@ export async function POST(request: NextRequest) {
     // Fetch each chunk with a small delay between to avoid rate limits
     for (const chunk of chunks) {
       try {
-        // Use season parameter to get scheduled games
-        // API-Sports NFL uses /games endpoint with date range
-        const endpoint = `${API_SPORTS_BASE_URL}/games?date=${chunk.from}`;
-        
         // Fetch all dates in this chunk
         const chunkStart = new Date(chunk.from);
         const chunkEnd = new Date(chunk.to);
@@ -177,11 +178,8 @@ export async function POST(request: NextRequest) {
           const dateStr = d.toISOString().split("T")[0];
           
           try {
-            const res = await fetch(`${API_SPORTS_BASE_URL}/games?date=${dateStr}&league=1`, {
-              headers: { "x-apisports-key": API_SPORTS_KEY },
-            });
-            
-            const data = await res.json();
+            const url = buildApiSportsUrl(API_SPORTS_BASE_URL, `/games?date=${dateStr}&league=1`);
+            const data = await apiSportsFetch<GamesResponse>(url, API_SPORTS_KEY);
             
             if (data.response && Array.isArray(data.response)) {
               chunkGames.push(...data.response);

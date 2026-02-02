@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getLeagueConfigByString } from "@/lib/apiSports/leagueConfig";
+import { apiSportsFetch, buildApiSportsUrl } from "@/lib/apiSports/client";
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const COOKIE_NAME = "pp_admin";
@@ -53,16 +54,18 @@ export async function GET(
 
   try {
     // Call the status endpoint for the league
-    const statusUrl = `${leagueConfig.baseUrl}/status`;
+    const statusUrl = buildApiSportsUrl(leagueConfig.baseUrl, "/status");
     
-    const res = await fetch(statusUrl, {
-      headers: {
-        "x-apisports-key": API_SPORTS_KEY,
-      },
-    });
-
+    interface StatusResponse {
+      response: {
+        account?: { firstname?: string; lastname?: string; email?: string };
+        subscription?: { plan?: string; end?: string; active?: boolean };
+        requests?: { current?: number; limit_day?: number };
+      };
+    }
+    
+    const data = await apiSportsFetch<StatusResponse>(statusUrl, API_SPORTS_KEY);
     const latency = Date.now() - startTime;
-    const data = await res.json();
 
     // Extract account info from response
     const account = data.response?.account || {};
@@ -70,10 +73,10 @@ export async function GET(
     const requests = data.response?.requests || {};
 
     return NextResponse.json({
-      ok: res.ok,
+      ok: true,
       league: params.league.toUpperCase(),
       endpoint: statusUrl,
-      status: res.status,
+      status: 200,
       latencyMs: latency,
       account: {
         firstname: account.firstname,

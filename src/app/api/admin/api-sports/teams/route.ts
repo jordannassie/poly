@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { apiSportsFetch, buildApiSportsUrl } from "@/lib/apiSports/client";
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const COOKIE_NAME = "pp_admin";
@@ -26,12 +27,9 @@ function isAuthorized(request: NextRequest): boolean {
   return false;
 }
 
-async function fetchWithKey(url: string): Promise<Response> {
-  return fetch(url, {
-    headers: {
-      "x-apisports-key": API_SPORTS_KEY!,
-    },
-  });
+interface TeamsResponse {
+  results: number;
+  response: unknown[];
 }
 
 export async function GET(request: NextRequest) {
@@ -67,20 +65,20 @@ export async function GET(request: NextRequest) {
     if (sport === "nfl") {
       // First try: No season parameter
       const endpoint1 = `/teams?league=${league}`;
-      triedEndpoints.push(`${baseUrl}${endpoint1}`);
+      const url1 = buildApiSportsUrl(baseUrl, endpoint1);
+      triedEndpoints.push(url1);
       
-      const res1 = await fetchWithKey(`${baseUrl}${endpoint1}`);
-      const data1 = await res1.json();
+      const data1 = await apiSportsFetch<TeamsResponse>(url1, API_SPORTS_KEY);
       
       // Check if we got results
       if (data1.results && data1.results > 0) {
         const ms = Date.now() - startTime;
         return NextResponse.json({
-          ok: res1.ok,
-          status: res1.status,
+          ok: true,
+          status: 200,
           ms,
           sport,
-          endpoint: `${baseUrl}${endpoint1}`,
+          endpoint: url1,
           triedEndpoints,
           data: data1,
         });
@@ -88,18 +86,18 @@ export async function GET(request: NextRequest) {
       
       // Fallback: Try with season=2025
       const endpoint2 = `/teams?league=${league}&season=2025`;
-      triedEndpoints.push(`${baseUrl}${endpoint2}`);
+      const url2 = buildApiSportsUrl(baseUrl, endpoint2);
+      triedEndpoints.push(url2);
       
-      const res2 = await fetchWithKey(`${baseUrl}${endpoint2}`);
-      const data2 = await res2.json();
+      const data2 = await apiSportsFetch<TeamsResponse>(url2, API_SPORTS_KEY);
       const ms = Date.now() - startTime;
       
       return NextResponse.json({
-        ok: res2.ok,
-        status: res2.status,
+        ok: true,
+        status: 200,
         ms,
         sport,
-        endpoint: `${baseUrl}${endpoint2}`,
+        endpoint: url2,
         triedEndpoints,
         note: "Fallback to season=2025 after empty response without season",
         data: data2,
@@ -108,18 +106,18 @@ export async function GET(request: NextRequest) {
     
     // For NBA and others: Use league + season
     const endpoint = `/teams?league=${league}&season=${season}`;
-    triedEndpoints.push(`${baseUrl}${endpoint}`);
+    const teamsUrl = buildApiSportsUrl(baseUrl, endpoint);
+    triedEndpoints.push(teamsUrl);
     
-    const res = await fetchWithKey(`${baseUrl}${endpoint}`);
+    const data = await apiSportsFetch<TeamsResponse>(teamsUrl, API_SPORTS_KEY);
     const ms = Date.now() - startTime;
-    const data = await res.json();
     
     return NextResponse.json({
-      ok: res.ok,
-      status: res.status,
+      ok: true,
+      status: 200,
       ms,
       sport,
-      endpoint: `${baseUrl}${endpoint}`,
+      endpoint: teamsUrl,
       triedEndpoints,
       data,
     });

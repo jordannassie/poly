@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { apiSportsFetch, buildApiSportsUrl } from "@/lib/apiSports/client";
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const COOKIE_NAME = "pp_admin";
@@ -52,35 +53,21 @@ export async function GET(request: NextRequest) {
 
   const startTime = Date.now();
   
-  // 10s timeout
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
-  
   try {
-    const res = await fetch(`${API_SPORTS_BASE_URL}/status`, {
-      headers: {
-        "x-apisports-key": API_SPORTS_KEY,
-      },
-      signal: controller.signal,
-    });
-    
-    clearTimeout(timeoutId);
+    const statusUrl = buildApiSportsUrl(API_SPORTS_BASE_URL, "/status");
+    const data = await apiSportsFetch(statusUrl, API_SPORTS_KEY);
     const ms = Date.now() - startTime;
-    const data = await res.json();
     
     return NextResponse.json({
-      ok: res.ok,
-      status: res.status,
+      ok: true,
+      status: 200,
       ms,
       data,
     });
   } catch (error) {
-    clearTimeout(timeoutId);
     const ms = Date.now() - startTime;
     
-    const errorMessage = error instanceof Error 
-      ? (error.name === "AbortError" ? "Request timed out after 10 seconds" : error.message)
-      : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     
     return NextResponse.json({
       ok: false,

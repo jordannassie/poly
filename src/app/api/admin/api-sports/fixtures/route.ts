@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { apiSportsFetch, buildApiSportsUrl } from "@/lib/apiSports/client";
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const COOKIE_NAME = "pp_admin";
@@ -51,29 +52,22 @@ export async function GET(request: NextRequest) {
     : "https://v1.american-football.api-sports.io";
   
   // API-Sports uses "games" endpoint
-  const endpoint = sport === "nba"
-    ? `/games?league=${league}&season=${season}&date=${from}`
-    : `/games?league=${league}&season=${season}&date=${from}`;
+  const endpoint = `/games?league=${league}&season=${season}&date=${from}`;
+  const fixturesUrl = buildApiSportsUrl(baseUrl, endpoint);
 
   const startTime = Date.now();
   
   try {
-    const res = await fetch(`${baseUrl}${endpoint}`, {
-      headers: {
-        "x-apisports-key": API_SPORTS_KEY,
-      },
-    });
-    
+    const data = await apiSportsFetch(fixturesUrl, API_SPORTS_KEY);
     const ms = Date.now() - startTime;
-    const data = await res.json();
     
     return NextResponse.json({
-      ok: res.ok,
-      status: res.status,
+      ok: true,
+      status: 200,
       ms,
       sport,
       params: { league, season, from, to },
-      endpoint: `${baseUrl}${endpoint}`,
+      endpoint: fixturesUrl,
       data,
     });
   } catch (error) {
