@@ -24,10 +24,6 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { 
-  getTeamLogoUrl,
-  type Team,
-} from "@/lib/sportsdataio/client";
 import { getFromCache, setInCache, getCacheKey } from "@/lib/sportsdataio/cache";
 import { usesApiSportsCache, usesSportsGamesCache, isValidFrontendLeague, ALL_FRONTEND_LEAGUES } from "@/lib/sports/providers";
 import { getNflGamesFromCache, getNflTeamMap, type CachedNflGame, type CachedNflTeam } from "@/lib/sports/nfl-cache";
@@ -65,75 +61,6 @@ interface FeaturedGame {
 interface FeaturedResponse {
   featured: FeaturedGame | null;
   reason: "championship" | "next_game" | "no_games";
-}
-
-function normalizeTeam(team: Team | undefined, abbr: string): FeaturedTeam {
-  if (!team) {
-    return {
-      teamId: 0,
-      name: abbr,
-      city: "",
-      abbreviation: abbr,
-      fullName: abbr,
-      logoUrl: null,
-      primaryColor: null,
-    };
-  }
-  return {
-    teamId: team.TeamID,
-    name: team.Name,
-    city: team.City,
-    abbreviation: team.Key,
-    fullName: team.FullName || `${team.City} ${team.Name}`,
-    logoUrl: getTeamLogoUrl(team),
-    primaryColor: team.PrimaryColor ? `#${team.PrimaryColor}` : null,
-  };
-}
-
-function isChampionshipGame(score: Score, league: string): boolean {
-  // NFL: Super Bowl is SeasonType 3 and Week 4
-  if (league === "nfl") {
-    return (score.Week || 0) >= 4 && score.SeasonType === 3;
-  }
-  // Other leagues: no special championship detection for now
-  return false;
-}
-
-function getGameName(score: Score, league: string, isChampionship: boolean): string {
-  if (league === "nfl") {
-    if (isChampionship) return "Super Bowl";
-    if (score.SeasonType === 3) {
-      switch (score.Week) {
-        case 1: return "Wild Card";
-        case 2: return "Divisional Round";
-        case 3: return "Conference Championship";
-        case 4: return "Super Bowl";
-        default: return "Playoff Game";
-      }
-    }
-    return `Week ${score.Week || 0}`;
-  }
-  
-  // Generic naming for other leagues
-  return score.Week ? `Week ${score.Week}` : "Regular Season";
-}
-
-function createFeaturedGame(score: Score, teamMap: Map<string, Team>, league: string): FeaturedGame {
-  const isChampionship = isChampionshipGame(score, league);
-  return {
-    gameId: getGameId(score),
-    name: getGameName(score, league, isChampionship),
-    startTime: getGameDate(score),
-    status: getGameStatus(score),
-    homeTeam: normalizeTeam(teamMap.get(score.HomeTeam), score.HomeTeam),
-    awayTeam: normalizeTeam(teamMap.get(score.AwayTeam), score.AwayTeam),
-    homeScore: getHomeScore(score),
-    awayScore: getAwayScore(score),
-    venue: null,
-    week: score.Week || 0,
-    channel: score.Channel || null,
-    isChampionship,
-  };
 }
 
 function getDateRange(days: number): string[] {

@@ -56,7 +56,6 @@ export function TodayGames({ league = "nfl", date }: TodayGamesProps) {
     async function fetchGames() {
       try {
         setLoading(true);
-        setError(null);
         setSyncMessage(null);
         
         // Use provided date or today

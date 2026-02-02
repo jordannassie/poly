@@ -20,10 +20,6 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { 
-  getTeamLogoUrl,
-  type Team,
-} from "@/lib/sportsdataio/client";
 import { getFromCache, setInCache, getCacheKey } from "@/lib/sportsdataio/cache";
 import { isValidFrontendLeague, ALL_FRONTEND_LEAGUES, usesApiSportsCache, usesSportsGamesCache } from "@/lib/sports/providers";
 import { getGameFromCache, getTeamMapFromCache } from "@/lib/sports/games-cache";
@@ -52,73 +48,6 @@ interface GameDetails {
   venue: string | null;
   week: number;
   channel: string | null;
-  quarter: string | null;
-  timeRemaining: string | null;
-  possession: string | null;
-  isPlayoffs: boolean;
-}
-
-function normalizeTeam(team: Team | undefined, abbr: string): GameTeam {
-  if (!team) {
-    return {
-      teamId: 0,
-      name: abbr,
-      city: "",
-      abbreviation: abbr,
-      fullName: abbr,
-      logoUrl: null,
-      primaryColor: null,
-    };
-  }
-  return {
-    teamId: team.TeamID,
-    name: team.Name,
-    city: team.City,
-    abbreviation: team.Key,
-    fullName: team.FullName || `${team.City} ${team.Name}`,
-    logoUrl: getTeamLogoUrl(team),
-    primaryColor: team.PrimaryColor ? `#${team.PrimaryColor}` : null,
-  };
-}
-
-function getGameName(score: Score, league: string): string {
-  // NFL-specific playoff naming
-  if (league === "nfl" && score.SeasonType === 3) {
-    switch (score.Week) {
-      case 1: return "Wild Card Round";
-      case 2: return "Divisional Round";
-      case 3: return "Conference Championship";
-      case 4: return "Super Bowl";
-      default: return "Playoff Game";
-    }
-  }
-  
-  // Generic week/game naming
-  if (score.Week) {
-    return `Week ${score.Week}`;
-  }
-  
-  return "Regular Season";
-}
-
-function createGameDetails(score: Score, teamMap: Map<string, Team>, league: string): GameDetails {
-  return {
-    gameId: getGameId(score),
-    name: getGameName(score, league),
-    startTime: getGameDate(score),
-    status: getGameStatus(score),
-    homeTeam: normalizeTeam(teamMap.get(score.HomeTeam), score.HomeTeam),
-    awayTeam: normalizeTeam(teamMap.get(score.AwayTeam), score.AwayTeam),
-    homeScore: getHomeScore(score),
-    awayScore: getAwayScore(score),
-    venue: null,
-    week: score.Week || 0,
-    channel: score.Channel || null,
-    quarter: score.Quarter || null,
-    timeRemaining: score.TimeRemaining || null,
-    possession: score.Possession || null,
-    isPlayoffs: score.SeasonType === 3,
-  };
 }
 
 export async function GET(request: NextRequest) {
@@ -187,7 +116,7 @@ export async function GET(request: NextRequest) {
         return name.split(" ").map(w => w.charAt(0)).join("").slice(0, 3).toUpperCase();
       };
 
-      const getLogoUrl = (team: { logo_path: string | null; logo_url_original: string | null } | null) => {
+      const getLogoUrl = (team: { logo_path: string | null; logo_url_original: string | null } | null | undefined) => {
         if (!team) return null;
         if (team.logo_path) {
           const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

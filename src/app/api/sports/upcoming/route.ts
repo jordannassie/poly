@@ -22,10 +22,6 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { 
-  getTeamLogoUrl,
-  type Team,
-} from "@/lib/sportsdataio/client";
 import { getFromCache, setInCache, getCacheKey } from "@/lib/sportsdataio/cache";
 import { usesApiSportsCache, usesSportsGamesCache, isValidFrontendLeague, ALL_FRONTEND_LEAGUES } from "@/lib/sports/providers";
 import { getNflGamesFromCache, getNflTeamMap, type CachedNflTeam } from "@/lib/sports/nfl-cache";
@@ -62,44 +58,7 @@ interface UpcomingResponse {
   range: { startDate: string; endDate: string };
   count: number;
   games: NormalizedGame[];
-}
-
-function normalizeTeam(team: Team | undefined, abbr: string): NormalizedTeam {
-  if (!team) {
-    return {
-      teamId: 0,
-      abbreviation: abbr,
-      name: abbr,
-      city: "",
-      fullName: abbr,
-      logoUrl: null,
-      primaryColor: null,
-    };
-  }
-  return {
-    teamId: team.TeamID,
-    abbreviation: team.Key,
-    name: team.Name,
-    city: team.City,
-    fullName: team.FullName || `${team.City} ${team.Name}`,
-    logoUrl: getTeamLogoUrl(team),
-    primaryColor: team.PrimaryColor ? `#${team.PrimaryColor}` : null,
-  };
-}
-
-function normalizeGame(score: Score, teamMap: Map<string, Team>): NormalizedGame {
-  return {
-    gameId: getGameId(score),
-    status: getGameStatus(score),
-    startTime: getGameDate(score),
-    homeTeam: normalizeTeam(teamMap.get(score.HomeTeam), score.HomeTeam),
-    awayTeam: normalizeTeam(teamMap.get(score.AwayTeam), score.AwayTeam),
-    homeScore: getHomeScore(score),
-    awayScore: getAwayScore(score),
-    venue: null, // Could be fetched from Stadium endpoint if needed
-    channel: score.Channel || null,
-    week: score.Week || 0,
-  };
+  message?: string;
 }
 
 function getDateRange(days: number): string[] {
