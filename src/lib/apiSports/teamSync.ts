@@ -46,6 +46,13 @@ export interface SyncTeamsResult {
   error?: string;
 }
 
+// Extended result with season info
+export interface SyncTeamsWithSeasonResult extends SyncTeamsResult {
+  seasonUsed: number | null;
+  seasonsTried: number[];
+  endpoint: string;
+}
+
 /**
  * Fetch NFL teams from API-Sports
  */
@@ -526,4 +533,179 @@ export async function syncSoccerTeams(
       error: err instanceof Error ? err.message : "Unknown error",
     };
   }
+}
+
+// ============================================================================
+// SEASON-AWARE TEAM SYNC WITH RETRY
+// ============================================================================
+
+/**
+ * Fetch teams with explicit season parameter
+ * Builds the correct endpoint for each league type
+ */
+async function fetchTeamsWithSeason(
+  apiKey: string,
+  league: "NFL" | "NBA" | "MLB" | "NHL",
+  season: number
+): Promise<{ teams: ApiSportsTeam[]; endpoint: string }> {
+  const config = getLeagueConfig(league);
+  
+  // Build endpoint with season parameter
+  // Most API-Sports endpoints use: /teams?league={id}&season={year}
+  const endpoint = `/teams?league=${config.leagueId}&season=${season}`;
+  const fullUrl = `${config.baseUrl}${endpoint}`;
+  
+  console.log(`[fetchTeamsWithSeason] ${league} trying: ${fullUrl}`);
+  
+  const response = await fetch(fullUrl, {
+    headers: { "x-apisports-key": apiKey },
+  });
+  
+  if (!response.ok) {
+    throw new Error(`API-Sports returned ${response.status}: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  
+  // Use the league-specific extractor to normalize team data
+  const rawTeams = config.teamExtractor(data);
+  
+  const teams = rawTeams.map((t: ApiSportsTeamRaw) => ({
+    id: t.id,
+    name: t.name,
+    code: t.code || null,
+    city: t.city || null,
+    logo: t.logo || null,
+  }));
+  
+  console.log(`[fetchTeamsWithSeason] ${league} season ${season}: ${teams.length} teams`);
+  
+  return { teams, endpoint: fullUrl };
+}
+
+/**
+ * Sync teams with season retry logic
+ * 
+ * Tries seasons in order:
+ * 1. Provided season (if given)
+ * 2. Current year
+ * 3. Current year - 1
+ * 4. Current year - 2
+ * 
+ * Stops as soon as teams are found.
+ */
+export async function syncTeamsWithSeason(
+  adminClient: SupabaseClient,
+  apiKey: string,
+  league: "NFL" | "NBA" | "MLB" | "NHL",
+  providedSeason?: number | null
+): Promise<SyncTeamsWithSeasonResult> {
+  const currentYear = new Date().getUTCFullYear();
+  
+  // Build list of seasons to try
+  const seasonsToTry: number[] = [];
+  
+  if (providedSeason && !isNaN(providedSeason)) {
+    seasonsToTry.push(providedSeason);
+    // Also add fallbacks if provided season doesn't work
+    if (providedSeason !== currentYear) {
+      seasonsToTry.push(currentYear);
+    }
+    seasonsToTry.push(currentYear - 1);
+    seasonsToTry.push(currentYear - 2);
+  } else {
+    // Default: try current year and previous years
+    seasonsToTry.push(currentYear);
+    seasonsToTry.push(currentYear - 1);
+    seasonsToTry.push(currentYear - 2);
+  }
+  
+  // Remove duplicates
+  const uniqueSeasons = [...new Set(seasonsToTry)];
+  
+  let teams: ApiSportsTeam[] = [];
+  let usedEndpoint = "";
+  let seasonUsed: number | null = null;
+  
+  // Try each season until we get teams
+  for (const season of uniqueSeasons) {
+    try {
+      const result = await fetchTeamsWithSeason(apiKey, league, season);
+      
+      if (result.teams.length > 0) {
+        teams = result.teams;
+        usedEndpoint = result.endpoint;
+        seasonUsed = season;
+        break;
+      }
+    } catch (err) {
+      console.error(`[syncTeamsWithSeason] ${league} season ${season} failed:`, 
+        err instanceof Error ? err.message : err);
+      // Continue to next season
+    }
+  }
+  
+  // If still no teams after all retries
+  if (teams.length === 0) {
+    return {
+      success: false,
+      league,
+      seasonUsed: null,
+      seasonsTried: uniqueSeasons,
+      endpoint: usedEndpoint,
+      totalTeams: 0,
+      inserted: 0,
+      updated: 0,
+      logosUploaded: 0,
+      logosFailed: 0,
+      results: [],
+      error: `No teams returned from API-Sports for ${league}. Tried seasons: ${uniqueSeasons.join(", ")}`,
+    };
+  }
+  
+  // Get existing teams to track inserted vs updated
+  const { data: existingTeams } = await adminClient
+    .from("sports_teams")
+    .select("api_team_id")
+    .eq("league", league);
+
+  const existingTeamIds = new Set(existingTeams?.map(t => t.api_team_id) || []);
+
+  // Sync each team
+  const results: TeamSyncResult[] = [];
+  let inserted = 0;
+  let updated = 0;
+  let logosUploaded = 0;
+  let logosFailed = 0;
+
+  for (const team of teams) {
+    const result = await syncTeam(adminClient, league, team);
+    results.push(result);
+
+    if (existingTeamIds.has(team.id)) {
+      updated++;
+    } else {
+      inserted++;
+    }
+
+    if (result.logoSynced) {
+      logosUploaded++;
+    } else if (team.logo) {
+      logosFailed++;
+    }
+  }
+
+  return {
+    success: true,
+    league,
+    seasonUsed,
+    seasonsTried: uniqueSeasons,
+    endpoint: usedEndpoint,
+    totalTeams: teams.length,
+    inserted,
+    updated,
+    logosUploaded,
+    logosFailed,
+    results,
+  };
 }

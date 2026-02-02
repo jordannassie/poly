@@ -4,15 +4,20 @@
  * Sync teams for any league to sports_teams table.
  * Works for: nfl, nba, mlb, nhl, soccer
  * 
- * Query params (for soccer):
- * - leagues: comma-separated league IDs (default: 39 for Premier League)
- * - season: year (default: 2024)
+ * Query params:
+ * - season: year (optional, will try current year and previous years if empty)
+ * - leagues: comma-separated league IDs (for soccer only)
+ * 
+ * Implements retry logic:
+ * - Tries providedSeason (or currentYear) first
+ * - If empty, tries previousYear, then previousYear-1
+ * - Returns which season was used
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { syncNFLTeams, syncNBATeams, syncSoccerTeams, syncLeagueTeams } from "@/lib/apiSports/teamSync";
+import { syncTeamsWithSeason, syncSoccerTeams } from "@/lib/apiSports/teamSync";
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const COOKIE_NAME = "pp_admin";
@@ -68,57 +73,60 @@ export async function POST(
     }, { status: 500 });
   }
 
+  // Parse query params
+  const url = new URL(request.url);
+  const seasonParam = url.searchParams.get("season");
+  const providedSeason = seasonParam ? parseInt(seasonParam, 10) : null;
+
   try {
-    let result;
+    // Soccer uses different sync logic
+    if (league === "soccer") {
+      const leaguesParam = url.searchParams.get("leagues");
+      const season = providedSeason || 2024;
+      
+      const leagueIds = leaguesParam 
+        ? leaguesParam.split(",").map(l => parseInt(l.trim(), 10)).filter(n => !isNaN(n))
+        : undefined;
 
-    switch (league) {
-      case "nfl":
-        result = await syncNFLTeams(adminClient, API_SPORTS_KEY);
-        break;
+      const result = await syncSoccerTeams(adminClient, API_SPORTS_KEY, leagueIds, season);
 
-      case "nba":
-        result = await syncNBATeams(adminClient, API_SPORTS_KEY);
-        break;
-
-      case "mlb":
-        result = await syncLeagueTeams(adminClient, API_SPORTS_KEY, "MLB");
-        break;
-
-      case "nhl":
-        result = await syncLeagueTeams(adminClient, API_SPORTS_KEY, "NHL");
-        break;
-
-      case "soccer": {
-        // Parse query params for soccer
-        const url = new URL(request.url);
-        const leaguesParam = url.searchParams.get("leagues");
-        const season = parseInt(url.searchParams.get("season") || "2024", 10);
-        
-        const leagueIds = leaguesParam 
-          ? leaguesParam.split(",").map(l => parseInt(l.trim(), 10)).filter(n => !isNaN(n))
-          : undefined;
-
-        result = await syncSoccerTeams(adminClient, API_SPORTS_KEY, leagueIds, season);
-        break;
-      }
-
-      default:
-        return NextResponse.json({
-          ok: false,
-          error: `League ${league} not yet implemented`,
-        }, { status: 400 });
+      return NextResponse.json({
+        ok: result.success,
+        league: result.league,
+        seasonUsed: season,
+        seasonsTried: [season],
+        totalTeams: result.totalTeams,
+        inserted: result.inserted,
+        updated: result.updated,
+        logosUploaded: result.logosUploaded,
+        logosFailed: result.logosFailed,
+        message: result.success 
+          ? `Synced ${result.totalTeams} ${league.toUpperCase()} teams (season ${season})`
+          : result.error,
+      });
     }
+
+    // For NFL, NBA, MLB, NHL - use season retry logic
+    const result = await syncTeamsWithSeason(
+      adminClient,
+      API_SPORTS_KEY,
+      league.toUpperCase() as "NFL" | "NBA" | "MLB" | "NHL",
+      providedSeason
+    );
 
     return NextResponse.json({
       ok: result.success,
       league: result.league,
+      seasonUsed: result.seasonUsed,
+      seasonsTried: result.seasonsTried,
+      endpoint: result.endpoint,
       totalTeams: result.totalTeams,
       inserted: result.inserted,
       updated: result.updated,
       logosUploaded: result.logosUploaded,
       logosFailed: result.logosFailed,
       message: result.success 
-        ? `Synced ${result.totalTeams} ${league.toUpperCase()} teams`
+        ? `Synced ${result.totalTeams} ${league.toUpperCase()} teams (season ${result.seasonUsed})`
         : result.error,
     });
   } catch (error) {

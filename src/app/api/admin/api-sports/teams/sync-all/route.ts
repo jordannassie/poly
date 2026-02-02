@@ -18,9 +18,8 @@ import { cookies } from "next/headers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { 
   syncNFLTeams, 
-  syncNBATeams, 
   syncSoccerTeams, 
-  syncLeagueTeams,
+  syncTeamsWithSeason,
   type SyncTeamsResult 
 } from "@/lib/apiSports/teamSync";
 
@@ -105,13 +104,16 @@ export async function POST(request: NextRequest) {
           syncResult = await syncNFLTeams(adminClient, API_SPORTS_KEY);
           break;
         case "nba":
-          syncResult = await syncNBATeams(adminClient, API_SPORTS_KEY);
+          // Use season-aware sync with retry for NBA
+          syncResult = await syncTeamsWithSeason(adminClient, API_SPORTS_KEY, "NBA");
           break;
         case "mlb":
-          syncResult = await syncLeagueTeams(adminClient, API_SPORTS_KEY, "MLB");
+          // Use season-aware sync with retry for MLB
+          syncResult = await syncTeamsWithSeason(adminClient, API_SPORTS_KEY, "MLB");
           break;
         case "nhl":
-          syncResult = await syncLeagueTeams(adminClient, API_SPORTS_KEY, "NHL");
+          // Use season-aware sync with retry for NHL
+          syncResult = await syncTeamsWithSeason(adminClient, API_SPORTS_KEY, "NHL");
           break;
         case "soccer":
           // Use default Premier League for soccer

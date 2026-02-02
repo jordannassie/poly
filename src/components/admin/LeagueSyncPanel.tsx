@@ -65,6 +65,10 @@ interface ApiResponse {
   gamesInserted?: number;
   gamesUpdated?: number;
   status?: number;
+  // Season info for teams sync
+  seasonUsed?: number | null;
+  seasonsTried?: number[];
+  endpoint?: string;
   latencyMs?: number;
   account?: {
     firstname?: string;
@@ -560,22 +564,55 @@ export function LeagueSyncPanel() {
 
             {/* Teams Sync Results */}
             {result.totalTeams !== undefined && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div className="bg-[#21262d] px-3 py-2 rounded">
-                  <div className="text-gray-400">Total Teams</div>
-                  <div className="text-white font-medium">{result.totalTeams}</div>
-                </div>
-                <div className="bg-[#21262d] px-3 py-2 rounded">
-                  <div className="text-gray-400">Inserted</div>
-                  <div className="text-green-400 font-medium">{result.inserted || 0}</div>
-                </div>
-                <div className="bg-[#21262d] px-3 py-2 rounded">
-                  <div className="text-gray-400">Updated</div>
-                  <div className="text-blue-400 font-medium">{result.updated || 0}</div>
-                </div>
-                <div className="bg-[#21262d] px-3 py-2 rounded">
-                  <div className="text-gray-400">Logos Synced</div>
-                  <div className="text-purple-400 font-medium">{result.logosUploaded || 0}</div>
+              <div className="space-y-3">
+                {/* Season Info */}
+                {(result.seasonUsed !== undefined || result.seasonsTried) && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                    {result.seasonUsed !== undefined && (
+                      <div className="bg-[#21262d] px-3 py-2 rounded">
+                        <div className="text-gray-400">Season Used</div>
+                        <div className="text-green-400 font-medium">
+                          {result.seasonUsed ?? "None found"}
+                        </div>
+                      </div>
+                    )}
+                    {result.seasonsTried && result.seasonsTried.length > 0 && (
+                      <div className="bg-[#21262d] px-3 py-2 rounded">
+                        <div className="text-gray-400">Seasons Tried</div>
+                        <div className="text-white font-medium">
+                          {result.seasonsTried.join(", ")}
+                        </div>
+                      </div>
+                    )}
+                    {result.endpoint && (
+                      <div className="bg-[#21262d] px-3 py-2 rounded">
+                        <div className="text-gray-400">Endpoint</div>
+                        <div className="text-blue-400 font-medium text-xs truncate" title={result.endpoint}>
+                          {result.endpoint}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Team Counts */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="bg-[#21262d] px-3 py-2 rounded">
+                    <div className="text-gray-400">Total Teams</div>
+                    <div className="text-white font-medium">{result.totalTeams}</div>
+                  </div>
+                  <div className="bg-[#21262d] px-3 py-2 rounded">
+                    <div className="text-gray-400">Inserted</div>
+                    <div className="text-green-400 font-medium">{result.inserted || 0}</div>
+                  </div>
+                  <div className="bg-[#21262d] px-3 py-2 rounded">
+                    <div className="text-gray-400">Updated</div>
+                    <div className="text-blue-400 font-medium">{result.updated || 0}</div>
+                  </div>
+                  <div className="bg-[#21262d] px-3 py-2 rounded">
+                    <div className="text-gray-400">Logos Synced</div>
+                    <div className="text-purple-400 font-medium">{result.logosUploaded || 0}</div>
+                  </div>
                 </div>
               </div>
             )}
