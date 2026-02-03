@@ -6,10 +6,8 @@ import {
   Radio,
   BarChart3,
   ChevronRight,
-  Lock,
   PanelLeftClose,
   PanelLeft,
-  Users,
 } from "lucide-react";
 import { SidebarCommunities } from "./SidebarCommunities";
 import { Button } from "./ui/button";
@@ -68,12 +66,11 @@ function SidebarContent({
       </div>
 
       <div className="px-2 pb-4 space-y-0.5">
-        {sportsMenu.map((sport) => {
-          const isEnabled = sport.enabled;
-          const isActive = activeSport === sport.key;
+        {sportsMenu
+          .filter((sport) => sport.enabled)
+          .map((sport) => {
+            const isActive = activeSport === sport.key;
 
-          if (isEnabled) {
-            // Enabled sport - clickable link
             return (
               <Link
                 key={sport.key}
@@ -95,26 +92,7 @@ function SidebarContent({
                 </div>
               </Link>
             );
-          }
-
-          // Disabled sport - greyed out, not clickable
-          return (
-            <div
-              key={sport.key}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-not-allowed opacity-45"
-              title="Coming soon"
-            >
-              <span className="text-sm grayscale">{sport.icon}</span>
-              <span className="flex-1 font-medium text-sm text-[color:var(--text-muted)]">
-                {sport.label}
-              </span>
-              <span className="flex items-center gap-1 text-[10px] text-[color:var(--text-subtle)] bg-[color:var(--surface-2)] px-1.5 py-0.5 rounded">
-                <Lock className="h-2.5 w-2.5" />
-                Soon
-              </span>
-            </div>
-          );
-        })}
+          })}
       </div>
 
       {/* Communities Section */}
@@ -195,11 +173,11 @@ export function SportsSidebar({ activeSport = "nfl", activeGame }: { activeSport
             {/* Crypto games icons - HIDDEN (Plinko saved but not shown) */}
             <div className="h-px bg-[color:var(--border-soft)] mx-2 my-2" />
             {/* Sport icons */}
-            {sportsMenu.slice(0, 8).map((sport) => {
-              const isEnabled = sport.enabled;
-              const isActive = activeSport === sport.key;
+            {sportsMenu
+              .filter((sport) => sport.enabled)
+              .map((sport) => {
+                const isActive = activeSport === sport.key;
 
-              if (isEnabled) {
                 return (
                   <Link
                     key={sport.key}
@@ -214,18 +192,7 @@ export function SportsSidebar({ activeSport = "nfl", activeGame }: { activeSport
                     <span className="text-sm">{sport.icon}</span>
                   </Link>
                 );
-              }
-
-              return (
-                <div
-                  key={sport.key}
-                  className="flex items-center justify-center h-10 mx-2 rounded-lg cursor-not-allowed opacity-45"
-                  title={`${sport.label} - Coming soon`}
-                >
-                  <span className="text-sm grayscale">{sport.icon}</span>
-                </div>
-              );
-            })}
+              })}
             {/* Communities icon in collapsed view */}
             <SidebarCommunities collapsed />
           </div>
