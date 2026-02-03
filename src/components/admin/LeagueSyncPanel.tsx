@@ -261,45 +261,101 @@ export function LeagueSyncPanel() {
     }
   };
 
-  // Sync ALL teams + logos for all leagues
+  // Sync ALL teams - CHUNKED (one sport at a time to avoid timeout)
   const syncAllTeams = async () => {
     setLoading("syncAll");
     setResult(null);
     setSyncAllResult(null);
     
+    const sports = ["nfl", "nba", "mlb", "nhl", "soccer"];
+    const results: SyncAllLeagueResult[] = [];
+    const totals = { totalTeams: 0, inserted: 0, updated: 0, logosUploaded: 0, logosFailed: 0 };
+    let hasErrors = false;
+
     try {
-      const res = await fetch("/api/admin/api-sports/teams/sync-all", {
-        method: "POST",
+      // Sync each sport sequentially (fast, no logo downloads)
+      for (const sport of sports) {
+        try {
+          const res = await fetch(`/api/admin/api-sports/sync/teams?sport=${sport}`, {
+            method: "POST",
+          });
+          
+          const contentType = res.headers.get("content-type") || "";
+          if (!contentType.includes("application/json")) {
+            const bodyText = await res.text();
+            results.push({
+              league: sport.toUpperCase(),
+              success: false,
+              totalTeams: 0,
+              inserted: 0,
+              updated: 0,
+              logosUploaded: 0,
+              logosFailed: 0,
+              error: `Non-JSON: ${bodyText.substring(0, 100)}`,
+            });
+            hasErrors = true;
+            continue;
+          }
+          
+          const data = await res.json();
+          
+          results.push({
+            league: sport.toUpperCase(),
+            success: data.success,
+            totalTeams: data.total || 0,
+            inserted: data.inserted || 0,
+            updated: data.updated || 0,
+            logosUploaded: 0, // No logo downloads in fast mode
+            logosFailed: 0,
+            error: data.error,
+          });
+          
+          totals.totalTeams += data.total || 0;
+          totals.inserted += data.inserted || 0;
+          totals.updated += data.updated || 0;
+          
+          if (!data.success) hasErrors = true;
+          
+          // Update UI progressively
+          setSyncAllResult({
+            ok: !hasErrors,
+            results: [...results],
+            totals: { ...totals },
+            message: `Syncing... ${results.length}/${sports.length} sports done`,
+          });
+          
+        } catch (sportError) {
+          const msg = sportError instanceof Error ? sportError.message : "Unknown error";
+          results.push({
+            league: sport.toUpperCase(),
+            success: false,
+            totalTeams: 0,
+            inserted: 0,
+            updated: 0,
+            logosUploaded: 0,
+            logosFailed: 0,
+            error: msg,
+          });
+          hasErrors = true;
+        }
+      }
+      
+      // Final result
+      setSyncAllResult({
+        ok: !hasErrors || results.some(r => r.success),
+        results,
+        totals,
+        message: hasErrors 
+          ? `Synced with some errors (${results.filter(r => r.success).length}/${sports.length} succeeded)`
+          : `Successfully synced all ${sports.length} sports`,
       });
       
-      // Safe response parsing - check content-type before parsing as JSON
-      const contentType = res.headers.get("content-type") || "";
-      
-      if (!contentType.includes("application/json")) {
-        // Response is not JSON (might be HTML error page)
-        const bodyText = await res.text();
-        setSyncAllResult({
-          ok: false,
-          results: [],
-          totals: { totalTeams: 0, inserted: 0, updated: 0, logosUploaded: 0, logosFailed: 0 },
-          message: "",
-          error: `Server returned non-JSON (status: ${res.status}, type: ${contentType}). Body: ${bodyText.substring(0, 200)}`,
-        });
-        return;
-      }
-      
-      const data: SyncAllResponse = await res.json();
-      setSyncAllResult(data);
     } catch (error) {
-      // JSON parse error or network error
-      let errorMsg = error instanceof Error ? error.message : "Unknown error";
-      if (errorMsg.includes("Unexpected token")) {
-        errorMsg = "Server returned invalid JSON (possibly HTML error page). Check server logs.";
-      }
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
       setSyncAllResult({
         ok: false,
-        results: [],
-        totals: { totalTeams: 0, inserted: 0, updated: 0, logosUploaded: 0, logosFailed: 0 },
+        results,
+        totals,
         message: "",
         error: errorMsg,
       });
