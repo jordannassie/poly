@@ -28,13 +28,17 @@ const VALID_SPORTS = ["nfl", "nba", "mlb", "nhl", "soccer"] as const;
 type ValidSport = typeof VALID_SPORTS[number];
 
 // Base URLs for each sport (API-Sports)
+// NBA uses API-NBA (v2.nba.api-sports.io), others use standard API-Sports
 const SPORT_BASE_URLS: Record<ValidSport, string> = {
   nfl: "https://v1.american-football.api-sports.io",
-  nba: "https://v1.basketball.api-sports.io",
+  nba: "https://v2.nba.api-sports.io",  // API-NBA, not basketball
   mlb: "https://v1.baseball.api-sports.io",
   nhl: "https://v1.hockey.api-sports.io",
   soccer: "https://v3.football.api-sports.io",
 };
+
+// Names to filter out (conferences, not actual teams)
+const EXCLUDED_TEAM_NAMES = ["afc", "nfc"];
 
 // League IDs for each sport
 const SPORT_LEAGUE_IDS: Record<ValidSport, number[]> = {
@@ -399,17 +403,64 @@ export async function POST(request: NextRequest) {
     const fetchTeamsForSeasonOrNoSeason = async (season: string | null): Promise<number> => {
       let teamsFound = 0;
       
+      // NBA uses API-NBA which has different endpoint structure (no league param)
+      if (sport === NBA_SPORT) {
+        const endpoint = season 
+          ? `${baseUrl}/teams?season=${season}`
+          : `${baseUrl}/teams`;
+        
+        console.log(`[api-nba] Fetching: ${endpoint}`);
+        
+        const result = await fetchWithRetry<TeamsApiResponse>(endpoint, API_SPORTS_KEY);
+        
+        if (!result.ok) {
+          console.error(`[api-nba] Error:`, result.error);
+          errors.push(`NBA: ${result.error}`);
+          return 0;
+        }
+        
+        if (hasApiErrors(result.data?.errors)) {
+          const errStr = JSON.stringify(result.data?.errors);
+          console.error(`[api-nba] API errors:`, errStr);
+          errors.push(`NBA: API error - ${errStr}`);
+          return 0;
+        }
+        
+        const teamsInResponse = result.data?.response || [];
+        console.log(`[api-nba] season`, season || "none", `teams`, teamsInResponse.length);
+        
+        // Normalize NBA teams
+        for (const item of teamsInResponse) {
+          // API-NBA response structure may vary
+          const teamId = item.id || item.team?.id;
+          const teamName = item.name || item.team?.name;
+          const teamLogo = item.logo || item.team?.logo;
+          
+          if (teamId && teamName) {
+            // Filter out AFC/NFC
+            if (EXCLUDED_TEAM_NAMES.includes(teamName.toLowerCase())) {
+              continue;
+            }
+            allTeams.push({
+              id: teamId,
+              name: teamName,
+              logo: teamLogo || null,
+              leagueId: 0,
+            });
+            teamsFound++;
+          }
+        }
+        
+        return teamsFound;
+      }
+      
+      // All other sports use standard API-Sports with league param
       for (const leagueId of leagueIds) {
         const endpoint = season 
           ? `${baseUrl}/teams?league=${leagueId}&season=${season}`
           : `${baseUrl}/teams?league=${leagueId}`;
         
-        // NBA-specific logging
-        if (sport === NBA_SPORT) {
-          console.log(`[NBA] Fetching: ${endpoint}`);
-        } else {
-          console.log(`[sync/teams] Fetching league ${leagueId}${season ? `, season ${season}` : ""}: ${endpoint}`);
-        }
+        console.log(`[sync/teams] Fetching league ${leagueId}${season ? `, season ${season}` : ""}: ${endpoint}`);
         
         const result = await fetchWithRetry<TeamsApiResponse>(endpoint, API_SPORTS_KEY);
         
@@ -452,6 +503,10 @@ export async function POST(request: NextRequest) {
           // Soccer wraps in { team: {...} }
           const team = item.team || item;
           if (team.id && team.name) {
+            // Filter out AFC/NFC (conferences, not actual teams)
+            if (EXCLUDED_TEAM_NAMES.includes(team.name.toLowerCase())) {
+              continue;
+            }
             allTeams.push({
               id: team.id,
               name: team.name,

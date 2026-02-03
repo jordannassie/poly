@@ -29,6 +29,9 @@ export interface TeamListItem {
   country?: string;
 }
 
+// Names to filter out (conferences, not actual teams)
+const EXCLUDED_NAMES = ["afc", "nfc"];
+
 /**
  * Get all teams for a specific league
  * League values in DB are lowercase: nfl, nba, mlb, nhl, soccer
@@ -53,7 +56,9 @@ export async function getTeamsByLeague(league: string): Promise<TeamListItem[]> 
     return [];
   }
 
-  return teams.map(transformTeam);
+  // Filter out AFC/NFC (conferences, not teams)
+  const filteredTeams = teams.filter(t => !EXCLUDED_NAMES.includes(t.name.toLowerCase()));
+  return filteredTeams.map(transformTeam);
 }
 
 /**
@@ -76,7 +81,9 @@ export async function getAllTeams(): Promise<TeamListItem[]> {
     return [];
   }
 
-  return teams.map(transformTeam);
+  // Filter out AFC/NFC (conferences, not teams)
+  const filteredTeams = teams.filter(t => !EXCLUDED_NAMES.includes(t.name.toLowerCase()));
+  return filteredTeams.map(transformTeam);
 }
 
 /**

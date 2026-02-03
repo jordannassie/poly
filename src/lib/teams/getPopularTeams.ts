@@ -19,6 +19,9 @@ function getClient() {
   return createClient(supabaseUrl, supabaseAnonKey);
 }
 
+// Names to filter out (conferences, not actual teams)
+const EXCLUDED_NAMES = ["afc", "nfc"];
+
 // Curated list of popular team names to show in sidebar
 // Order matters - these are displayed in this order
 const POPULAR_TEAM_NAMES = [
@@ -64,13 +67,16 @@ export async function getPopularTeams(limit: number = 6): Promise<TeamListItem[]
     return [];
   }
 
+  // Filter out AFC/NFC (conferences, not teams)
+  const filteredTeams = teams.filter(t => !EXCLUDED_NAMES.includes(t.name.toLowerCase()));
+
   // Try to find our curated popular teams
   const popularTeams: TeamListItem[] = [];
   
   for (const popularName of POPULAR_TEAM_NAMES) {
     if (popularTeams.length >= limit) break;
     
-    const team = teams.find(t => 
+    const team = filteredTeams.find(t => 
       t.name.toLowerCase() === popularName.toLowerCase()
     );
     
@@ -83,7 +89,7 @@ export async function getPopularTeams(limit: number = 6): Promise<TeamListItem[]
   if (popularTeams.length < limit) {
     const existingIds = new Set(popularTeams.map(t => t.id));
     
-    for (const team of teams) {
+    for (const team of filteredTeams) {
       if (popularTeams.length >= limit) break;
       if (!existingIds.has(String(team.id))) {
         popularTeams.push(transformTeam(team));

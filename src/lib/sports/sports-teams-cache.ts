@@ -29,6 +29,9 @@ function getClient() {
   return createClient(supabaseUrl, supabaseAnonKey);
 }
 
+// Names to filter out (conferences, not actual teams)
+const EXCLUDED_NAMES = ["afc", "nfc"];
+
 // Type matching the NEW sports_teams table schema
 export interface CachedSportsTeam {
   id: number;          // API-Sports team ID
@@ -79,7 +82,9 @@ export async function getTeamsFromCache(league: string): Promise<CachedSportsTea
     return [];
   }
 
-  return data || [];
+  // Filter out AFC/NFC (conferences, not teams)
+  const filtered = (data || []).filter(t => !EXCLUDED_NAMES.includes(t.name.toLowerCase()));
+  return filtered;
 }
 
 /**
