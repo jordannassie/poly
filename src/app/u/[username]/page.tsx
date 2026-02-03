@@ -8,7 +8,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getDemoUser } from "@/lib/demoAuth";
 import { 
-  User, 
   Globe, 
   Trophy, 
   Target, 
@@ -25,7 +24,6 @@ import {
   ImageIcon,
   MessageCircle,
   Heart,
-  Reply,
   MoreHorizontal,
   Loader2,
   AlertCircle
@@ -151,52 +149,6 @@ const demoProfile = {
       profit: "+$2,760",
       date: "3 days ago",
       league: "NBA",
-    },
-  ],
-  activity: [
-    {
-      id: 1,
-      type: "comment",
-      market: "Chiefs vs Eagles - Super Bowl",
-      team1: "chiefs",
-      team2: "eagles",
-      content: "Chiefs defense looking solid. Taking the ML here.",
-      likes: 24,
-      replies: 8,
-      date: "2 hours ago",
-    },
-    {
-      id: 2,
-      type: "reply",
-      market: "Lakers vs Celtics",
-      team1: "lakers",
-      team2: "celtics",
-      replyTo: "BetKing99",
-      content: "Agree, Celtics at home are unbeatable this season.",
-      likes: 12,
-      date: "5 hours ago",
-    },
-    {
-      id: 3,
-      type: "comment",
-      market: "Bills vs Ravens - AFC Championship",
-      team1: "bills",
-      team2: "ravens",
-      content: "Bills getting points at home? Easy money.",
-      likes: 45,
-      replies: 15,
-      date: "1 day ago",
-    },
-    {
-      id: 4,
-      type: "reply",
-      market: "Warriors vs Nuggets",
-      team1: "warriors",
-      team2: "nuggets",
-      replyTo: "SharpShooter",
-      content: "Warriors always cover at home against Denver. Historical trend.",
-      likes: 8,
-      date: "2 days ago",
     },
   ],
   achievements: [
@@ -909,77 +861,26 @@ export default function PublicProfilePage({ params }: Props) {
                 })}
               </>
             ) : (
-              /* Fallback to demo activity */
-              <>
-                {profile.activity.map((item) => (
-                  <Card key={item.id} className="bg-[color:var(--surface)] border-[color:var(--border-soft)]">
-                    <CardContent className="p-4">
-                      {/* Header */}
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-yellow-500 flex items-center justify-center">
-                            <span className="text-sm font-bold text-white">DT</span>
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold">{profile.displayName}</span>
-                              {item.type === "reply" && (
-                                <>
-                                  <Reply className="h-3 w-3 text-[color:var(--text-muted)]" />
-                                  <span className="text-[color:var(--text-muted)]">replied to</span>
-                                  <Link href={`/u/${item.replyTo?.toLowerCase()}`} className="text-blue-500 hover:underline">
-                                    @{item.replyTo}
-                                  </Link>
-                                </>
-                              )}
-                              {item.type === "comment" && (
-                                <span className="text-[color:var(--text-muted)]">commented</span>
-                              )}
-                            </div>
-                            <div className="text-xs text-[color:var(--text-muted)]">{item.date}</div>
-                          </div>
-                        </div>
-                        <button className="text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </button>
-                      </div>
-                      
-                      {/* Market with Teams */}
-                      <div className="flex items-center gap-2 mb-2 p-2 bg-[color:var(--surface-2)] rounded-lg">
-                        <TeamLogo teamKey={item.team1} size="sm" />
-                        <span className="text-xs text-[color:var(--text-muted)]">vs</span>
-                        <TeamLogo teamKey={item.team2} size="sm" />
-                        <span className="text-sm font-medium ml-2">{item.market}</span>
-                      </div>
-                      
-                      {/* Content */}
-                      <p className="text-[color:var(--text-strong)] mb-3">{item.content}</p>
-                      
-                      {/* Actions */}
-                      <div className="flex items-center gap-4 text-sm text-[color:var(--text-muted)]">
-                        <button className="flex items-center gap-1 hover:text-red-500 transition">
-                          <Heart className="h-4 w-4" />
-                          {item.likes}
-                        </button>
-                        {item.replies !== undefined && (
-                          <button className="flex items-center gap-1 hover:text-blue-500 transition">
-                            <MessageCircle className="h-4 w-4" />
-                            {item.replies} replies
-                          </button>
-                        )}
-                        <button className="flex items-center gap-1 hover:text-[color:var(--text-strong)] transition">
-                          <Share2 className="h-4 w-4" />
-                          Share
-                        </button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                
-                <Button variant="outline" className="w-full border-[color:var(--border-soft)]">
-                  Load More Activity
-                </Button>
-              </>
+              /* Empty state when no posts */
+              <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)]">
+                <CardContent className="p-8 text-center">
+                  <div className="text-4xl mb-4">💬</div>
+                  <h3 className="text-lg font-semibold mb-2">No activity yet</h3>
+                  <p className="text-[color:var(--text-muted)] text-sm mb-4">
+                    {isOwnProfile 
+                      ? "Your posts and comments will appear here!"
+                      : `${profile.displayName || profile.username} hasn't posted anything yet.`
+                    }
+                  </p>
+                  {isOwnProfile && (
+                    <Link href="/sports?league=nfl">
+                      <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                        Browse Teams & Markets
+                      </Button>
+                    </Link>
+                  )}
+                </CardContent>
+              </Card>
             )}
           </div>
         )}

@@ -8,10 +8,10 @@ import { MainFooter } from "@/components/MainFooter";
 import { HeadToHeadChart } from "@/components/HeadToHeadChart";
 import { MobileBetBar } from "@/components/MobileBetBar";
 import { TeamOutcomeButton, TeamOutcomeButtonPair } from "@/components/market/TeamOutcomeButton";
+import { MarketComments } from "@/components/market/MarketComments";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { demoComments } from "@/lib/mockData";
 import { formatVolume, getWhyMovingReasons } from "@/lib/marketHelpers";
 import { MarketViewModel } from "@/lib/adapters/marketViewModel";
 import { mapMarketOutcomesToTeams, teamToYesNo } from "@/lib/market/outcomeMapping";
@@ -312,54 +312,7 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
             </div>
 
             {/* Comments */}
-            <div className="mt-6 md:mt-8 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-3 md:p-4">
-              <div className="flex items-center gap-3 mb-4">
-                <Input
-                  placeholder="Add a comment"
-                  className="flex-1 bg-[color:var(--surface-2)] border-[color:var(--border-soft)]"
-                />
-                <Button className="bg-[color:var(--accent)] hover:bg-[color:var(--accent-strong)] text-white">
-                  Post
-                </Button>
-              </div>
-
-              <div className="space-y-4">
-                {demoComments.map((comment) => (
-                  <div key={comment.id} className="flex gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
-                      {comment.user.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold">{comment.user}</span>
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full ${
-                            comment.tag === "Yes"
-                              ? "bg-green-500/20 text-green-500"
-                              : "bg-red-500/20 text-red-500"
-                          }`}
-                        >
-                          {comment.tag}
-                        </span>
-                        <span className="text-xs text-[color:var(--text-subtle)]">
-                          {comment.time}
-                        </span>
-                        <button className="ml-auto">
-                          <MoreHorizontal className="h-4 w-4 text-[color:var(--text-muted)]" />
-                        </button>
-                      </div>
-                      <p className="text-sm text-[color:var(--text-muted)]">{comment.message}</p>
-                      <div className="flex items-center gap-4 mt-2 text-sm text-[color:var(--text-muted)]">
-                        <button className="flex items-center gap-1 hover:text-[color:var(--text-strong)]">
-                          <Heart className="h-4 w-4" /> 0
-                        </button>
-                        <button className="hover:text-[color:var(--text-strong)]">Reply</button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <MarketComments marketSlug={market.slug} league={league} />
           </div>
         </main>
 
