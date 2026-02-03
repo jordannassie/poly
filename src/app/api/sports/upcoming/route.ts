@@ -4,7 +4,7 @@
  * 
  * Query params:
  * - league: "nfl" | "nba" | "mlb" | "nhl" | "soccer" (required)
- * - days: number of days to look ahead (default: 7, max: 14)
+ * - days: number of days to look ahead (default: 90 for NFL, 30 for others)
  * 
  * Response:
  * {
@@ -18,13 +18,12 @@
  *   }]
  * }
  * 
- * All leagues use cached Supabase data - no live API calls.
+ * All leagues use sports_games table (v2 schema).
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { getFromCache, setInCache, getCacheKey } from "@/lib/sportsdataio/cache";
-import { usesApiSportsCache, usesSportsGamesCache, isValidFrontendLeague, ALL_FRONTEND_LEAGUES } from "@/lib/sports/providers";
-import { getNflGamesFromCache, getNflTeamMap, type CachedNflTeam } from "@/lib/sports/nfl-cache";
+import { isValidFrontendLeague, ALL_FRONTEND_LEAGUES } from "@/lib/sports/providers";
 import { getUpcomingGamesWithTeamsFromCache } from "@/lib/sports/games-cache";
 
 // Cache TTL
@@ -74,40 +73,16 @@ function getDateRange(days: number): string[] {
   return dates;
 }
 
-// Helper to normalize cached NFL team to the expected format
-function normalizeCachedTeam(team: CachedNflTeam | undefined, abbr: string): NormalizedTeam {
-  if (!team) {
-    return {
-      teamId: 0,
-      abbreviation: abbr,
-      name: abbr,
-      city: "",
-      fullName: abbr,
-      logoUrl: null,
-      primaryColor: null,
-    };
-  }
-  return {
-    teamId: team.team_id,
-    abbreviation: team.code || "",
-    name: team.name,
-    city: team.city || "",
-    fullName: team.city ? `${team.city} ${team.name}` : team.name,
-    logoUrl: team.logo,
-    primaryColor: null,
-  };
-}
-
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const leagueParam = url.searchParams.get("league")?.toLowerCase() || "nfl";
     const daysParam = url.searchParams.get("days");
     
-    // NFL uses cache so we can support longer ranges (up to 365 days)
-    // Other leagues use SportsDataIO which is limited to 14 days
-    const maxDays = usesApiSportsCache(leagueParam) ? 365 : 14;
-    const defaultDays = usesApiSportsCache(leagueParam) ? 365 : 7;
+    // All leagues use sports_games cache with configurable day ranges
+    // NFL defaults to 90 days, others to 30 days
+    const defaultDays = leagueParam === "nfl" ? 90 : 30;
+    const maxDays = 365;
     const days = Math.min(Math.max(parseInt(daysParam || String(defaultDays), 10) || defaultDays, 1), maxDays);
 
     // Validate league
@@ -132,109 +107,56 @@ export async function GET(request: NextRequest) {
     const startDate = dates[0];
     const endDate = dates[dates.length - 1];
 
-    // NFL uses API-Sports cache from Supabase
-    if (usesApiSportsCache(league)) {
-      const [cachedGames, teamMap] = await Promise.all([
-        getNflGamesFromCache(startDate, endDate),
-        getNflTeamMap(),
-      ]);
+    // All leagues use unified sports_games cache
+    const cachedGames = await getUpcomingGamesWithTeamsFromCache(league, days);
 
-      const allGames: NormalizedGame[] = cachedGames.map((game) => {
-        const homeTeam = game.home_team_id ? teamMap.get(game.home_team_id) : undefined;
-        const awayTeam = game.away_team_id ? teamMap.get(game.away_team_id) : undefined;
-        const statusLower = (game.status || "").toLowerCase();
-        const isOver = statusLower.includes("final") || statusLower.includes("finished");
-        const isInProgress = statusLower.includes("progress") || statusLower.includes("live");
+    // Transform to normalized format
+    const allGames: NormalizedGame[] = cachedGames.map((game) => ({
+      gameId: game.GameKey,
+      status: game.IsOver ? "final" : game.IsInProgress ? "in_progress" : "scheduled",
+      startTime: game.DateTime,
+      homeTeam: {
+        teamId: game.HomeTeamData?.TeamID || 0,
+        abbreviation: game.HomeTeam,
+        name: game.HomeTeamData?.Name || game.HomeTeam,
+        city: "",
+        fullName: game.HomeTeamData?.FullName || game.HomeTeam,
+        logoUrl: game.HomeTeamData?.WikipediaLogoUrl || null,
+        primaryColor: null,
+      },
+      awayTeam: {
+        teamId: game.AwayTeamData?.TeamID || 0,
+        abbreviation: game.AwayTeam,
+        name: game.AwayTeamData?.Name || game.AwayTeam,
+        city: "",
+        fullName: game.AwayTeamData?.FullName || game.AwayTeam,
+        logoUrl: game.AwayTeamData?.WikipediaLogoUrl || null,
+        primaryColor: null,
+      },
+      homeScore: game.HomeScore,
+      awayScore: game.AwayScore,
+      venue: null,
+      channel: null,
+      week: 0,
+    }));
 
-        return {
-          gameId: String(game.game_id),
-          status: isOver ? "final" : isInProgress ? "in_progress" : "scheduled",
-          startTime: game.game_date || "",
-          homeTeam: normalizeCachedTeam(homeTeam, homeTeam?.code || ""),
-          awayTeam: normalizeCachedTeam(awayTeam, awayTeam?.code || ""),
-          homeScore: game.home_score,
-          awayScore: game.away_score,
-          venue: null,
-          channel: null,
-          week: 0,
-        };
-      });
-
-      // Sort by start time
-      allGames.sort((a, b) => 
-        new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-      );
-
-      const response: UpcomingResponse = {
-        range: { startDate, endDate },
-        count: allGames.length,
-        games: allGames,
-      };
-
-      const cacheTtl = allGames.length > 0 ? CACHE_TTL_WITH_GAMES : CACHE_TTL_NO_GAMES;
-      setInCache(cacheKey, response, cacheTtl);
-
-      console.log(`[/api/sports/upcoming] ${league.toUpperCase()} (cache): ${allGames.length} games in next ${days} days`);
-
-      return NextResponse.json(response);
-    }
-
-    // All other leagues use sports_games cache
-    if (usesSportsGamesCache(league)) {
-      const cachedGames = await getUpcomingGamesWithTeamsFromCache(league, days);
-
-      // Transform to normalized format
-      const allGames: NormalizedGame[] = cachedGames.map((game) => ({
-        gameId: game.GameKey,
-        status: game.IsOver ? "final" : game.IsInProgress ? "in_progress" : "scheduled",
-        startTime: game.DateTime,
-        homeTeam: {
-          teamId: game.HomeTeamData?.TeamID || 0,
-          abbreviation: game.HomeTeam,
-          name: game.HomeTeamData?.Name || game.HomeTeam,
-          city: "",
-          fullName: game.HomeTeamData?.FullName || game.HomeTeam,
-          logoUrl: game.HomeTeamData?.WikipediaLogoUrl || null,
-          primaryColor: null,
-        },
-        awayTeam: {
-          teamId: game.AwayTeamData?.TeamID || 0,
-          abbreviation: game.AwayTeam,
-          name: game.AwayTeamData?.Name || game.AwayTeam,
-          city: "",
-          fullName: game.AwayTeamData?.FullName || game.AwayTeam,
-          logoUrl: game.AwayTeamData?.WikipediaLogoUrl || null,
-          primaryColor: null,
-        },
-        homeScore: game.HomeScore,
-        awayScore: game.AwayScore,
-        venue: null,
-        channel: null,
-        week: 0,
-      }));
-
-      const response: UpcomingResponse = {
-        range: { startDate, endDate },
-        count: allGames.length,
-        games: allGames,
-      };
-
-      const cacheTtl = allGames.length > 0 ? CACHE_TTL_WITH_GAMES : CACHE_TTL_NO_GAMES;
-      setInCache(cacheKey, response, cacheTtl);
-
-      console.log(`[/api/sports/upcoming] ${league.toUpperCase()} (cache): ${allGames.length} games in next ${days} days`);
-
-      return NextResponse.json(response);
-    }
-
-    // Fallback: no data source
     const response: UpcomingResponse = {
       range: { startDate, endDate },
-      count: 0,
-      games: [],
+      count: allGames.length,
+      games: allGames,
     };
 
-    console.log(`[/api/sports/upcoming] ${league.toUpperCase()}: no data source`);
+    const cacheTtl = allGames.length > 0 ? CACHE_TTL_WITH_GAMES : CACHE_TTL_NO_GAMES;
+    setInCache(cacheKey, response, cacheTtl);
+
+    console.log(`[/api/sports/upcoming] ${league.toUpperCase()} (sports_games): ${allGames.length} games in next ${days} days`);
+
+    if (allGames.length === 0) {
+      return NextResponse.json({
+        ...response,
+        message: `No upcoming ${league.toUpperCase()} games found. Sync games from Admin panel.`,
+      });
+    }
 
     return NextResponse.json(response);
   } catch (error) {

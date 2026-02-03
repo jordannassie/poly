@@ -4,7 +4,7 @@
  * 
  * Query params:
  * - league: "nfl" | "nba" | "mlb" | "nhl" | "soccer" (required)
- * - gameId: string (required) - The game ID
+ * - gameId: string (required) - The external game ID
  * 
  * Response:
  * {
@@ -16,12 +16,12 @@
  *   } | null
  * }
  * 
- * All leagues use cached Supabase data - no live API calls.
+ * All leagues use sports_games table (v2 schema).
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { getFromCache, setInCache, getCacheKey } from "@/lib/sportsdataio/cache";
-import { isValidFrontendLeague, ALL_FRONTEND_LEAGUES, usesApiSportsCache, usesSportsGamesCache } from "@/lib/sports/providers";
+import { isValidFrontendLeague, ALL_FRONTEND_LEAGUES } from "@/lib/sports/providers";
 import { getGameFromCache, getTeamMapFromCache } from "@/lib/sports/games-cache";
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     const leagueParam = url.searchParams.get("league")?.toLowerCase() || "nfl";
     const gameId = url.searchParams.get("gameId");
 
-    // Validate params (includes soccer)
+    // Validate params
     if (!isValidFrontendLeague(leagueParam)) {
       return NextResponse.json(
         { error: `Invalid league. Must be one of: ${ALL_FRONTEND_LEAGUES.join(", ")}` },
@@ -80,94 +80,73 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(cached);
     }
 
-    // Use sports_games cache for all leagues (except NFL which uses api_sports_nfl_games)
-    if (usesSportsGamesCache(league) || usesApiSportsCache(league)) {
-      const numericGameId = parseInt(gameId, 10);
-      
-      if (isNaN(numericGameId)) {
-        return NextResponse.json(
-          { game: null, error: "Invalid game ID" },
-          { status: 400 }
-        );
-      }
+    // Fetch game from sports_games table (gameId is now external_game_id as string)
+    const [cachedGame, teamMap] = await Promise.all([
+      getGameFromCache(league, gameId),
+      getTeamMapFromCache(league),
+    ]);
 
-      const [cachedGame, teamMap] = await Promise.all([
-        getGameFromCache(league, numericGameId),
-        getTeamMapFromCache(league),
-      ]);
-
-      if (!cachedGame) {
-        return NextResponse.json(
-          { game: null, message: "Game not found or not yet synced" },
-          { status: 404 }
-        );
-      }
-
-      const homeTeam = cachedGame.home_team_id ? teamMap.get(cachedGame.home_team_id) : null;
-      const awayTeam = cachedGame.away_team_id ? teamMap.get(cachedGame.away_team_id) : null;
-
-      const statusLower = (cachedGame.status || "").toLowerCase();
-      const isOver = statusLower.includes("final") || statusLower.includes("finished");
-      const isInProgress = statusLower.includes("progress") || statusLower.includes("live");
-      const isCanceled = statusLower.includes("cancel") || statusLower.includes("postpone");
-
-      const getAbbr = (name: string | undefined) => {
-        if (!name) return "";
-        return name.split(" ").map(w => w.charAt(0)).join("").slice(0, 3).toUpperCase();
-      };
-
-      const getLogoUrl = (team: { logo_path: string | null; logo_url_original: string | null } | null | undefined) => {
-        if (!team) return null;
-        if (team.logo_path) {
-          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-          return `${supabaseUrl}/storage/v1/object/public/SPORTS/${team.logo_path}`;
-        }
-        return team.logo_url_original || null;
-      };
-
-      const gameDetails: GameDetails = {
-        gameId: String(cachedGame.api_game_id),
-        name: `${awayTeam?.name || "Away"} @ ${homeTeam?.name || "Home"}`,
-        startTime: cachedGame.start_time || "",
-        status: isCanceled ? "canceled" : isOver ? "final" : isInProgress ? "in_progress" : "scheduled",
-        homeTeam: {
-          teamId: cachedGame.home_team_id || 0,
-          name: homeTeam?.name || "",
-          city: "",
-          abbreviation: getAbbr(homeTeam?.name),
-          fullName: homeTeam?.name || "",
-          logoUrl: getLogoUrl(homeTeam),
-          primaryColor: null,
-        },
-        awayTeam: {
-          teamId: cachedGame.away_team_id || 0,
-          name: awayTeam?.name || "",
-          city: "",
-          abbreviation: getAbbr(awayTeam?.name),
-          fullName: awayTeam?.name || "",
-          logoUrl: getLogoUrl(awayTeam),
-          primaryColor: null,
-        },
-        homeScore: cachedGame.home_score,
-        awayScore: cachedGame.away_score,
-        venue: null,
-        week: 0,
-        channel: null,
-      };
-
-      const response = { game: gameDetails };
-      setInCache(cacheKey, response, CACHE_TTL);
-
-      console.log(`[/api/sports/game] ${league.toUpperCase()} game ${gameId} found (cache)`);
-
-      return NextResponse.json(response);
+    if (!cachedGame) {
+      return NextResponse.json(
+        { game: null, message: "Game not found or not yet synced" },
+        { status: 404 }
+      );
     }
 
-    // Fallback: game not found
-    return NextResponse.json(
-      { game: null, message: "Game not found or league not configured" },
-      { status: 404 }
-    );
+    // Look up team data by name
+    const homeTeam = teamMap.get(cachedGame.home_team.toLowerCase());
+    const awayTeam = teamMap.get(cachedGame.away_team.toLowerCase());
+
+    const statusLower = (cachedGame.status || "").toLowerCase();
+    const isOver = statusLower.includes("final") || statusLower.includes("finished");
+    const isInProgress = statusLower.includes("progress") || statusLower.includes("live");
+    const isCanceled = statusLower.includes("cancel") || statusLower.includes("postpone");
+
+    const getAbbr = (name: string) => {
+      if (!name) return "";
+      const words = name.split(" ");
+      if (words.length > 1) {
+        return words[words.length - 1].slice(0, 3).toUpperCase();
+      }
+      return name.slice(0, 3).toUpperCase();
+    };
+
+    const gameDetails: GameDetails = {
+      gameId: cachedGame.external_game_id,
+      name: `${cachedGame.away_team} @ ${cachedGame.home_team}`,
+      startTime: cachedGame.starts_at,
+      status: isCanceled ? "canceled" : isOver ? "final" : isInProgress ? "in_progress" : "scheduled",
+      homeTeam: {
+        teamId: homeTeam?.id || 0,
+        name: cachedGame.home_team,
+        city: "",
+        abbreviation: getAbbr(cachedGame.home_team),
+        fullName: cachedGame.home_team,
+        logoUrl: homeTeam?.logo || null,
+        primaryColor: null,
+      },
+      awayTeam: {
+        teamId: awayTeam?.id || 0,
+        name: cachedGame.away_team,
+        city: "",
+        abbreviation: getAbbr(cachedGame.away_team),
+        fullName: cachedGame.away_team,
+        logoUrl: awayTeam?.logo || null,
+        primaryColor: null,
+      },
+      homeScore: cachedGame.home_score,
+      awayScore: cachedGame.away_score,
+      venue: null,
+      week: 0,
+      channel: null,
+    };
+
+    const response = { game: gameDetails };
+    setInCache(cacheKey, response, CACHE_TTL);
+
+    console.log(`[/api/sports/game] ${league.toUpperCase()} game ${gameId} found`);
+
+    return NextResponse.json(response);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("[/api/sports/game] Error:", message);

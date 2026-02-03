@@ -17,19 +17,20 @@ function getClient() {
   return createClient(supabaseUrl, supabaseAnonKey);
 }
 
-// Type matching sports_games table
+// Type matching sports_games v2 table
 export interface CachedGame {
-  id: string;
+  id: number;
   league: string;
-  api_game_id: number;
-  home_team_id: number | null;
-  away_team_id: number | null;
-  start_time: string | null;
-  status: string | null;
+  external_game_id: string;
+  provider: string;
+  season: number;
+  starts_at: string;
+  status: string;
+  home_team: string;  // Team name (no FK)
+  away_team: string;  // Team name (no FK)
   home_score: number | null;
   away_score: number | null;
-  season: number | null;
-  raw: any;
+  created_at: string;
 }
 
 // Simplified game format for frontend
@@ -74,10 +75,10 @@ export async function getGamesFromCache(
   const { data, error } = await client
     .from("sports_games")
     .select("*")
-    .eq("league", league.toUpperCase())
-    .gte("start_time", startOfDay)
-    .lte("start_time", endOfDay)
-    .order("start_time", { ascending: true });
+    .eq("league", league.toLowerCase())
+    .gte("starts_at", startOfDay)
+    .lte("starts_at", endOfDay)
+    .order("starts_at", { ascending: true });
 
   if (error) {
     console.error(`[games-cache] Error fetching ${league} games:`, error.message);
@@ -106,16 +107,18 @@ export async function getUpcomingGamesFromCache(
   const { data, error } = await client
     .from("sports_games")
     .select("*")
-    .eq("league", league.toUpperCase())
-    .gte("start_time", now.toISOString())
-    .lte("start_time", endDate.toISOString())
-    .order("start_time", { ascending: true })
-    .limit(50);
+    .eq("league", league.toLowerCase())
+    .gte("starts_at", now.toISOString())
+    .lte("starts_at", endDate.toISOString())
+    .order("starts_at", { ascending: true })
+    .limit(100);
 
   if (error) {
     console.error(`[games-cache] Error fetching upcoming ${league} games:`, error.message);
     return [];
   }
+
+  console.log(`[games-cache] ${league} upcoming: ${data?.length || 0} games in next ${days} days`);
 
   return data || [];
 }
@@ -125,7 +128,7 @@ export async function getUpcomingGamesFromCache(
  */
 export async function getGameFromCache(
   league: string,
-  gameId: number
+  gameId: string
 ): Promise<CachedGame | null> {
   const client = getClient();
   if (!client) {
@@ -135,8 +138,8 @@ export async function getGameFromCache(
   const { data, error } = await client
     .from("sports_games")
     .select("*")
-    .eq("league", league.toUpperCase())
-    .eq("api_game_id", gameId)
+    .eq("league", league.toLowerCase())
+    .eq("external_game_id", gameId)
     .single();
 
   if (error) {
@@ -147,11 +150,11 @@ export async function getGameFromCache(
 }
 
 /**
- * Get team data from sports_teams for lookups
+ * Get team data from sports_teams for lookups by name
  */
 export async function getTeamMapFromCache(
   league: string
-): Promise<Map<number, { name: string; logo_path: string | null; logo_url_original: string | null }>> {
+): Promise<Map<string, { id: number; name: string; logo: string | null; slug: string }>> {
   const client = getClient();
   if (!client) {
     return new Map();
@@ -159,19 +162,21 @@ export async function getTeamMapFromCache(
 
   const { data, error } = await client
     .from("sports_teams")
-    .select("api_team_id, name, logo_path, logo_url_original")
-    .eq("league", league.toUpperCase());
+    .select("id, name, logo, slug")
+    .eq("league", league.toLowerCase());
 
   if (error || !data) {
     return new Map();
   }
 
-  const map = new Map<number, { name: string; logo_path: string | null; logo_url_original: string | null }>();
+  // Map by team name (lowercase for matching)
+  const map = new Map<string, { id: number; name: string; logo: string | null; slug: string }>();
   for (const team of data) {
-    map.set(team.api_team_id, {
+    map.set(team.name.toLowerCase(), {
+      id: team.id,
       name: team.name,
-      logo_path: team.logo_path,
-      logo_url_original: team.logo_url_original,
+      logo: team.logo,
+      slug: team.slug,
     });
   }
 
@@ -183,10 +188,11 @@ export async function getTeamMapFromCache(
  */
 export function transformCachedGame(
   game: CachedGame,
-  teamMap: Map<number, { name: string; logo_path: string | null; logo_url_original: string | null }>
+  teamMap: Map<string, { id: number; name: string; logo: string | null; slug: string }>
 ): SimplifiedGame {
-  const homeTeam = game.home_team_id ? teamMap.get(game.home_team_id) : null;
-  const awayTeam = game.away_team_id ? teamMap.get(game.away_team_id) : null;
+  // Look up teams by name (lowercase for matching)
+  const homeTeam = teamMap.get(game.home_team.toLowerCase());
+  const awayTeam = teamMap.get(game.away_team.toLowerCase());
 
   // Parse status
   const statusLower = (game.status || "").toLowerCase();
@@ -201,49 +207,45 @@ export function transformCachedGame(
   // Generate abbreviation from team name
   const getAbbr = (name: string | undefined) => {
     if (!name) return "";
-    return name.split(" ").map(w => w.charAt(0)).join("").slice(0, 3).toUpperCase();
-  };
-
-  // Get logo URL
-  const getLogoUrl = (team: { logo_path: string | null; logo_url_original: string | null } | null) => {
-    if (!team) return null;
-    if (team.logo_path) {
-      return `${supabaseUrl}/storage/v1/object/public/SPORTS/${team.logo_path}`;
+    // For NFL, try to get last word (e.g., "Arizona Cardinals" -> "Cardinals" -> "CAR")
+    const words = name.split(" ");
+    if (words.length > 1) {
+      return words[words.length - 1].slice(0, 3).toUpperCase();
     }
-    return team.logo_url_original || null;
+    return name.slice(0, 3).toUpperCase();
   };
 
   return {
-    GameKey: String(game.api_game_id),
-    GameID: game.api_game_id,
-    Date: game.start_time || "",
-    DateTime: game.start_time || "",
+    GameKey: game.external_game_id,
+    GameID: parseInt(game.external_game_id, 10) || 0,
+    Date: game.starts_at,
+    DateTime: game.starts_at,
     Season: game.season,
     Week: 0,
-    AwayTeam: getAbbr(awayTeam?.name),
-    HomeTeam: getAbbr(homeTeam?.name),
+    AwayTeam: getAbbr(game.away_team),
+    HomeTeam: getAbbr(game.home_team),
     AwayScore: game.away_score,
     HomeScore: game.home_score,
-    Status: game.status || "Scheduled",
+    Status: game.status || "scheduled",
     HasStarted: hasStarted,
     IsInProgress: isInProgress,
     IsOver: isOver,
     IsClosed: isOver,
     Canceled: isCanceled,
-    AwayTeamData: awayTeam ? {
-      TeamID: game.away_team_id,
-      Key: getAbbr(awayTeam.name),
-      Name: awayTeam.name,
-      FullName: awayTeam.name,
-      WikipediaLogoUrl: getLogoUrl(awayTeam),
-    } : undefined,
-    HomeTeamData: homeTeam ? {
-      TeamID: game.home_team_id,
-      Key: getAbbr(homeTeam.name),
-      Name: homeTeam.name,
-      FullName: homeTeam.name,
-      WikipediaLogoUrl: getLogoUrl(homeTeam),
-    } : undefined,
+    AwayTeamData: {
+      TeamID: awayTeam?.id || 0,
+      Key: getAbbr(game.away_team),
+      Name: game.away_team,
+      FullName: game.away_team,
+      WikipediaLogoUrl: awayTeam?.logo || null,
+    },
+    HomeTeamData: {
+      TeamID: homeTeam?.id || 0,
+      Key: getAbbr(game.home_team),
+      Name: game.home_team,
+      FullName: game.home_team,
+      WikipediaLogoUrl: homeTeam?.logo || null,
+    },
   };
 }
 
@@ -289,7 +291,7 @@ export async function getGameCountFromCache(league: string): Promise<number> {
   const { count, error } = await client
     .from("sports_games")
     .select("id", { count: "exact", head: true })
-    .eq("league", league.toUpperCase());
+    .eq("league", league.toLowerCase());
 
   if (error) {
     return 0;

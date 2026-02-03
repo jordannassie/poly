@@ -15,10 +15,10 @@ export type DataProvider = "api-sports-cache" | "sports-teams-cache" | "sportsda
 
 /**
  * Get the data source for NFL
- * Uses API-Sports cached tables (api_sports_nfl_teams).
+ * Now uses unified sports_games table (v2 schema).
  */
 export function getNflDataSource(): DataProvider {
-  return "api-sports-cache";
+  return "sports-teams-cache";
 }
 
 /**
