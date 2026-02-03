@@ -36,6 +36,8 @@ interface SyncAllLeagueResult {
   logosUploaded: number;
   logosFailed: number;
   error?: string;
+  reason?: string;
+  attemptedSeasons?: string[];
 }
 
 interface SyncAllResponse {
@@ -325,6 +327,8 @@ export function LeagueSyncPanel() {
             logosUploaded: 0,
             logosFailed: 0,
             error: data.error || (data.errors?.join("; ")),
+            reason: data.reason,
+            attemptedSeasons: data.attemptedSeasons,
           });
           
           totals.totalTeams += data.total || 0;
@@ -526,7 +530,14 @@ export function LeagueSyncPanel() {
                       {leagueResult.success ? (
                         <>{leagueResult.totalTeams} teams, {leagueResult.logosUploaded} logos</>
                       ) : (
-                        <span className="text-yellow-400">{leagueResult.error || "Failed"}</span>
+                        <span className="text-yellow-400">
+                          {leagueResult.reason || leagueResult.error || "Failed"}
+                          {leagueResult.attemptedSeasons && (
+                            <span className="block text-xs text-gray-500">
+                              Tried: {leagueResult.attemptedSeasons.join(", ")}
+                            </span>
+                          )}
+                        </span>
                       )}
                     </div>
                   </div>
