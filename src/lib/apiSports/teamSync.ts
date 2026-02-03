@@ -15,7 +15,7 @@ import {
   ApiSportsTeamRaw,
   SOCCER_LEAGUES 
 } from "@/lib/apiSports/leagueConfig";
-import { apiSportsFetch, buildApiSportsUrl } from "@/lib/apiSports/client";
+import { apiSportsFetch, apiSportsFetchSafe, buildApiSportsUrl } from "@/lib/apiSports/client";
 
 const API_SPORTS_BASE_URL = process.env.API_SPORTS_BASE_URL || "https://v1.american-football.api-sports.io";
 
@@ -61,17 +61,21 @@ export async function fetchNFLTeams(apiKey: string): Promise<ApiSportsTeam[]> {
   // Try /teams?league=1 first
   let url = `${API_SPORTS_BASE_URL}/teams?league=1`;
   
-  const data1 = await apiSportsFetch<{ results: number; response: ApiSportsTeam[] }>(url, apiKey);
+  const result1 = await apiSportsFetchSafe<{ results: number; response: ApiSportsTeam[] }>(url, apiKey);
   
-  if (data1.results && data1.results > 0) {
-    return data1.response;
+  if (result1.ok && result1.data.results && result1.data.results > 0) {
+    return result1.data.response;
   }
   
   // Fallback to season=2025
   url = `${API_SPORTS_BASE_URL}/teams?league=1&season=2025`;
-  const data2 = await apiSportsFetch<{ results: number; response: ApiSportsTeam[] }>(url, apiKey);
+  const result2 = await apiSportsFetchSafe<{ results: number; response: ApiSportsTeam[] }>(url, apiKey);
   
-  return data2.response || [];
+  if (!result2.ok) {
+    throw new Error(`NFL teams fetch failed: ${result2.message}`);
+  }
+  
+  return result2.data.response || [];
 }
 
 /**

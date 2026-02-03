@@ -9,7 +9,7 @@
 
 import { SupabaseClient } from "@supabase/supabase-js";
 import { uploadTeamLogo, downloadImage } from "@/lib/supabase/storage";
-import { apiSportsFetch, buildApiSportsUrl } from "./client";
+import { apiSportsFetchSafe, buildApiSportsUrl } from "./client";
 
 // Base URLs for each sport
 const SPORT_BASE_URLS: Record<string, string> = {
@@ -138,37 +138,37 @@ async function fetchTeamsForLeague(
     results?: number;
   }
   
-  try {
-    const data = await apiSportsFetch<TeamsResponse>(url, apiKey);
-    
-    // Normalize teams - soccer wraps in { team: {...}, venue: {...} }
-    const teams: ApiTeam[] = [];
-    for (const item of data.response || []) {
-      if (item.team) {
-        // Soccer format
-        teams.push({
-          id: item.team.id,
-          name: item.team.name,
-          code: item.team.code,
-          logo: item.team.logo,
-        });
-      } else {
-        // Other sports format
-        teams.push({
-          id: item.id,
-          name: item.name,
-          code: item.code,
-          logo: item.logo,
-        });
-      }
-    }
-    
-    console.log(`[fetchTeamsForLeague] ${league.name}: ${teams.length} teams`);
-    return teams;
-  } catch (err) {
-    console.error(`[fetchTeamsForLeague] ${league.name} error:`, err);
+  const result = await apiSportsFetchSafe<TeamsResponse>(url, apiKey);
+  
+  if (!result.ok) {
+    console.error(`[fetchTeamsForLeague] ${league.name} error:`, result.message);
     return [];
   }
+  
+  // Normalize teams - soccer wraps in { team: {...}, venue: {...} }
+  const teams: ApiTeam[] = [];
+  for (const item of result.data.response || []) {
+    if (item.team) {
+      // Soccer format
+      teams.push({
+        id: item.team.id,
+        name: item.team.name,
+        code: item.team.code,
+        logo: item.team.logo,
+      });
+    } else {
+      // Other sports format
+      teams.push({
+        id: item.id,
+        name: item.name,
+        code: item.code,
+        logo: item.logo,
+      });
+    }
+  }
+  
+  console.log(`[fetchTeamsForLeague] ${league.name}: ${teams.length} teams`);
+  return teams;
 }
 
 /**

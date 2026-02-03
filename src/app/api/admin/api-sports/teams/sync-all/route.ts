@@ -94,27 +94,34 @@ async function hasActiveLeagues(adminClient: ReturnType<typeof getAdminClient>, 
 }
 
 export async function POST(request: NextRequest) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  // Global try-catch to ALWAYS return JSON, never HTML
+  try {
+    if (!isAuthorized(request)) {
+      return NextResponse.json({ 
+        ok: false,
+        error: "Unauthorized",
+        results: [],
+        totals: { totalTeams: 0, inserted: 0, updated: 0, logosUploaded: 0, logosFailed: 0 },
+        message: "Authentication required",
+      }, { status: 401 });
+    }
 
-  // Check API key - support both naming conventions
-  if (!API_SPORTS_KEY) {
-    console.error("[sync-all] Missing APISPORTS_KEY / API_SPORTS_KEY env var");
-    return NextResponse.json({
-      ok: false,
-      error: "Missing APISPORTS_KEY env var - check environment configuration",
-      results: [],
-      totals: { totalTeams: 0, inserted: 0, updated: 0, logosUploaded: 0, logosFailed: 0 },
-      message: "Configuration error",
-    }, { status: 500 });
-  }
-  
-  // Log that we have the key (without exposing it)
-  console.log(`[sync-all] APISPORTS_KEY found (${API_SPORTS_KEY.length} chars)`);
+    // Check API key - support both naming conventions
+    if (!API_SPORTS_KEY) {
+      console.error("[sync-all] Missing APISPORTS_KEY / API_SPORTS_KEY env var");
+      return NextResponse.json({
+        ok: false,
+        error: "Missing APISPORTS_KEY env var - check environment configuration",
+        results: [],
+        totals: { totalTeams: 0, inserted: 0, updated: 0, logosUploaded: 0, logosFailed: 0 },
+        message: "Configuration error",
+      }, { status: 500 });
+    }
+    
+    // Log that we have the key (without exposing it)
+    console.log(`[sync-all] APISPORTS_KEY found (${API_SPORTS_KEY.length} chars)`);
 
-
-  const adminClient = getAdminClient();
+    const adminClient = getAdminClient();
   if (!adminClient) {
     return NextResponse.json({
       ok: false,
@@ -264,4 +271,16 @@ export async function POST(request: NextRequest) {
     totals,
     message,
   });
+  } catch (globalError) {
+    // Catch-all for ANY uncaught errors - always return JSON
+    const errorMsg = globalError instanceof Error ? globalError.message : "Unknown server error";
+    console.error("[sync-all] UNCAUGHT ERROR:", errorMsg);
+    return NextResponse.json({
+      ok: false,
+      error: `Server error: ${errorMsg.substring(0, 200)}`,
+      results: [],
+      totals: { totalTeams: 0, inserted: 0, updated: 0, logosUploaded: 0, logosFailed: 0 },
+      message: "Uncaught server error",
+    }, { status: 500 });
+  }
 }
