@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { MessageSquare, TrendingUp, Calendar, Clock, ChevronUp, ChevronDown, Loader2, Plus, Flame, Sparkles } from "lucide-react";
+import { MessageSquare, TrendingUp, Calendar, Clock, ChevronUp, ChevronDown, Loader2, Plus, Flame, Sparkles, Trash2, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { CreatePostModal } from "./CreatePostModal";
 
@@ -24,6 +24,7 @@ interface Post {
   comments_count: number;
   created_at: string;
   user_vote: number; // -1, 0, or 1
+  is_owner: boolean;
   user: {
     username: string;
     display_name: string | null;
@@ -213,6 +214,32 @@ function FeedTab({
     setPosts([newPost, ...posts]);
   };
 
+  const handleDelete = async (postId: string) => {
+    if (!confirm("Are you sure you want to delete this post? This cannot be undone.")) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/posts/${postId}`, {
+        method: "DELETE",
+      });
+      
+      if (res.ok) {
+        setPosts(posts.filter(p => p.id !== postId));
+      } else {
+        const data = await res.json();
+        if (data.error === "AUTH_REQUIRED") {
+          alert("Please sign in to delete posts");
+        } else {
+          alert(data.error || "Failed to delete post");
+        }
+      }
+    } catch (error) {
+      console.error("Delete error:", error);
+      alert("Failed to delete post");
+    }
+  };
+
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -365,11 +392,25 @@ function FeedTab({
                 )}
 
                 {/* Post Actions */}
-                <div className="flex items-center gap-4 text-sm text-[color:var(--text-muted)]">
-                  <button className="flex items-center gap-1 hover:text-[color:var(--text-strong)] transition">
-                    <MessageSquare className="h-4 w-4" />
-                    {post.comments_count} Comments
-                  </button>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 text-sm text-[color:var(--text-muted)]">
+                    <button className="flex items-center gap-1 hover:text-[color:var(--text-strong)] transition">
+                      <MessageSquare className="h-4 w-4" />
+                      {post.comments_count} Comments
+                    </button>
+                  </div>
+                  
+                  {/* Delete Button (Owner Only) */}
+                  {post.is_owner && (
+                    <button
+                      onClick={() => handleDelete(post.id)}
+                      className="flex items-center gap-1 text-sm text-[color:var(--text-muted)] hover:text-red-500 transition"
+                      title="Delete post"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

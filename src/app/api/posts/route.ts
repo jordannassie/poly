@@ -103,6 +103,7 @@ export async function GET(request: NextRequest) {
           ...post,
           user: profile || { username: "Unknown", display_name: null, avatar_url: null },
           user_vote: userVote,
+          is_owner: currentUserId === post.user_id,
         };
       })
     );
