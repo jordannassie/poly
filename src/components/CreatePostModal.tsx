@@ -15,7 +15,7 @@ interface CreatePostModalProps {
 
 type PostTab = "text" | "images" | "link" | "poll";
 
-const flairOptions = [
+const tagOptions = [
   { id: "discussion", label: "Discussion", color: "bg-blue-500" },
   { id: "question", label: "Question", color: "bg-purple-500" },
   { id: "news", label: "News", color: "bg-green-500" },
@@ -36,8 +36,7 @@ export function CreatePostModal({
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
-  const [selectedFlair, setSelectedFlair] = useState<string | null>(null);
-  const [showFlairPicker, setShowFlairPicker] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,7 +61,7 @@ export function CreatePostModal({
           team_id: teamId,
           league,
           post_type: activeTab,
-          flair: selectedFlair,
+          flair: selectedTag,
           link_url: activeTab === "link" ? linkUrl : null,
         }),
       });
@@ -74,7 +73,7 @@ export function CreatePostModal({
         setTitle("");
         setContent("");
         setLinkUrl("");
-        setSelectedFlair(null);
+        setSelectedTag(null);
         onClose();
       } else {
         const data = await res.json();
@@ -175,42 +174,24 @@ export function CreatePostModal({
               </div>
             </div>
 
-            {/* Flair Selector */}
+            {/* Tag Selector - Always Visible */}
             <div className="mb-4">
-              <button
-                onClick={() => setShowFlairPicker(!showFlairPicker)}
-                className="px-3 py-1.5 text-sm rounded-full border border-[color:var(--border-soft)] text-[color:var(--text-muted)] hover:border-[color:var(--accent)] hover:text-[color:var(--text-strong)] transition flex items-center gap-2"
-              >
-                {selectedFlair ? (
-                  <>
-                    <span className={`w-2 h-2 rounded-full ${flairOptions.find(f => f.id === selectedFlair)?.color}`} />
-                    {flairOptions.find(f => f.id === selectedFlair)?.label}
-                  </>
-                ) : (
-                  "Add flair and tags"
-                )}
-              </button>
-              {showFlairPicker && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {flairOptions.map((flair) => (
-                    <button
-                      key={flair.id}
-                      onClick={() => {
-                        setSelectedFlair(flair.id);
-                        setShowFlairPicker(false);
-                      }}
-                      className={`px-3 py-1 text-sm rounded-full flex items-center gap-2 transition ${
-                        selectedFlair === flair.id
-                          ? `${flair.color} text-white`
-                          : "bg-[color:var(--surface-2)] text-[color:var(--text-muted)] hover:bg-[color:var(--surface-2)]"
-                      }`}
-                    >
-                      <span className={`w-2 h-2 rounded-full ${flair.color}`} />
-                      {flair.label}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <p className="text-xs text-[color:var(--text-muted)] mb-2">Select a tag (required)</p>
+              <div className="flex flex-wrap gap-2">
+                {tagOptions.map((tag) => (
+                  <button
+                    key={tag.id}
+                    onClick={() => setSelectedTag(selectedTag === tag.id ? null : tag.id)}
+                    className={`px-3 py-1.5 text-sm rounded-full flex items-center gap-2 transition border ${
+                      selectedTag === tag.id
+                        ? `${tag.color} text-white border-transparent`
+                        : "bg-[color:var(--surface-2)] text-[color:var(--text-muted)] border-[color:var(--border-soft)] hover:border-[color:var(--accent)]"
+                    }`}
+                  >
+                    {tag.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Content Area based on tab */}
@@ -310,17 +291,6 @@ export function CreatePostModal({
                   <p className="text-sm text-[color:var(--text-muted)]">{rule}</p>
                 </div>
               ))}
-            </div>
-
-            {/* User Flair */}
-            <div className="mt-6 pt-4 border-t border-[color:var(--border-soft)]">
-              <h3 className="font-semibold text-sm mb-3 text-[color:var(--text-muted)]">
-                SET USER FLAIR
-              </h3>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600" />
-                <span className="text-sm text-[color:var(--text-muted)]">Set your flair</span>
-              </div>
             </div>
           </div>
         </div>
