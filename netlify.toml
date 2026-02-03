@@ -5,5 +5,15 @@
 [build.environment]
   NODE_VERSION = "20"
 
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+# Scheduled Functions Configuration
+# Note: Schedules are set via Netlify Dashboard or CLI
+# - sync-games-daily: */30 * * * * (every 30 minutes)
+# - sync-games-live: * * * * * (every minute)
+# - sync-games-backfill: 0 4 * * * (4 AM UTC daily)

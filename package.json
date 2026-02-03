@@ -27,6 +27,7 @@
     "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
+    "@netlify/functions": "^5.1.2",
     "@netlify/plugin-nextjs": "^5.15.7",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
