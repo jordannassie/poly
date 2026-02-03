@@ -168,27 +168,36 @@ export async function POST(request: NextRequest) {
     const teamIds = allTeams.map(t => t.id);
     const { data: existingTeams } = await adminClient
       .from("sports_teams")
-      .select("api_team_id")
-      .eq("league", sport.toUpperCase())
-      .in("api_team_id", teamIds);
+      .select("id")
+      .eq("league", sport.toLowerCase())
+      .in("id", teamIds);
     
-    const existingIds = new Set(existingTeams?.map(t => t.api_team_id) || []);
+    const existingIds = new Set(existingTeams?.map(t => t.id) || []);
 
-    // Prepare records for upsert - NO logo downloading, just store URL
+    // Helper to generate slug from team name
+    const slugify = (name: string): string => {
+      return name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+    };
+
+    // Prepare records for upsert - matches new schema
     const records = allTeams.map(team => ({
-      league: sport.toUpperCase(),
-      api_team_id: team.id,
+      id: team.id,                                    // API-Sports team ID
+      league: sport.toLowerCase(),                    // nfl, nba, mlb, nhl, soccer
       name: team.name,
-      logo_url_original: team.logo, // Store URL only
-      league_id: team.leagueId,
+      slug: `${sport.toLowerCase()}-${slugify(team.name)}`, // e.g., nfl-new-england-patriots
+      logo: team.logo,                                // Store URL only
+      country: null,                                  // Can be populated later
       updated_at: new Date().toISOString(),
     }));
 
-    // Batch upsert
+    // Batch upsert using composite primary key
     const { error: upsertError } = await adminClient
       .from("sports_teams")
       .upsert(records, {
-        onConflict: "league,api_team_id",
+        onConflict: "league,id",
         ignoreDuplicates: false,
       });
 
