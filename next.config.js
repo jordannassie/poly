@@ -17,6 +17,18 @@ const nextConfig = {
         hostname: "phhczohqidgrvcmszets.supabase.co",
         pathname: "/**",
       },
+      // API-Sports media domain for team/league logos
+      {
+        protocol: "https",
+        hostname: "media.api-sports.io",
+        pathname: "/**",
+      },
+      // API-Sports may also use subdomains
+      {
+        protocol: "https",
+        hostname: "*.api-sports.io",
+        pathname: "/**",
+      },
     ],
   },
 };
