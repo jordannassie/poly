@@ -134,6 +134,29 @@ export function LeagueSyncPanel() {
 
   const selectedLeagueConfig = LEAGUES.find(l => l.id === selectedLeague);
 
+  // Helper for safe JSON parsing
+  const safeParseResponse = async (res: Response): Promise<ApiResponse> => {
+    const contentType = res.headers.get("content-type") || "";
+    
+    if (!contentType.includes("application/json")) {
+      const bodyText = await res.text();
+      return {
+        ok: false,
+        error: `Non-JSON response (status: ${res.status}, type: ${contentType}). Body: ${bodyText.substring(0, 200)}`,
+      };
+    }
+    
+    try {
+      return await res.json();
+    } catch (error) {
+      const bodyText = await res.text().catch(() => "Could not read body");
+      return {
+        ok: false,
+        error: `JSON parse error: ${error instanceof Error ? error.message : "Unknown"}. Body: ${bodyText.substring(0, 200)}`,
+      };
+    }
+  };
+
   // Test connection
   const testConnection = async () => {
     setLoading("test");
@@ -141,7 +164,7 @@ export function LeagueSyncPanel() {
     
     try {
       const res = await fetch(`/api/admin/api-sports/${selectedLeague}/test`);
-      const data: ApiResponse = await res.json();
+      const data = await safeParseResponse(res);
       setResult(data);
     } catch (error) {
       setResult({
@@ -162,7 +185,7 @@ export function LeagueSyncPanel() {
       const res = await fetch(`/api/admin/api-sports/${selectedLeague}/teams/sync`, {
         method: "POST",
       });
-      const data: ApiResponse = await res.json();
+      const data = await safeParseResponse(res);
       setResult(data);
     } catch (error) {
       setResult({
@@ -184,7 +207,7 @@ export function LeagueSyncPanel() {
         `/api/admin/api-sports/${selectedLeague}/games/sync?from=${fromDate}&to=${toDate}`,
         { method: "POST" }
       );
-      const data: ApiResponse = await res.json();
+      const data = await safeParseResponse(res);
       setResult(data);
     } catch (error) {
       setResult({
@@ -205,7 +228,7 @@ export function LeagueSyncPanel() {
       const res = await fetch(`/api/admin/api-sports/${selectedLeague}/games/sync-next-365`, {
         method: "POST",
       });
-      const data: ApiResponse = await res.json();
+      const data = await safeParseResponse(res);
       setResult(data);
     } catch (error) {
       setResult({
@@ -226,7 +249,7 @@ export function LeagueSyncPanel() {
       const res = await fetch(`/api/admin/api-sports/${selectedLeague}/scores/update`, {
         method: "POST",
       });
-      const data: ApiResponse = await res.json();
+      const data = await safeParseResponse(res);
       setResult(data);
     } catch (error) {
       setResult({
@@ -248,15 +271,37 @@ export function LeagueSyncPanel() {
       const res = await fetch("/api/admin/api-sports/teams/sync-all", {
         method: "POST",
       });
+      
+      // Safe response parsing - check content-type before parsing as JSON
+      const contentType = res.headers.get("content-type") || "";
+      
+      if (!contentType.includes("application/json")) {
+        // Response is not JSON (might be HTML error page)
+        const bodyText = await res.text();
+        setSyncAllResult({
+          ok: false,
+          results: [],
+          totals: { totalTeams: 0, inserted: 0, updated: 0, logosUploaded: 0, logosFailed: 0 },
+          message: "",
+          error: `Server returned non-JSON (status: ${res.status}, type: ${contentType}). Body: ${bodyText.substring(0, 200)}`,
+        });
+        return;
+      }
+      
       const data: SyncAllResponse = await res.json();
       setSyncAllResult(data);
     } catch (error) {
+      // JSON parse error or network error
+      let errorMsg = error instanceof Error ? error.message : "Unknown error";
+      if (errorMsg.includes("Unexpected token")) {
+        errorMsg = "Server returned invalid JSON (possibly HTML error page). Check server logs.";
+      }
       setSyncAllResult({
         ok: false,
         results: [],
         totals: { totalTeams: 0, inserted: 0, updated: 0, logosUploaded: 0, logosFailed: 0 },
         message: "",
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: errorMsg,
       });
     } finally {
       setLoading(null);
@@ -273,15 +318,37 @@ export function LeagueSyncPanel() {
       const res = await fetch("/api/admin/api-sports/leagues/sync-all", {
         method: "POST",
       });
+      
+      // Safe response parsing - check content-type before parsing as JSON
+      const contentType = res.headers.get("content-type") || "";
+      
+      if (!contentType.includes("application/json")) {
+        // Response is not JSON (might be HTML error page)
+        const bodyText = await res.text();
+        setSyncLeaguesResult({
+          ok: false,
+          results: [],
+          totals: { totalLeagues: 0, inserted: 0, updated: 0 },
+          message: "",
+          error: `Server returned non-JSON (status: ${res.status}, type: ${contentType}). Body: ${bodyText.substring(0, 200)}`,
+        });
+        return;
+      }
+      
       const data: SyncLeaguesResponse = await res.json();
       setSyncLeaguesResult(data);
     } catch (error) {
+      // JSON parse error or network error
+      let errorMsg = error instanceof Error ? error.message : "Unknown error";
+      if (errorMsg.includes("Unexpected token")) {
+        errorMsg = "Server returned invalid JSON (possibly HTML error page). Check server logs.";
+      }
       setSyncLeaguesResult({
         ok: false,
         results: [],
         totals: { totalLeagues: 0, inserted: 0, updated: 0 },
         message: "",
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: errorMsg,
       });
     } finally {
       setLoading(null);

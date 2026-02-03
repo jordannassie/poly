@@ -34,7 +34,7 @@ import { syncTeamsForSport, type LeagueDrivenSyncResult } from "@/lib/apiSports/
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const COOKIE_NAME = "pp_admin";
-const API_SPORTS_KEY = process.env.API_SPORTS_KEY || "";
+const API_SPORTS_KEY = process.env.API_SPORTS_KEY || process.env.APISPORTS_KEY || "";
 
 // Fixed order for syncing
 const LEAGUE_ORDER = ["nfl", "nba", "mlb", "nhl", "soccer"] as const;
@@ -98,13 +98,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Check API key
+  // Check API key - support both naming conventions
   if (!API_SPORTS_KEY) {
+    console.error("[sync-all] Missing APISPORTS_KEY / API_SPORTS_KEY env var");
     return NextResponse.json({
       ok: false,
-      error: "API_SPORTS_KEY not configured",
+      error: "Missing APISPORTS_KEY env var - check environment configuration",
+      results: [],
+      totals: { totalTeams: 0, inserted: 0, updated: 0, logosUploaded: 0, logosFailed: 0 },
+      message: "Configuration error",
     }, { status: 500 });
   }
+  
+  // Log that we have the key (without exposing it)
+  console.log(`[sync-all] APISPORTS_KEY found (${API_SPORTS_KEY.length} chars)`);
+
 
   const adminClient = getAdminClient();
   if (!adminClient) {
@@ -213,7 +221,15 @@ export async function POST(request: NextRequest) {
       console.log(`[sync-all] ${league.toUpperCase()}: ${leagueResult.totalTeams} teams, ${leagueResult.logosUploaded} logos`);
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      // Extract detailed error information
+      let errorMessage = "Unknown error";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        // Check for HTML parsing errors (common when API returns error page)
+        if (errorMessage.includes("Unexpected token") || errorMessage.includes("<")) {
+          errorMessage = "Received HTML instead of JSON - likely API auth error or rate limit";
+        }
+      }
       console.error(`[sync-all] ${league.toUpperCase()} failed:`, errorMessage);
       
       results.push({

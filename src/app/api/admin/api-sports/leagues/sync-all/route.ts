@@ -12,7 +12,7 @@ import { syncAllLeagues } from "@/lib/apiSports/leagueSync";
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const COOKIE_NAME = "pp_admin";
-const API_SPORTS_KEY = process.env.API_SPORTS_KEY || "";
+const API_SPORTS_KEY = process.env.API_SPORTS_KEY || process.env.APISPORTS_KEY || "";
 
 function isAuthorized(request: NextRequest): boolean {
   if (!ADMIN_TOKEN) return false;
@@ -32,13 +32,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Check API key
+  // Check API key - support both naming conventions
   if (!API_SPORTS_KEY) {
+    console.error("[leagues/sync-all] Missing APISPORTS_KEY / API_SPORTS_KEY env var");
     return NextResponse.json({
       ok: false,
-      error: "API_SPORTS_KEY not configured",
+      error: "Missing APISPORTS_KEY env var - check environment configuration",
+      results: [],
+      totals: { totalLeagues: 0, inserted: 0, updated: 0 },
+      message: "Configuration error",
     }, { status: 500 });
   }
+  
+  // Log that we have the key (without exposing it)
+  console.log(`[leagues/sync-all] APISPORTS_KEY found (${API_SPORTS_KEY.length} chars)`);
 
   const adminClient = getAdminClient();
   if (!adminClient) {
@@ -60,12 +67,21 @@ export async function POST(request: NextRequest) {
         : "Some leagues failed to sync",
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    let message = error instanceof Error ? error.message : "Unknown error";
+    
+    // Check for HTML parsing errors
+    if (message.includes("Unexpected token") || message.includes("<")) {
+      message = "Received HTML instead of JSON - likely API auth error or rate limit";
+    }
+    
     console.error(`[/api/admin/api-sports/leagues/sync-all] Error:`, message);
     
     return NextResponse.json({
       ok: false,
       error: message,
+      results: [],
+      totals: { totalLeagues: 0, inserted: 0, updated: 0 },
+      message: "Sync failed",
     }, { status: 500 });
   }
 }

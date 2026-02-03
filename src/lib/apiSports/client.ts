@@ -6,6 +6,7 @@
  * - Only header allowed: x-apisports-key
  * - No Content-Type, no Authorization, no body
  * - Returns parsed JSON
+ * - NEVER parses HTML as JSON - returns structured error instead
  */
 
 export interface ApiSportsResponse<T = unknown> {
@@ -16,28 +17,43 @@ export interface ApiSportsResponse<T = unknown> {
 }
 
 export interface ApiSportsError {
+  ok: false;
   message: string;
   status?: number;
+  contentType?: string;
+  bodySnippet?: string;
 }
 
+export interface ApiSportsResult<T = unknown> {
+  ok: true;
+  data: T;
+}
+
+export type ApiSportsFetchResult<T = unknown> = ApiSportsResult<T> | ApiSportsError;
+
 /**
- * Make a GET request to API-Sports
+ * Make a GET request to API-Sports with safe response parsing
  * 
  * @param url - Full URL including query params (e.g., "https://v1.basketball.api-sports.io/teams?league=12&season=2024")
  * @param apiKey - The x-apisports-key value
- * @returns Parsed JSON response
- * @throws Error if request fails or returns non-200
+ * @returns Parsed JSON response or structured error
  */
-export async function apiSportsFetch<T = unknown>(
+export async function apiSportsFetchSafe<T = unknown>(
   url: string,
   apiKey: string
-): Promise<T> {
+): Promise<ApiSportsFetchResult<T>> {
   // Validate inputs
   if (!url) {
-    throw new Error("API-Sports: URL is required");
+    return {
+      ok: false,
+      message: "API-Sports: URL is required",
+    };
   }
   if (!apiKey) {
-    throw new Error("API-Sports: API key is required");
+    return {
+      ok: false,
+      message: "API-Sports: API key is required (check APISPORTS_KEY env var)",
+    };
   }
 
   // Create a minimal headers object with ONLY the API key
@@ -59,37 +75,83 @@ export async function apiSportsFetch<T = unknown>(
       cache: "no-store",
     });
 
+    // Get content-type header
+    const contentType = response.headers.get("content-type") || "";
+    
     // Log response status
-    console.log(`[apiSportsFetch] Response: ${response.status} ${response.statusText}`);
+    console.log(`[apiSportsFetch] Response: ${response.status} ${response.statusText}, content-type: ${contentType}`);
 
+    // Read body as text first (safe for any response type)
+    const bodyText = await response.text();
+    
+    // Check if response is not OK
     if (!response.ok) {
-      // Try to get error details from response body
-      let errorDetail = "";
-      try {
-        const errorBody = await response.text();
-        errorDetail = errorBody.substring(0, 200); // Limit error text length
-      } catch {
-        // Ignore if we can't read the body
-      }
-      
-      throw new Error(
-        `API-Sports returned ${response.status}: ${response.statusText}${errorDetail ? ` - ${errorDetail}` : ""}`
-      );
+      return {
+        ok: false,
+        message: `API-Sports returned ${response.status}: ${response.statusText}`,
+        status: response.status,
+        contentType,
+        bodySnippet: bodyText.substring(0, 200),
+      };
     }
 
-    const data = await response.json();
-    return data as T;
-  } catch (error) {
-    // Re-throw with context
-    if (error instanceof Error) {
-      // Don't double-wrap our own errors
-      if (error.message.startsWith("API-Sports")) {
-        throw error;
-      }
-      throw new Error(`API-Sports request failed: ${error.message}`);
+    // Check if content-type is JSON
+    if (!contentType.includes("application/json")) {
+      return {
+        ok: false,
+        message: `API-Sports returned non-JSON response (${contentType})`,
+        status: response.status,
+        contentType,
+        bodySnippet: bodyText.substring(0, 200),
+      };
     }
-    throw new Error("API-Sports request failed: Unknown error");
+
+    // Parse JSON
+    try {
+      const data = JSON.parse(bodyText);
+      return { ok: true, data: data as T };
+    } catch (parseError) {
+      return {
+        ok: false,
+        message: `Failed to parse JSON response: ${parseError instanceof Error ? parseError.message : "Unknown parse error"}`,
+        status: response.status,
+        contentType,
+        bodySnippet: bodyText.substring(0, 200),
+      };
+    }
+  } catch (error) {
+    // Network or other error
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Unknown fetch error",
+    };
   }
+}
+
+/**
+ * Make a GET request to API-Sports (throws on error)
+ * 
+ * @param url - Full URL including query params (e.g., "https://v1.basketball.api-sports.io/teams?league=12&season=2024")
+ * @param apiKey - The x-apisports-key value
+ * @returns Parsed JSON response
+ * @throws Error if request fails or returns non-200/non-JSON
+ */
+export async function apiSportsFetch<T = unknown>(
+  url: string,
+  apiKey: string
+): Promise<T> {
+  const result = await apiSportsFetchSafe<T>(url, apiKey);
+  
+  if (!result.ok) {
+    const error = result as ApiSportsError;
+    let errorMsg = error.message;
+    if (error.status) errorMsg += ` (status: ${error.status})`;
+    if (error.contentType) errorMsg += ` (content-type: ${error.contentType})`;
+    if (error.bodySnippet) errorMsg += ` | Body: ${error.bodySnippet}`;
+    throw new Error(errorMsg);
+  }
+  
+  return result.data;
 }
 
 /**
@@ -116,4 +178,16 @@ export async function apiSportsGet<T = unknown>(
 ): Promise<T> {
   const url = buildApiSportsUrl(baseUrl, endpoint);
   return apiSportsFetch<T>(url, apiKey);
+}
+
+/**
+ * Safe version of apiSportsGet that returns result object instead of throwing
+ */
+export async function apiSportsGetSafe<T = unknown>(
+  baseUrl: string,
+  endpoint: string,
+  apiKey: string
+): Promise<ApiSportsFetchResult<T>> {
+  const url = buildApiSportsUrl(baseUrl, endpoint);
+  return apiSportsFetchSafe<T>(url, apiKey);
 }
