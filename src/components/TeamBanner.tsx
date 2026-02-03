@@ -87,6 +87,9 @@ export function TeamBanner({ teamId, teamName, league, logoUrl, primaryColor }: 
           const data = await res.json();
           if (data.error === "AUTH_REQUIRED") {
             alert("Please sign in to follow teams");
+          } else {
+            console.error("Follow error:", data.error);
+            alert("Failed to follow team. Please try again.");
           }
         }
       }

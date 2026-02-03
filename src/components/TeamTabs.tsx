@@ -196,6 +196,9 @@ function FeedTab({
         const data = await res.json();
         if (data.error === "AUTH_REQUIRED") {
           alert("Please sign in to post");
+        } else {
+          console.error("Post error:", data.error);
+          alert("Failed to create post. Please try again.");
         }
       }
     } catch (error) {
