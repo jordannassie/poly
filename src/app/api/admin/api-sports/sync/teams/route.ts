@@ -663,12 +663,13 @@ export async function POST(request: NextRequest) {
     const existingIds = new Set(existingTeams?.map(t => t.id) || []);
 
     // Prepare records for upsert
-    // slug is name-only (no league prefix) - e.g., "arizona-cardinals" not "nfl-arizona-cardinals"
+    // slug = {league}-{id}-{name} for global uniqueness (avoids UNIQUE constraint violations)
+    // Example: "nfl-1-arizona-cardinals", "nba-1-atlanta-hawks"
     const records = allTeams.map(team => ({
       id: team.id,
       league: sport.toLowerCase(),
       name: team.name,
-      slug: slugify(team.name),  // Name-only slug for cleaner URLs
+      slug: `${sport.toLowerCase()}-${team.id}-${slugify(team.name)}`,
       logo: team.logo,
       country: null,
       updated_at: new Date().toISOString(),

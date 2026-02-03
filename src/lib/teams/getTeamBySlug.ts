@@ -42,8 +42,11 @@ export interface TeamData {
 /**
  * Fetch a team by league and slug
  * 
+ * Slug format: {league}-{id}-{name} (e.g., "nfl-1-arizona-cardinals")
+ * URL: /teams/{league}/{slug}
+ * 
  * @param league - League code (e.g., "nfl", "nba", "soccer")
- * @param slug - Team slug (e.g., "arizona-cardinals")
+ * @param slug - Team slug (e.g., "nfl-1-arizona-cardinals")
  * @returns TeamData or null if not found
  */
 export async function getTeamBySlug(
@@ -60,29 +63,34 @@ export async function getTeamBySlug(
   const leagueLower = league.toLowerCase();
   const slugLower = slug.toLowerCase();
   
-  // Query directly by league and slug
+  // Query directly by slug (slug is globally unique)
   const { data: team, error } = await client
     .from("sports_teams")
     .select("id, league, name, slug, logo, country")
-    .eq("league", leagueLower)
     .eq("slug", slugLower)
     .single();
 
   if (error || !team) {
-    // Try fallback: maybe slug still has league prefix from old URLs
-    const legacySlug = `${leagueLower}-${slugLower}`;
-    const { data: legacyTeam } = await client
+    // Try fallback: search by league + slug pattern match
+    // Useful for legacy URLs or partial slugs
+    const { data: teams } = await client
       .from("sports_teams")
       .select("id, league, name, slug, logo, country")
       .eq("league", leagueLower)
-      .eq("slug", legacySlug)
-      .single();
+      .ilike("slug", `%${slugLower}%`)
+      .limit(1);
     
-    if (legacyTeam) {
-      return transformTeam(legacyTeam);
+    if (teams && teams.length > 0) {
+      return transformTeam(teams[0]);
     }
     
     console.log("[getTeamBySlug] Team not found:", { league: leagueLower, slug: slugLower });
+    return null;
+  }
+
+  // Verify league matches (slug might match but wrong league)
+  if (team.league !== leagueLower) {
+    console.log("[getTeamBySlug] League mismatch:", { expected: leagueLower, actual: team.league });
     return null;
   }
 
