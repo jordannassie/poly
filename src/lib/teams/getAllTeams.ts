@@ -2,11 +2,10 @@
  * Get All Teams
  * 
  * Fetches all teams from the sports_teams cache for browsing.
+ * Uses the new schema: id, league, name, slug, logo, country
  */
 
 import { createClient } from "@supabase/supabase-js";
-import { slugifyTeam } from "./slugifyTeam";
-import { getTeamLogoUrl } from "./getTeamLogoUrl";
 import { getTeamColor } from "./teamColors";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
@@ -27,10 +26,12 @@ export interface TeamListItem {
   slug: string;
   logoUrl: string;
   primaryColor: string;
+  country?: string;
 }
 
 /**
  * Get all teams for a specific league
+ * League values in DB are lowercase: nfl, nba, mlb, nhl, soccer
  */
 export async function getTeamsByLeague(league: string): Promise<TeamListItem[]> {
   const client = getClient();
@@ -38,10 +39,13 @@ export async function getTeamsByLeague(league: string): Promise<TeamListItem[]> 
     return [];
   }
 
+  // ALWAYS lowercase the league for query
+  const leagueLower = league.toLowerCase();
+
   const { data: teams, error } = await client
     .from("sports_teams")
-    .select("id, league, api_team_id, name, logo_path, logo_url_original")
-    .eq("league", league.toUpperCase())
+    .select("id, league, name, slug, logo, country")
+    .eq("league", leagueLower)
     .order("name");
 
   if (error || !teams) {
@@ -63,7 +67,8 @@ export async function getAllTeams(): Promise<TeamListItem[]> {
 
   const { data: teams, error } = await client
     .from("sports_teams")
-    .select("id, league, api_team_id, name, logo_path, logo_url_original")
+    .select("id, league, name, slug, logo, country")
+    .order("league")
     .order("name");
 
   if (error || !teams) {
@@ -101,27 +106,24 @@ export async function getTeamCountsByLeague(): Promise<Record<string, number>> {
 
 /**
  * Transform raw database team to TeamListItem
+ * New schema: id is the API team ID (bigint), logo is the URL
  */
 function transformTeam(team: {
-  id: string;
+  id: number;
   league: string;
-  api_team_id: number;
   name: string;
-  logo_path: string | null;
-  logo_url_original: string | null;
+  slug: string;
+  logo: string | null;
+  country?: string | null;
 }): TeamListItem {
-  const logoUrl = getTeamLogoUrl({
-    logo_path: team.logo_path,
-    logo_url_original: team.logo_url_original,
-  });
-
   return {
-    id: team.id,
+    id: String(team.id),
     league: team.league,
-    apiTeamId: team.api_team_id,
+    apiTeamId: team.id,
     name: team.name,
-    slug: slugifyTeam(team.name),
-    logoUrl: logoUrl !== "/placeholder-team.png" ? logoUrl : "",
+    slug: team.slug,
+    logoUrl: team.logo || "",
     primaryColor: getTeamColor(team.name, team.league),
+    country: team.country || undefined,
   };
 }

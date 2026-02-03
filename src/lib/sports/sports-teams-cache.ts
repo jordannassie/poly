@@ -4,12 +4,19 @@
  * This module provides teams data from the cached Supabase table:
  * - public.sports_teams
  * 
+ * New schema:
+ * - id: bigint (API-Sports team ID, part of composite PK)
+ * - league: text (nfl, nba, mlb, nhl, soccer - lowercase)
+ * - name: text
+ * - slug: text (unique, URL-friendly)
+ * - logo: text (logo URL)
+ * - country: text (nullable)
+ * 
  * Supports all leagues that have been synced via the admin API-Sports sync.
  * No external API calls are made - all data comes from the database.
  */
 
 import { createClient } from "@supabase/supabase-js";
-import { getTeamLogoUrl } from "@/lib/teams/getTeamLogoUrl";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -22,15 +29,15 @@ function getClient() {
   return createClient(supabaseUrl, supabaseAnonKey);
 }
 
-// Type matching the sports_teams table
+// Type matching the NEW sports_teams table schema
 export interface CachedSportsTeam {
-  id: string;
-  league: string;
-  api_team_id: number;
+  id: number;          // API-Sports team ID
+  league: string;      // nfl, nba, mlb, nhl, soccer (lowercase)
   name: string;
-  logo_path: string | null;
-  logo_url_original: string | null;
-  updated_at: string;
+  slug: string;
+  logo: string | null; // Logo URL
+  country: string | null;
+  updated_at?: string;
 }
 
 // Simplified team format for frontend
@@ -49,6 +56,7 @@ export interface SimplifiedTeam {
 
 /**
  * Get all teams from sports_teams table for a specific league
+ * League values in DB are LOWERCASE: nfl, nba, mlb, nhl, soccer
  */
 export async function getTeamsFromCache(league: string): Promise<CachedSportsTeam[]> {
   const client = getClient();
@@ -57,10 +65,13 @@ export async function getTeamsFromCache(league: string): Promise<CachedSportsTea
     return [];
   }
 
+  // ALWAYS lowercase the league for query
+  const leagueLower = league.toLowerCase();
+
   const { data, error } = await client
     .from("sports_teams")
-    .select("id, league, api_team_id, name, logo_path, logo_url_original, updated_at")
-    .eq("league", league.toUpperCase())
+    .select("id, league, name, slug, logo, country, updated_at")
+    .eq("league", leagueLower)
     .order("name");
 
   if (error) {
@@ -80,10 +91,13 @@ export async function getTeamCountFromCache(league: string): Promise<number> {
     return 0;
   }
 
+  // ALWAYS lowercase the league for query
+  const leagueLower = league.toLowerCase();
+
   const { count, error } = await client
     .from("sports_teams")
     .select("id", { count: "exact", head: true })
-    .eq("league", league.toUpperCase());
+    .eq("league", leagueLower);
 
   if (error) {
     console.error(`[sports-teams-cache] Failed to count ${league} teams:`, error.message);
@@ -97,11 +111,8 @@ export async function getTeamCountFromCache(league: string): Promise<number> {
  * Transform cached sports_team to the simplified format expected by frontend
  */
 export function transformCachedSportsTeamToSimplified(team: CachedSportsTeam): SimplifiedTeam {
-  // Use the getTeamLogoUrl helper for proper fallback logic
-  const logoUrl = getTeamLogoUrl({
-    logo_path: team.logo_path,
-    logo_url_original: team.logo_url_original,
-  });
+  // Use the logo URL directly from the new schema
+  const logoUrl = team.logo || null;
 
   // Extract city from team name if possible (e.g., "Los Angeles Lakers" -> "Los Angeles")
   // For now, just use empty city since we don't have this data reliably
@@ -115,12 +126,12 @@ export function transformCachedSportsTeamToSimplified(team: CachedSportsTeam): S
     .slice(0, 3);
 
   return {
-    teamId: team.api_team_id,
+    teamId: team.id,
     name: team.name,
     city,
     fullName: team.name,
     abbreviation,
-    logoUrl: logoUrl !== "/placeholder-team.png" ? logoUrl : null,
+    logoUrl,
     primaryColor: null,
     secondaryColor: null,
     conference: null,

@@ -2,12 +2,10 @@
  * Get Popular Teams
  * 
  * Returns a curated list of popular teams for the sidebar.
- * This is a static list for now - can be made dynamic later based on activity.
+ * Uses the new sports_teams schema: id, league, name, slug, logo, country
  */
 
 import { createClient } from "@supabase/supabase-js";
-import { slugifyTeam } from "./slugifyTeam";
-import { getTeamLogoUrl } from "./getTeamLogoUrl";
 import { getTeamColor } from "./teamColors";
 import { TeamListItem } from "./getAllTeams";
 
@@ -35,13 +33,19 @@ const POPULAR_TEAM_NAMES = [
   "Manchester United",
   "Real Madrid",
   "Liverpool",
+  // NHL
+  "Boston Bruins",
+  "Toronto Maple Leafs",
+  // MLB
+  "New York Yankees",
+  "Los Angeles Dodgers",
 ];
 
 /**
  * Get popular teams for sidebar display
  * 
  * Returns a subset of teams that are popular/featured.
- * Falls back to first N teams alphabetically if no matches found.
+ * Falls back to first N teams by updated_at desc if no matches found.
  */
 export async function getPopularTeams(limit: number = 6): Promise<TeamListItem[]> {
   const client = getClient();
@@ -49,10 +53,12 @@ export async function getPopularTeams(limit: number = 6): Promise<TeamListItem[]
     return [];
   }
 
-  // Fetch all teams
+  // Fetch all teams (ordered by updated_at desc to get recently synced first)
   const { data: teams, error } = await client
     .from("sports_teams")
-    .select("id, league, api_team_id, name, logo_path, logo_url_original");
+    .select("id, league, name, slug, logo, country")
+    .order("updated_at", { ascending: false })
+    .limit(200); // Limit to avoid fetching too many
 
   if (error || !teams || teams.length === 0) {
     return [];
@@ -73,14 +79,13 @@ export async function getPopularTeams(limit: number = 6): Promise<TeamListItem[]
     }
   }
 
-  // If we didn't find enough, fill with first teams alphabetically
+  // If we didn't find enough, fill with recently synced teams
   if (popularTeams.length < limit) {
     const existingIds = new Set(popularTeams.map(t => t.id));
-    const sortedTeams = [...teams].sort((a, b) => a.name.localeCompare(b.name));
     
-    for (const team of sortedTeams) {
+    for (const team of teams) {
       if (popularTeams.length >= limit) break;
-      if (!existingIds.has(team.id)) {
+      if (!existingIds.has(String(team.id))) {
         popularTeams.push(transformTeam(team));
       }
     }
@@ -91,27 +96,24 @@ export async function getPopularTeams(limit: number = 6): Promise<TeamListItem[]
 
 /**
  * Transform raw database team to TeamListItem
+ * New schema: id is the API team ID (bigint), logo is the URL
  */
 function transformTeam(team: {
-  id: string;
+  id: number;
   league: string;
-  api_team_id: number;
   name: string;
-  logo_path: string | null;
-  logo_url_original: string | null;
+  slug: string;
+  logo: string | null;
+  country?: string | null;
 }): TeamListItem {
-  const logoUrl = getTeamLogoUrl({
-    logo_path: team.logo_path,
-    logo_url_original: team.logo_url_original,
-  });
-
   return {
-    id: team.id,
+    id: String(team.id),
     league: team.league,
-    apiTeamId: team.api_team_id,
+    apiTeamId: team.id,
     name: team.name,
-    slug: slugifyTeam(team.name),
-    logoUrl: logoUrl !== "/placeholder-team.png" ? logoUrl : "",
+    slug: team.slug,
+    logoUrl: team.logo || "",
     primaryColor: getTeamColor(team.name, team.league),
+    country: team.country || undefined,
   };
 }

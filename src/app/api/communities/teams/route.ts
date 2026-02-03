@@ -15,20 +15,26 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const leagueParam = url.searchParams.get("league");
 
+    // Always lowercase the league param
+    const league = leagueParam?.toLowerCase() || null;
+
     let teams;
-    if (leagueParam) {
-      teams = await getTeamsByLeague(leagueParam);
+    if (league) {
+      teams = await getTeamsByLeague(league);
     } else {
       teams = await getAllTeams();
     }
 
     const counts = await getTeamCountsByLeague();
 
+    // Debug log
+    console.log("[teams]", { league: league || "all", count: teams?.length });
+
     return NextResponse.json({
       teams,
       count: teams.length,
       counts,
-      league: leagueParam || "all",
+      league: league || "all",
     });
   } catch (error) {
     console.error("[/api/communities/teams] Error:", error);
