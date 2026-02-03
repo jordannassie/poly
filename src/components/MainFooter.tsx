@@ -67,12 +67,9 @@ export function MainFooter() {
             </div>
           </div>
         </div>
-        <div className="grid gap-3 text-sm text-white/80 sm:grid-cols-4">
+        <div className="grid gap-3 text-sm text-white/80 sm:grid-cols-3">
           <Link href="/" className="hover:text-white">
             Markets
-          </Link>
-          <Link href="/breaking" className="hover:text-white">
-            Breaking news
           </Link>
           <Link href="/sports" className="hover:text-white">
             Sports
