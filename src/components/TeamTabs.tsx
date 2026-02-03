@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { MessageSquare, TrendingUp, Calendar, Clock, Heart, Send, Loader2 } from "lucide-react";
+import { MessageSquare, TrendingUp, Calendar, Clock, ChevronUp, ChevronDown, Loader2, Plus, Flame, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { CreatePostModal } from "./CreatePostModal";
 
 interface TeamTabsProps {
   teamName: string;
@@ -13,11 +14,16 @@ interface TeamTabsProps {
 
 interface Post {
   id: string;
-  content: string;
-  likes_count: number;
+  title: string | null;
+  content: string | null;
+  post_type: string;
+  flair: string | null;
+  upvotes: number;
+  downvotes: number;
+  score: number;
   comments_count: number;
   created_at: string;
-  has_liked: boolean;
+  user_vote: number; // -1, 0, or 1
   user: {
     username: string;
     display_name: string | null;
@@ -137,7 +143,7 @@ export function TeamTabs({ teamName, teamId, league, primaryColor }: TeamTabsPro
 }
 
 /**
- * Feed Tab
+ * Feed Tab - Reddit-style posts with voting
  */
 function FeedTab({ 
   teamName, 
@@ -152,14 +158,15 @@ function FeedTab({
 }) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [postContent, setPostContent] = useState("");
-  const [posting, setPosting] = useState(false);
+  const [sortBy, setSortBy] = useState<"top" | "new">("top");
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Fetch posts for this team
   useEffect(() => {
     const fetchPosts = async () => {
+      setLoading(true);
       try {
-        const res = await fetch(`/api/posts?team_id=${encodeURIComponent(teamKey)}`);
+        const res = await fetch(`/api/posts?team_id=${encodeURIComponent(teamKey)}&sort=${sortBy}`);
         if (res.ok) {
           const data = await res.json();
           setPosts(data.posts || []);
@@ -171,60 +178,39 @@ function FeedTab({
       }
     };
     fetchPosts();
-  }, [teamKey]);
+  }, [teamKey, sortBy]);
 
-  const handlePost = async () => {
-    if (!postContent.trim() || posting) return;
+  const handleVote = async (postId: string, voteType: number, currentVote: number) => {
+    // If clicking same vote, remove it (set to 0)
+    const newVote = currentVote === voteType ? 0 : voteType;
     
-    setPosting(true);
     try {
-      const res = await fetch("/api/posts", {
+      const res = await fetch(`/api/posts/${postId}/vote`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: postContent,
-          team_id: teamKey,
-          league: league,
-        }),
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        setPosts([data.post, ...posts]);
-        setPostContent("");
-      } else {
-        const data = await res.json();
-        if (data.error === "AUTH_REQUIRED") {
-          alert("Please sign in to post");
-        } else {
-          console.error("Post error:", data.error);
-          alert("Failed to create post. Please try again.");
-        }
-      }
-    } catch (error) {
-      console.error("Failed to create post:", error);
-    } finally {
-      setPosting(false);
-    }
-  };
-
-  const handleLike = async (postId: string, hasLiked: boolean) => {
-    try {
-      const res = await fetch(`/api/posts/${postId}/like`, {
-        method: hasLiked ? "DELETE" : "POST",
+        body: JSON.stringify({ vote_type: newVote }),
       });
       
       if (res.ok) {
         const data = await res.json();
         setPosts(posts.map(p => 
           p.id === postId 
-            ? { ...p, likes_count: data.likes_count, has_liked: !hasLiked }
+            ? { ...p, score: data.score, upvotes: data.upvotes, downvotes: data.downvotes, user_vote: data.user_vote }
             : p
         ));
+      } else {
+        const data = await res.json();
+        if (data.error === "AUTH_REQUIRED") {
+          alert("Please sign in to vote");
+        }
       }
     } catch (error) {
-      console.error("Like error:", error);
+      console.error("Vote error:", error);
     }
+  };
+
+  const handlePostCreated = (newPost: Post) => {
+    setPosts([newPost, ...posts]);
   };
 
   const formatTimeAgo = (dateString: string) => {
@@ -242,112 +228,164 @@ function FeedTab({
     return date.toLocaleDateString();
   };
 
+  const flairColors: Record<string, string> = {
+    discussion: "bg-blue-500",
+    question: "bg-purple-500",
+    news: "bg-green-500",
+    analysis: "bg-orange-500",
+    highlight: "bg-red-500",
+    prediction: "bg-yellow-500",
+  };
+
   return (
     <div className="space-y-4">
-      {/* Create Post Box */}
-      <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-lg p-4">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-full bg-[color:var(--surface-2)] flex items-center justify-center flex-shrink-0">
-            <MessageSquare className="h-5 w-5 text-[color:var(--text-muted)]" />
-          </div>
-          <div className="flex-1">
-            <textarea
-              value={postContent}
-              onChange={(e) => setPostContent(e.target.value)}
-              placeholder={`Start a discussion about ${teamName}...`}
-              className="w-full bg-[color:var(--surface-2)] border-none rounded-lg px-4 py-2 text-sm placeholder:text-[color:var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)] resize-none min-h-[60px]"
-              rows={2}
-            />
-            <div className="flex justify-end mt-2">
-              <button
-                onClick={handlePost}
-                disabled={!postContent.trim() || posting}
-                className="px-4 py-1.5 text-sm font-medium rounded-full text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                style={{ backgroundColor: primaryColor }}
-              >
-                {posting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>
-                    <Send className="h-4 w-4" />
-                    Post
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
+      {/* Create Post Button */}
+      <button
+        onClick={() => setShowCreateModal(true)}
+        className="w-full bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-lg p-4 flex items-center gap-3 hover:border-[color:var(--accent)] transition text-left"
+      >
+        <div className="w-10 h-10 rounded-full bg-[color:var(--surface-2)] flex items-center justify-center flex-shrink-0">
+          <Plus className="h-5 w-5 text-[color:var(--text-muted)]" />
         </div>
+        <span className="text-[color:var(--text-muted)]">Create a post...</span>
+      </button>
+
+      {/* Sort Tabs */}
+      <div className="flex items-center gap-2 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-lg p-2">
+        <button
+          onClick={() => setSortBy("top")}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition ${
+            sortBy === "top" 
+              ? "bg-[color:var(--surface-2)] text-[color:var(--text-strong)]" 
+              : "text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
+          }`}
+        >
+          <Flame className="h-4 w-4" />
+          Hot
+        </button>
+        <button
+          onClick={() => setSortBy("new")}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition ${
+            sortBy === "new" 
+              ? "bg-[color:var(--surface-2)] text-[color:var(--text-strong)]" 
+              : "text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
+          }`}
+        >
+          <Sparkles className="h-4 w-4" />
+          New
+        </button>
       </div>
 
       {/* Posts List */}
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map(i => (
-            <div key={i} className="animate-pulse bg-[color:var(--surface)] rounded-lg h-24" />
+            <div key={i} className="animate-pulse bg-[color:var(--surface)] rounded-lg h-32" />
           ))}
         </div>
       ) : posts.length === 0 ? (
         <EmptyState
           icon={<MessageSquare className="h-12 w-12" />}
-          title="No posts yet"
-          description={`Be the first to post in the ${teamName} community`}
+          title="No discussions yet"
+          description={`Be the first to start a discussion in the ${teamName} community`}
         />
       ) : (
         <div className="space-y-3">
           {posts.map((post) => (
-            <div key={post.id} className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-lg p-4">
-              {/* Post Header */}
-              <div className="flex items-center gap-3 mb-3">
-                <Link href={`/u/${post.user.username}`}>
-                  {post.user.avatar_url ? (
-                    <img 
-                      src={post.user.avatar_url} 
-                      alt={post.user.display_name || post.user.username}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                      <span className="text-white font-bold text-sm">
-                        {(post.user.display_name || post.user.username || "U").charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                </Link>
-                <div>
-                  <Link href={`/u/${post.user.username}`} className="font-medium hover:underline">
-                    {post.user.display_name || post.user.username}
-                  </Link>
-                  <div className="text-xs text-[color:var(--text-muted)]">
-                    @{post.user.username} • {formatTimeAgo(post.created_at)}
-                  </div>
-                </div>
-              </div>
-              
-              {/* Post Content */}
-              <p className="text-[color:var(--text-strong)] whitespace-pre-wrap mb-3">
-                {post.content}
-              </p>
-              
-              {/* Post Actions */}
-              <div className="flex items-center gap-4 text-sm text-[color:var(--text-muted)]">
-                <button 
-                  onClick={() => handleLike(post.id, post.has_liked)}
-                  className={`flex items-center gap-1 transition ${
-                    post.has_liked ? "text-red-500" : "hover:text-red-500"
+            <div key={post.id} className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-lg overflow-hidden flex">
+              {/* Vote Column */}
+              <div className="flex flex-col items-center gap-1 p-3 bg-[color:var(--surface-2)]">
+                <button
+                  onClick={() => handleVote(post.id, 1, post.user_vote)}
+                  className={`p-1 rounded transition ${
+                    post.user_vote === 1 
+                      ? "text-orange-500" 
+                      : "text-[color:var(--text-muted)] hover:text-orange-500"
                   }`}
                 >
-                  <Heart className={`h-4 w-4 ${post.has_liked ? "fill-current" : ""}`} />
-                  {post.likes_count}
+                  <ChevronUp className="h-5 w-5" />
                 </button>
-                <button className="flex items-center gap-1 hover:text-[color:var(--accent)] transition">
-                  <MessageSquare className="h-4 w-4" />
-                  {post.comments_count}
+                <span className={`text-sm font-bold ${
+                  post.user_vote === 1 ? "text-orange-500" : 
+                  post.user_vote === -1 ? "text-blue-500" : 
+                  "text-[color:var(--text-strong)]"
+                }`}>
+                  {post.score}
+                </span>
+                <button
+                  onClick={() => handleVote(post.id, -1, post.user_vote)}
+                  className={`p-1 rounded transition ${
+                    post.user_vote === -1 
+                      ? "text-blue-500" 
+                      : "text-[color:var(--text-muted)] hover:text-blue-500"
+                  }`}
+                >
+                  <ChevronDown className="h-5 w-5" />
                 </button>
+              </div>
+
+              {/* Post Content */}
+              <div className="flex-1 p-4">
+                {/* Post Meta */}
+                <div className="flex items-center gap-2 text-xs text-[color:var(--text-muted)] mb-2">
+                  <Link href={`/u/${post.user.username}`} className="flex items-center gap-1 hover:underline">
+                    {post.user.avatar_url ? (
+                      <img src={post.user.avatar_url} alt="" className="w-5 h-5 rounded-full" />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-pink-500" />
+                    )}
+                    <span className="font-medium text-[color:var(--text-strong)]">
+                      {post.user.display_name || post.user.username}
+                    </span>
+                  </Link>
+                  <span>•</span>
+                  <span>{formatTimeAgo(post.created_at)}</span>
+                  {post.flair && (
+                    <>
+                      <span>•</span>
+                      <span className={`px-2 py-0.5 rounded-full text-white text-xs ${flairColors[post.flair] || "bg-gray-500"}`}>
+                        {post.flair.charAt(0).toUpperCase() + post.flair.slice(1)}
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                {/* Title */}
+                {post.title && (
+                  <h3 className="text-lg font-semibold text-[color:var(--text-strong)] mb-2 hover:text-[color:var(--accent)] cursor-pointer">
+                    {post.title}
+                  </h3>
+                )}
+
+                {/* Content Preview */}
+                {post.content && (
+                  <p className="text-[color:var(--text-muted)] text-sm line-clamp-3 mb-3">
+                    {post.content}
+                  </p>
+                )}
+
+                {/* Post Actions */}
+                <div className="flex items-center gap-4 text-sm text-[color:var(--text-muted)]">
+                  <button className="flex items-center gap-1 hover:text-[color:var(--text-strong)] transition">
+                    <MessageSquare className="h-4 w-4" />
+                    {post.comments_count} Comments
+                  </button>
+                </div>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* Create Post Modal */}
+      <CreatePostModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onPostCreated={handlePostCreated}
+        teamId={teamKey}
+        teamName={teamName}
+        league={league}
+      />
     </div>
   );
 }

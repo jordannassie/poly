@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
   const userId = searchParams.get("user_id");
   const limit = parseInt(searchParams.get("limit") || "20");
   const offset = parseInt(searchParams.get("offset") || "0");
+  const sort = searchParams.get("sort") || "top"; // "top" (by score) or "new" (by date)
   
   const adminClient = getAdminClient();
   if (!adminClient) {
@@ -50,8 +51,15 @@ export async function GET(request: NextRequest) {
     let query = adminClient
       .from("posts")
       .select("*")
-      .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
+    
+    // Sort by score (ranking) or by date
+    if (sort === "new") {
+      query = query.order("created_at", { ascending: false });
+    } else {
+      // Default: sort by score DESC, then by created_at DESC
+      query = query.order("score", { ascending: false }).order("created_at", { ascending: false });
+    }
     
     if (teamId) {
       query = query.eq("team_id", teamId);
@@ -68,7 +76,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
     
-    // Enrich posts with user profiles
+    const currentUserId = getCurrentUserId();
+    
+    // Enrich posts with user profiles and vote status
     const enrichedPosts = await Promise.all(
       (posts || []).map(async (post) => {
         const { data: profile } = await adminClient
@@ -77,23 +87,22 @@ export async function GET(request: NextRequest) {
           .eq("id", post.user_id)
           .maybeSingle();
         
-        // Check if current user liked this post
-        const currentUserId = getCurrentUserId();
-        let hasLiked = false;
+        // Check if current user voted on this post
+        let userVote = 0; // -1, 0, or 1
         if (currentUserId) {
-          const { data: like } = await adminClient
-            .from("post_likes")
-            .select("id")
+          const { data: vote } = await adminClient
+            .from("post_votes")
+            .select("vote_type")
             .eq("user_id", currentUserId)
             .eq("post_id", post.id)
             .maybeSingle();
-          hasLiked = !!like;
+          userVote = vote?.vote_type || 0;
         }
         
         return {
           ...post,
           user: profile || { username: "Unknown", display_name: null, avatar_url: null },
-          has_liked: hasLiked,
+          user_vote: userVote,
         };
       })
     );
@@ -119,14 +128,33 @@ export async function POST(request: NextRequest) {
   
   try {
     const body = await request.json();
-    const { content, team_id, league } = body;
+    const { 
+      title, 
+      content, 
+      team_id, 
+      league, 
+      post_type = "text",
+      flair,
+      link_url,
+      image_url 
+    } = body;
     
-    if (!content || content.trim().length === 0) {
-      return NextResponse.json({ error: "Content is required" }, { status: 400 });
+    // Title is required for discussion posts
+    if (!title || title.trim().length === 0) {
+      return NextResponse.json({ error: "Title is required" }, { status: 400 });
     }
     
-    if (content.length > 2000) {
-      return NextResponse.json({ error: "Content too long (max 2000 chars)" }, { status: 400 });
+    if (title.length > 300) {
+      return NextResponse.json({ error: "Title too long (max 300 chars)" }, { status: 400 });
+    }
+    
+    if (content && content.length > 10000) {
+      return NextResponse.json({ error: "Content too long (max 10000 chars)" }, { status: 400 });
+    }
+    
+    // Validate post type
+    if (!["text", "image", "link", "poll"].includes(post_type)) {
+      return NextResponse.json({ error: "Invalid post type" }, { status: 400 });
     }
     
     // Create post
@@ -134,9 +162,17 @@ export async function POST(request: NextRequest) {
       .from("posts")
       .insert({
         user_id: userId,
-        content: content.trim(),
+        title: title.trim(),
+        content: content?.trim() || null,
         team_id: team_id || null,
         league: league?.toLowerCase() || null,
+        post_type,
+        flair: flair || null,
+        link_url: link_url || null,
+        image_url: image_url || null,
+        upvotes: 1, // Auto-upvote own post
+        downvotes: 0,
+        score: 1,
       })
       .select()
       .single();
@@ -145,6 +181,15 @@ export async function POST(request: NextRequest) {
       console.error("Create post error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+    
+    // Auto-upvote the post by the creator
+    await adminClient
+      .from("post_votes")
+      .insert({
+        user_id: userId,
+        post_id: post.id,
+        vote_type: 1,
+      });
     
     // Fetch user profile for response
     const { data: profile } = await adminClient
@@ -158,7 +203,7 @@ export async function POST(request: NextRequest) {
       post: {
         ...post,
         user: profile || { username: "Unknown", display_name: null, avatar_url: null },
-        has_liked: false,
+        user_vote: 1, // Creator auto-upvoted
       },
     });
   } catch (error) {
