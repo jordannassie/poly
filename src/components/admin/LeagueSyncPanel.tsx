@@ -273,16 +273,30 @@ export function LeagueSyncPanel() {
     let hasErrors = false;
 
     try {
-      // Sync each sport sequentially (fast, no logo downloads)
+      // Sync each sport sequentially with retries built into the endpoint
       for (const sport of sports) {
+        // Update progress before each sport
+        setSyncAllResult({
+          ok: true,
+          results: [...results],
+          totals: { ...totals },
+          message: `Syncing ${sport.toUpperCase()}... (${results.length}/${sports.length} done)`,
+        });
+        
         try {
           const res = await fetch(`/api/admin/api-sports/sync/teams?sport=${sport}`, {
             method: "POST",
           });
           
+          // Check content-type to avoid JSON parse errors
           const contentType = res.headers.get("content-type") || "";
           if (!contentType.includes("application/json")) {
             const bodyText = await res.text();
+            console.error(`[syncAllTeams] ${sport}: Non-JSON response`, {
+              status: res.status,
+              contentType,
+              body: bodyText.substring(0, 200),
+            });
             results.push({
               league: sport.toUpperCase(),
               success: false,
@@ -291,7 +305,7 @@ export function LeagueSyncPanel() {
               updated: 0,
               logosUploaded: 0,
               logosFailed: 0,
-              error: `Non-JSON: ${bodyText.substring(0, 100)}`,
+              error: `Upstream returned HTML (status ${res.status})`,
             });
             hasErrors = true;
             continue;
@@ -299,33 +313,36 @@ export function LeagueSyncPanel() {
           
           const data = await res.json();
           
+          // Handle both old (success) and new (ok) response formats
+          const isSuccess = data.ok ?? data.success ?? false;
+          
           results.push({
             league: sport.toUpperCase(),
-            success: data.success,
+            success: isSuccess,
             totalTeams: data.total || 0,
             inserted: data.inserted || 0,
             updated: data.updated || 0,
-            logosUploaded: 0, // No logo downloads in fast mode
+            logosUploaded: 0,
             logosFailed: 0,
-            error: data.error,
+            error: data.error || (data.errors?.join("; ")),
           });
           
           totals.totalTeams += data.total || 0;
           totals.inserted += data.inserted || 0;
           totals.updated += data.updated || 0;
           
-          if (!data.success) hasErrors = true;
-          
-          // Update UI progressively
-          setSyncAllResult({
-            ok: !hasErrors,
-            results: [...results],
-            totals: { ...totals },
-            message: `Syncing... ${results.length}/${sports.length} sports done`,
-          });
+          if (!isSuccess) hasErrors = true;
           
         } catch (sportError) {
           const msg = sportError instanceof Error ? sportError.message : "Unknown error";
+          console.error(`[syncAllTeams] ${sport}: Fetch error`, msg);
+          
+          // Check for JSON parse errors specifically
+          let errorMsg = msg;
+          if (msg.includes("Unexpected token")) {
+            errorMsg = "Server returned HTML instead of JSON";
+          }
+          
           results.push({
             league: sport.toUpperCase(),
             success: false,
@@ -334,29 +351,39 @@ export function LeagueSyncPanel() {
             updated: 0,
             logosUploaded: 0,
             logosFailed: 0,
-            error: msg,
+            error: errorMsg,
           });
           hasErrors = true;
         }
+        
+        // Update UI after each sport
+        setSyncAllResult({
+          ok: !hasErrors || results.some(r => r.success),
+          results: [...results],
+          totals: { ...totals },
+          message: `Synced ${results.length}/${sports.length} sports`,
+        });
       }
       
       // Final result
+      const successCount = results.filter(r => r.success).length;
       setSyncAllResult({
-        ok: !hasErrors || results.some(r => r.success),
+        ok: successCount > 0,
         results,
         totals,
         message: hasErrors 
-          ? `Synced with some errors (${results.filter(r => r.success).length}/${sports.length} succeeded)`
+          ? `Synced ${successCount}/${sports.length} sports (some errors occurred)`
           : `Successfully synced all ${sports.length} sports`,
       });
       
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      console.error("[syncAllTeams] Global error:", errorMsg);
       setSyncAllResult({
         ok: false,
         results,
         totals,
-        message: "",
+        message: "Sync failed",
         error: errorMsg,
       });
     } finally {
