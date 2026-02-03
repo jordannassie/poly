@@ -230,10 +230,30 @@ function TeamLogo({ teamKey, size = "md" }: { teamKey: string; size?: "sm" | "md
   );
 }
 
+// Following team data
+interface FollowedTeam {
+  team_id: string;
+  league: string;
+  team_name: string;
+  logo: string | null;
+  slug: string;
+}
+
+// Post from API
+interface UserPost {
+  id: string;
+  content: string;
+  team_id: string | null;
+  league: string | null;
+  likes_count: number;
+  comments_count: number;
+  created_at: string;
+}
+
 export default function PublicProfilePage({ params }: Props) {
   const { username } = params;
   const [isOwnProfile, setIsOwnProfile] = useState(false);
-  const [activeTab, setActiveTab] = useState<"picks" | "activity" | "stats" | "achievements">("picks");
+  const [activeTab, setActiveTab] = useState<"picks" | "activity" | "stats" | "achievements" | "teams">("picks");
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
@@ -243,6 +263,14 @@ export default function PublicProfilePage({ params }: Props) {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [followLoading, setFollowLoading] = useState(false);
+  
+  // Followed teams
+  const [followedTeams, setFollowedTeams] = useState<FollowedTeam[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState(false);
+  
+  // User posts (activity)
+  const [userPosts, setUserPosts] = useState<UserPost[]>([]);
+  const [postsLoading, setPostsLoading] = useState(false);
 
   useEffect(() => {
     // Check if this is the current user's profile
@@ -316,6 +344,40 @@ export default function PublicProfilePage({ params }: Props) {
       }
     };
     fetchFollowStatus();
+    
+    // Fetch followed teams
+    const fetchFollowedTeams = async () => {
+      setTeamsLoading(true);
+      try {
+        const res = await fetch(`/api/teams/following?user_id=${profileData.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setFollowedTeams(data.teams || []);
+        }
+      } catch {
+        // Ignore errors
+      } finally {
+        setTeamsLoading(false);
+      }
+    };
+    fetchFollowedTeams();
+    
+    // Fetch user posts
+    const fetchUserPosts = async () => {
+      setPostsLoading(true);
+      try {
+        const res = await fetch(`/api/posts?user_id=${profileData.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setUserPosts(data.posts || []);
+        }
+      } catch {
+        // Ignore errors
+      } finally {
+        setPostsLoading(false);
+      }
+    };
+    fetchUserPosts();
   }, [profileData?.id]);
 
   // Handle follow/unfollow
@@ -632,6 +694,26 @@ export default function PublicProfilePage({ params }: Props) {
             }`}
           >
             Activity
+            {userPosts.length > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 bg-blue-500/20 text-blue-500 text-xs rounded-full">
+                {userPosts.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab("teams")}
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition -mb-px whitespace-nowrap ${
+              activeTab === "teams"
+                ? "border-blue-500 text-blue-500"
+                : "border-transparent text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
+            }`}
+          >
+            Teams
+            {followedTeams.length > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 bg-blue-500/20 text-blue-500 text-xs rounded-full">
+                {followedTeams.length}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab("stats")}
@@ -745,74 +827,222 @@ export default function PublicProfilePage({ params }: Props) {
 
         {activeTab === "activity" && (
           <div className="space-y-3">
-            {profile.activity.map((item) => (
-              <Card key={item.id} className="bg-[color:var(--surface)] border-[color:var(--border-soft)]">
-                <CardContent className="p-4">
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-yellow-500 flex items-center justify-center">
-                        <span className="text-sm font-bold text-white">DT</span>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold">{profile.displayName}</span>
-                          {item.type === "reply" && (
-                            <>
-                              <Reply className="h-3 w-3 text-[color:var(--text-muted)]" />
-                              <span className="text-[color:var(--text-muted)]">replied to</span>
-                              <Link href={`/u/${item.replyTo?.toLowerCase()}`} className="text-blue-500 hover:underline">
-                                @{item.replyTo}
-                              </Link>
-                            </>
-                          )}
-                          {item.type === "comment" && (
-                            <span className="text-[color:var(--text-muted)]">commented</span>
-                          )}
+            {postsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+              </div>
+            ) : userPosts.length > 0 ? (
+              <>
+                {userPosts.map((post) => {
+                  const formatTimeAgo = (dateString: string) => {
+                    const date = new Date(dateString);
+                    const now = new Date();
+                    const diffMs = now.getTime() - date.getTime();
+                    const diffMins = Math.floor(diffMs / 60000);
+                    const diffHours = Math.floor(diffMs / 3600000);
+                    const diffDays = Math.floor(diffMs / 86400000);
+                    if (diffMins < 1) return "just now";
+                    if (diffMins < 60) return `${diffMins}m ago`;
+                    if (diffHours < 24) return `${diffHours}h ago`;
+                    if (diffDays < 7) return `${diffDays}d ago`;
+                    return date.toLocaleDateString();
+                  };
+
+                  return (
+                    <Card key={post.id} className="bg-[color:var(--surface)] border-[color:var(--border-soft)]">
+                      <CardContent className="p-4">
+                        {/* Header */}
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            {profile.avatarUrl ? (
+                              <img 
+                                src={profile.avatarUrl}
+                                alt={profile.displayName}
+                                className="h-10 w-10 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-yellow-500 flex items-center justify-center">
+                                <span className="text-sm font-bold text-white">
+                                  {(profile.displayName || profile.username || "U").charAt(0).toUpperCase()}
+                                </span>
+                              </div>
+                            )}
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold">{profile.displayName || profile.username}</span>
+                                <span className="text-[color:var(--text-muted)]">posted</span>
+                              </div>
+                              <div className="text-xs text-[color:var(--text-muted)]">{formatTimeAgo(post.created_at)}</div>
+                            </div>
+                          </div>
+                          <button className="text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </button>
                         </div>
-                        <div className="text-xs text-[color:var(--text-muted)]">{item.date}</div>
+                        
+                        {/* Team Context */}
+                        {post.league && (
+                          <div className="flex items-center gap-2 mb-2 p-2 bg-[color:var(--surface-2)] rounded-lg">
+                            <span className="text-sm font-medium">
+                              {post.league.toUpperCase()} Community
+                            </span>
+                          </div>
+                        )}
+                        
+                        {/* Content */}
+                        <p className="text-[color:var(--text-strong)] mb-3 whitespace-pre-wrap">{post.content}</p>
+                        
+                        {/* Actions */}
+                        <div className="flex items-center gap-4 text-sm text-[color:var(--text-muted)]">
+                          <span className="flex items-center gap-1">
+                            <Heart className="h-4 w-4" />
+                            {post.likes_count}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <MessageCircle className="h-4 w-4" />
+                            {post.comments_count}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </>
+            ) : (
+              /* Fallback to demo activity */
+              <>
+                {profile.activity.map((item) => (
+                  <Card key={item.id} className="bg-[color:var(--surface)] border-[color:var(--border-soft)]">
+                    <CardContent className="p-4">
+                      {/* Header */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-yellow-500 flex items-center justify-center">
+                            <span className="text-sm font-bold text-white">DT</span>
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold">{profile.displayName}</span>
+                              {item.type === "reply" && (
+                                <>
+                                  <Reply className="h-3 w-3 text-[color:var(--text-muted)]" />
+                                  <span className="text-[color:var(--text-muted)]">replied to</span>
+                                  <Link href={`/u/${item.replyTo?.toLowerCase()}`} className="text-blue-500 hover:underline">
+                                    @{item.replyTo}
+                                  </Link>
+                                </>
+                              )}
+                              {item.type === "comment" && (
+                                <span className="text-[color:var(--text-muted)]">commented</span>
+                              )}
+                            </div>
+                            <div className="text-xs text-[color:var(--text-muted)]">{item.date}</div>
+                          </div>
+                        </div>
+                        <button className="text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
                       </div>
-                    </div>
-                    <button className="text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </button>
-                  </div>
-                  
-                  {/* Market with Teams */}
-                  <div className="flex items-center gap-2 mb-2 p-2 bg-[color:var(--surface-2)] rounded-lg">
-                    <TeamLogo teamKey={item.team1} size="sm" />
-                    <span className="text-xs text-[color:var(--text-muted)]">vs</span>
-                    <TeamLogo teamKey={item.team2} size="sm" />
-                    <span className="text-sm font-medium ml-2">{item.market}</span>
-                  </div>
-                  
-                  {/* Content */}
-                  <p className="text-[color:var(--text-strong)] mb-3">{item.content}</p>
-                  
-                  {/* Actions */}
-                  <div className="flex items-center gap-4 text-sm text-[color:var(--text-muted)]">
-                    <button className="flex items-center gap-1 hover:text-red-500 transition">
-                      <Heart className="h-4 w-4" />
-                      {item.likes}
-                    </button>
-                    {item.replies !== undefined && (
-                      <button className="flex items-center gap-1 hover:text-blue-500 transition">
-                        <MessageCircle className="h-4 w-4" />
-                        {item.replies} replies
-                      </button>
-                    )}
-                    <button className="flex items-center gap-1 hover:text-[color:var(--text-strong)] transition">
-                      <Share2 className="h-4 w-4" />
-                      Share
-                    </button>
-                  </div>
+                      
+                      {/* Market with Teams */}
+                      <div className="flex items-center gap-2 mb-2 p-2 bg-[color:var(--surface-2)] rounded-lg">
+                        <TeamLogo teamKey={item.team1} size="sm" />
+                        <span className="text-xs text-[color:var(--text-muted)]">vs</span>
+                        <TeamLogo teamKey={item.team2} size="sm" />
+                        <span className="text-sm font-medium ml-2">{item.market}</span>
+                      </div>
+                      
+                      {/* Content */}
+                      <p className="text-[color:var(--text-strong)] mb-3">{item.content}</p>
+                      
+                      {/* Actions */}
+                      <div className="flex items-center gap-4 text-sm text-[color:var(--text-muted)]">
+                        <button className="flex items-center gap-1 hover:text-red-500 transition">
+                          <Heart className="h-4 w-4" />
+                          {item.likes}
+                        </button>
+                        {item.replies !== undefined && (
+                          <button className="flex items-center gap-1 hover:text-blue-500 transition">
+                            <MessageCircle className="h-4 w-4" />
+                            {item.replies} replies
+                          </button>
+                        )}
+                        <button className="flex items-center gap-1 hover:text-[color:var(--text-strong)] transition">
+                          <Share2 className="h-4 w-4" />
+                          Share
+                        </button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                
+                <Button variant="outline" className="w-full border-[color:var(--border-soft)]">
+                  Load More Activity
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+
+        {activeTab === "teams" && (
+          <div>
+            {teamsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+              </div>
+            ) : followedTeams.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {followedTeams.map((team) => (
+                  <Link
+                    key={team.team_id}
+                    href={`/teams/${team.league}/${team.slug}`}
+                    className="block"
+                  >
+                    <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] hover:border-blue-500/50 transition">
+                      <CardContent className="p-4 flex flex-col items-center text-center">
+                        {team.logo ? (
+                          <img 
+                            src={team.logo} 
+                            alt={team.team_name}
+                            className="w-16 h-16 object-contain mb-3"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 rounded-full bg-[color:var(--surface-2)] flex items-center justify-center mb-3">
+                            <span className="text-2xl font-bold text-[color:var(--text-muted)]">
+                              {team.team_name.charAt(0)}
+                            </span>
+                          </div>
+                        )}
+                        <div className="font-medium text-sm">{team.team_name}</div>
+                        <div className="text-xs text-[color:var(--text-muted)] uppercase mt-1">
+                          {team.league}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)]">
+                <CardContent className="p-8 text-center">
+                  <div className="text-4xl mb-4">🏟️</div>
+                  <h3 className="text-lg font-semibold mb-2">No teams followed yet</h3>
+                  <p className="text-[color:var(--text-muted)] text-sm mb-4">
+                    {isOwnProfile 
+                      ? "Follow your favorite teams to see them here!"
+                      : `${profile.displayName || profile.username} hasn't followed any teams yet.`
+                    }
+                  </p>
+                  {isOwnProfile && (
+                    <Link href="/sports?league=nfl">
+                      <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                        Browse Teams
+                      </Button>
+                    </Link>
+                  )}
                 </CardContent>
               </Card>
-            ))}
-            
-            <Button variant="outline" className="w-full border-[color:var(--border-soft)]">
-              Load More Activity
-            </Button>
+            )}
           </div>
         )}
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Bell, BellOff, Share2, MoreHorizontal } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Bell, BellOff, Share2, MoreHorizontal, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 
 interface TeamBannerProps {
@@ -21,7 +21,12 @@ interface TeamBannerProps {
 export function TeamBanner({ teamId, teamName, league, logoUrl, primaryColor }: TeamBannerProps) {
   const [imgError, setImgError] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
   const [showShareToast, setShowShareToast] = useState(false);
+
+  // Unique team identifier
+  const teamKey = `${league.toLowerCase()}:${teamName.toLowerCase().replace(/\s+/g, "-")}`;
 
   // Generate initials for fallback
   const initials = teamName
@@ -31,9 +36,65 @@ export function TeamBanner({ teamId, teamName, league, logoUrl, primaryColor }: 
     .slice(0, 2)
     .toUpperCase();
 
-  const handleFollow = () => {
-    setIsFollowing(!isFollowing);
-    // TODO: Implement actual follow logic with backend
+  // Fetch initial follow status
+  useEffect(() => {
+    const fetchFollowStatus = async () => {
+      try {
+        const res = await fetch(`/api/teams/follow?team_id=${encodeURIComponent(teamKey)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setIsFollowing(data.is_following || false);
+          setFollowersCount(data.followers_count || 0);
+        }
+      } catch {
+        // Ignore errors
+      }
+    };
+    fetchFollowStatus();
+  }, [teamKey]);
+
+  const handleFollow = async () => {
+    if (followLoading) return;
+    
+    setFollowLoading(true);
+    try {
+      if (isFollowing) {
+        // Unfollow
+        const res = await fetch("/api/teams/follow", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ team_id: teamKey }),
+        });
+        if (res.ok) {
+          setIsFollowing(false);
+          setFollowersCount(prev => Math.max(0, prev - 1));
+        }
+      } else {
+        // Follow
+        const res = await fetch("/api/teams/follow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            team_id: teamKey,
+            league: league,
+            team_name: teamName,
+          }),
+        });
+        if (res.ok) {
+          setIsFollowing(true);
+          setFollowersCount(prev => prev + 1);
+        } else {
+          const data = await res.json();
+          if (data.error === "AUTH_REQUIRED") {
+            alert("Please sign in to follow teams");
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Follow error:", error);
+    } finally {
+      setFollowLoading(false);
+    }
   };
 
   const handleShare = async () => {
@@ -110,6 +171,7 @@ export function TeamBanner({ teamId, teamName, league, logoUrl, primaryColor }: 
                 onClick={handleFollow}
                 variant={isFollowing ? "outline" : "default"}
                 size="sm"
+                disabled={followLoading}
                 className={`gap-2 ${
                   isFollowing 
                     ? "border-[color:var(--border-strong)] text-[color:var(--text-strong)]" 
@@ -117,7 +179,9 @@ export function TeamBanner({ teamId, teamName, league, logoUrl, primaryColor }: 
                 }`}
                 style={!isFollowing ? { backgroundColor: primaryColor } : undefined}
               >
-                {isFollowing ? (
+                {followLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : isFollowing ? (
                   <>
                     <BellOff className="h-4 w-4" />
                     Following
