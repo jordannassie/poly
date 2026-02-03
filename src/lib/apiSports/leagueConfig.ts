@@ -64,7 +64,7 @@ const NBA_CONFIG: LeagueConfig = {
   gamesEndpoint: "/games",
   liveEndpoint: "/games?live=all",
   leagueId: 12,
-  currentSeason: 2024, // NBA season is 2024-25
+  currentSeason: 2025, // NBA 2025-26 season (Oct 2025 - Jun 2026)
   teamExtractor: (response: any) => response.response || [],
   gameExtractor: (response: any) => response.response || [],
 };
@@ -82,7 +82,7 @@ const MLB_CONFIG: LeagueConfig = {
   gamesEndpoint: "/games",
   liveEndpoint: "/games?live=all",
   leagueId: 1,
-  currentSeason: 2025,
+  currentSeason: 2026, // MLB 2026 season (Apr-Oct 2026)
   teamExtractor: (response: any) => response.response || [],
   gameExtractor: (response: any) => response.response || [],
 };
@@ -100,7 +100,7 @@ const NHL_CONFIG: LeagueConfig = {
   gamesEndpoint: "/games",
   liveEndpoint: "/games?live=all",
   leagueId: 57,
-  currentSeason: 2024, // NHL season is 2024-25
+  currentSeason: 2025, // NHL 2025-26 season (Oct 2025 - Jun 2026)
   teamExtractor: (response: any) => response.response || [],
   gameExtractor: (response: any) => response.response || [],
 };
@@ -115,11 +115,11 @@ const SOCCER_CONFIG: LeagueConfig = {
   league: "SOCCER",
   displayName: "Soccer",
   baseUrl: process.env.API_SPORTS_SOCCER_BASE_URL || "https://v3.football.api-sports.io",
-  teamsEndpoint: "/teams?league=39&season=2024",
+  teamsEndpoint: "/teams?league=39&season=2025",
   gamesEndpoint: "/fixtures",
   liveEndpoint: "/fixtures?live=all",
   leagueId: 39, // Premier League default
-  currentSeason: 2024,
+  currentSeason: 2025, // 2025-26 season (Aug 2025 - May 2026)
   teamExtractor: (response: any) => {
     // Soccer API returns { team: {...}, venue: {...} } structure
     return (response.response || []).map((item: any) => item.team || item);

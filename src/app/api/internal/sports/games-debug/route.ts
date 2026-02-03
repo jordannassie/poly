@@ -86,29 +86,34 @@ export async function GET(request: NextRequest) {
       statusCounts[status] = (statusCounts[status] || 0) + 1;
     }
 
-    // 4. Get sample MLB games
+    const currentTime = new Date().toISOString();
+
+    // 4. Get sample MLB games (next 20 upcoming)
     const { data: mlbSamples } = await adminClient
       .from("sports_games")
       .select("external_game_id, league, season, starts_at, status, home_team, away_team")
       .eq("league", "mlb")
+      .gte("starts_at", currentTime)
       .order("starts_at", { ascending: true })
-      .limit(5);
+      .limit(20);
 
-    // 5. Get sample NFL games
+    // 5. Get sample NFL games (next 20 upcoming)
     const { data: nflSamples } = await adminClient
       .from("sports_games")
       .select("external_game_id, league, season, starts_at, status, home_team, away_team")
       .eq("league", "nfl")
+      .gte("starts_at", currentTime)
       .order("starts_at", { ascending: true })
-      .limit(5);
+      .limit(20);
 
-    // 6. Get sample NBA games
+    // 6. Get sample NBA games (next 20 upcoming)
     const { data: nbaSamples } = await adminClient
       .from("sports_games")
       .select("external_game_id, league, season, starts_at, status, home_team, away_team")
       .eq("league", "nba")
+      .gte("starts_at", currentTime)
       .order("starts_at", { ascending: true })
-      .limit(5);
+      .limit(20);
 
     // 7. Check what the website query would see (using anon client)
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

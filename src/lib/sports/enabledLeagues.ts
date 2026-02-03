@@ -21,42 +21,42 @@ export interface EnabledLeague {
 /**
  * Currently enabled leagues for game syncing
  * 
- * Season notes:
- * - NFL: 2024 season runs Sep 2024 - Feb 2025, so season=2024
- * - NBA: 2024-25 season, API uses season=2024
- * - NHL: 2024-25 season, API uses season=2024
- * - MLB: 2025 season (Apr-Oct)
- * - Soccer: 2024-25 season
+ * Season notes (as of Feb 2026):
+ * - NFL: 2025 season runs Sep 2025 - Feb 2026 (current)
+ * - NBA: 2025-26 season, API uses season=2025 (Oct 2025 - Jun 2026)
+ * - NHL: 2025-26 season, API uses season=2025 (Oct 2025 - Jun 2026)
+ * - MLB: 2026 season (Apr-Oct 2026, upcoming)
+ * - Soccer: 2025-26 season
  */
 export const ENABLED_LEAGUES: EnabledLeague[] = [
   {
     sportKey: "NFL",
     leagueId: 1,
-    season: 2024,
+    season: 2025,  // 2025 season = Sep 2025 - Feb 2026
     displayName: "NFL",
   },
   {
     sportKey: "NBA",
     leagueId: 12,
-    season: 2024,
+    season: 2025,  // 2025-26 season = Oct 2025 - Jun 2026
     displayName: "NBA",
   },
   {
     sportKey: "NHL",
     leagueId: 57,
-    season: 2024,
+    season: 2025,  // 2025-26 season = Oct 2025 - Jun 2026
     displayName: "NHL",
   },
   {
     sportKey: "MLB",
     leagueId: 1,
-    season: 2025,
+    season: 2026,  // 2026 season = Apr-Oct 2026
     displayName: "MLB",
   },
   {
     sportKey: "SOCCER",
     leagueId: 39, // Premier League
-    season: 2024,
+    season: 2025,  // 2025-26 season
     displayName: "Soccer - Premier League",
     subLeagues: [
       { id: 39, name: "Premier League" },
