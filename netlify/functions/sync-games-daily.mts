@@ -3,25 +3,20 @@
  * 
  * Runs every 30 minutes to keep upcoming games up-to-date.
  * 
- * Schedule: "*/30 * * * *" (every 30 minutes)
- * 
- * To set up in Netlify:
- * 1. Go to Netlify Dashboard > Site > Functions
- * 2. Find "sync-games-daily" 
- * 3. Add schedule: */30 * * * *
+ * Schedule: */30 * * * * (every 30 minutes)
  */
 
-import { schedule } from "@netlify/functions";
+import type { Config, Context } from "@netlify/functions";
 
 const SITE_URL = process.env.URL || process.env.DEPLOY_URL || "https://provepicks.com";
 const INTERNAL_CRON_SECRET = process.env.INTERNAL_CRON_SECRET;
 
-const handler = async () => {
+export default async (request: Request, context: Context) => {
   console.log("[sync-games-daily] Starting scheduled daily sync");
   
   if (!INTERNAL_CRON_SECRET) {
     console.error("[sync-games-daily] INTERNAL_CRON_SECRET not configured");
-    return { statusCode: 500 };
+    return new Response("INTERNAL_CRON_SECRET not configured", { status: 500 });
   }
 
   try {
@@ -46,12 +41,16 @@ const handler = async () => {
       duration: data.duration,
     });
 
-    return { statusCode: response.ok ? 200 : 500 };
+    return new Response(JSON.stringify(data), { 
+      status: response.ok ? 200 : 500,
+      headers: { "Content-Type": "application/json" }
+    });
   } catch (error) {
     console.error("[sync-games-daily] Error:", error);
-    return { statusCode: 500 };
+    return new Response("Error", { status: 500 });
   }
 };
 
-// Schedule: every 30 minutes
-export const main = schedule("*/30 * * * *", handler);
+export const config: Config = {
+  schedule: "*/30 * * * *",
+};

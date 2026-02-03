@@ -4,25 +4,20 @@
  * Runs once daily to ensure season games are complete.
  * Will skip if backfill is already complete for the season.
  * 
- * Schedule: "0 4 * * *" (4 AM UTC daily)
- * 
- * To set up in Netlify:
- * 1. Go to Netlify Dashboard > Site > Functions
- * 2. Find "sync-games-backfill"
- * 3. Add schedule: 0 4 * * *
+ * Schedule: 0 4 * * * (4 AM UTC daily)
  */
 
-import { schedule } from "@netlify/functions";
+import type { Config, Context } from "@netlify/functions";
 
 const SITE_URL = process.env.URL || process.env.DEPLOY_URL || "https://provepicks.com";
 const INTERNAL_CRON_SECRET = process.env.INTERNAL_CRON_SECRET;
 
-const handler = async () => {
+export default async (request: Request, context: Context) => {
   console.log("[sync-games-backfill] Starting scheduled backfill sync");
   
   if (!INTERNAL_CRON_SECRET) {
     console.error("[sync-games-backfill] INTERNAL_CRON_SECRET not configured");
-    return { statusCode: 500 };
+    return new Response("INTERNAL_CRON_SECRET not configured", { status: 500 });
   }
 
   try {
@@ -34,7 +29,6 @@ const handler = async () => {
       },
       body: JSON.stringify({
         mode: "backfill",
-        // Don't force - skip if already complete
         force: false,
       }),
     });
@@ -49,12 +43,16 @@ const handler = async () => {
       duration: data.duration,
     });
 
-    return { statusCode: response.ok ? 200 : 500 };
+    return new Response(JSON.stringify(data), { 
+      status: response.ok ? 200 : 500,
+      headers: { "Content-Type": "application/json" }
+    });
   } catch (error) {
     console.error("[sync-games-backfill] Error:", error);
-    return { statusCode: 500 };
+    return new Response("Error", { status: 500 });
   }
 };
 
-// Schedule: 4 AM UTC daily
-export const main = schedule("0 4 * * *", handler);
+export const config: Config = {
+  schedule: "0 4 * * *",
+};

@@ -1,27 +1,22 @@
 /**
  * Netlify Scheduled Function: Live Games Sync
  * 
- * Runs every 1 minute to update live game scores.
+ * Runs every 2 minutes to update live game scores.
  * 
- * Schedule: "* * * * *" (every minute)
- * 
- * To set up in Netlify:
- * 1. Go to Netlify Dashboard > Site > Functions
- * 2. Find "sync-games-live"
- * 3. Add schedule: * * * * *
+ * Schedule: */2 * * * * (every 2 minutes)
  */
 
-import { schedule } from "@netlify/functions";
+import type { Config, Context } from "@netlify/functions";
 
 const SITE_URL = process.env.URL || process.env.DEPLOY_URL || "https://provepicks.com";
 const INTERNAL_CRON_SECRET = process.env.INTERNAL_CRON_SECRET;
 
-const handler = async () => {
+export default async (request: Request, context: Context) => {
   console.log("[sync-games-live] Starting scheduled live sync");
   
   if (!INTERNAL_CRON_SECRET) {
     console.error("[sync-games-live] INTERNAL_CRON_SECRET not configured");
-    return { statusCode: 500 };
+    return new Response("INTERNAL_CRON_SECRET not configured", { status: 500 });
   }
 
   try {
@@ -45,12 +40,16 @@ const handler = async () => {
       duration: data.duration,
     });
 
-    return { statusCode: response.ok ? 200 : 500 };
+    return new Response(JSON.stringify(data), { 
+      status: response.ok ? 200 : 500,
+      headers: { "Content-Type": "application/json" }
+    });
   } catch (error) {
     console.error("[sync-games-live] Error:", error);
-    return { statusCode: 500 };
+    return new Response("Error", { status: 500 });
   }
 };
 
-// Schedule: every minute
-export const main = schedule("* * * * *", handler);
+export const config: Config = {
+  schedule: "*/2 * * * *",
+};
