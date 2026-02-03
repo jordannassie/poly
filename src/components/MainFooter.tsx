@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Youtube } from "lucide-react";
 import { LOGO_URL } from "./ui/ProvePicksLogo";
 
 export function MainFooter() {
@@ -13,8 +14,19 @@ export function MainFooter() {
             </div>
             <span className="text-lg font-bold text-white">ProvePicks</span>
           </div>
-          <div className="text-sm text-white/80">
-            Demo UI for prediction markets.
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-white/80">
+              Demo UI for prediction markets.
+            </span>
+            <a 
+              href="https://www.youtube.com/@ProvePicks" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center justify-center h-9 w-9 rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
+              aria-label="ProvePicks YouTube Channel"
+            >
+              <Youtube className="h-5 w-5 text-white" />
+            </a>
           </div>
         </div>
         <div className="grid gap-3 text-sm text-white/80 sm:grid-cols-4">
