@@ -89,7 +89,7 @@ function isGameLive(status: string): boolean {
 function transformGame(
   game: CachedGame, 
   teamMap: Map<string, { id: number; name: string; logo: string | null; slug: string }>
-): HotGame {
+): { game: HotGame; missingHomeLogo: boolean; missingAwayLogo: boolean } {
   const league = game.league.toLowerCase();
   const homeTeamKey = `${league}:${game.home_team.toLowerCase()}`;
   const awayTeamKey = `${league}:${game.away_team.toLowerCase()}`;
@@ -101,28 +101,36 @@ function transformGame(
   const [team1Odds, team2Odds] = generateOdds();
   const activity = generateMockActivity();
 
+  // Get logo URLs - prioritize team map, fallback to game data
+  const homeLogoUrl = homeTeam?.logo || null;
+  const awayLogoUrl = awayTeam?.logo || null;
+
   return {
-    id: game.external_game_id,
-    title: `${game.away_team} vs ${game.home_team}`,
-    league: league.toUpperCase(),
-    team1: {
-      abbr: getAbbr(game.away_team),
-      name: game.away_team,
-      odds: team1Odds,
-      color: "#6366f1",
-      logoUrl: awayTeam?.logo || null,
+    game: {
+      id: game.external_game_id,
+      title: `${game.away_team} vs ${game.home_team}`,
+      league: league.toUpperCase(),
+      team1: {
+        abbr: getAbbr(game.away_team),
+        name: game.away_team,
+        odds: team1Odds,
+        color: "#6366f1",
+        logoUrl: awayLogoUrl,
+      },
+      team2: {
+        abbr: getAbbr(game.home_team),
+        name: game.home_team,
+        odds: team2Odds,
+        color: "#6366f1",
+        logoUrl: homeLogoUrl,
+      },
+      startTime: game.starts_at,
+      status: isLive ? "in_progress" : "scheduled",
+      isLive,
+      ...activity,
     },
-    team2: {
-      abbr: getAbbr(game.home_team),
-      name: game.home_team,
-      odds: team2Odds,
-      color: "#6366f1",
-      logoUrl: homeTeam?.logo || null,
-    },
-    startTime: game.starts_at,
-    status: isLive ? "in_progress" : "scheduled",
-    isLive,
-    ...activity,
+    missingHomeLogo: !homeLogoUrl,
+    missingAwayLogo: !awayLogoUrl,
   };
 }
 
@@ -171,8 +179,15 @@ export async function GET(request: NextRequest) {
       return !isOver && !isCanceled;
     });
 
-    // Transform to HotGame format
-    const games: HotGame[] = filteredGames.map(game => transformGame(game, teamMap));
+    // Transform to HotGame format and track missing logos
+    let missingHomeLogos = 0;
+    let missingAwayLogos = 0;
+    const games: HotGame[] = filteredGames.map(game => {
+      const result = transformGame(game, teamMap);
+      if (result.missingHomeLogo) missingHomeLogos++;
+      if (result.missingAwayLogo) missingAwayLogos++;
+      return result.game;
+    });
 
     // Sort: Live games first, then by start time
     games.sort((a, b) => {
@@ -185,6 +200,25 @@ export async function GET(request: NextRequest) {
     const limit = view === "live" ? 20 : 12;
     const limitedGames = games.slice(0, limit);
 
+    // Debug logging for logo issues
+    console.log(`[${view}-view] games=${games.length} missingHomeLogos=${missingHomeLogos} missingAwayLogos=${missingAwayLogos} teamMapSize=${teamMap.size}`);
+    
+    // Log sample team keys for debugging name mismatches
+    if (missingHomeLogos > 0 || missingAwayLogos > 0) {
+      const sampleMissingGames = filteredGames.slice(0, 3);
+      for (const game of sampleMissingGames) {
+        const league = game.league.toLowerCase();
+        const homeKey = `${league}:${game.home_team.toLowerCase()}`;
+        const awayKey = `${league}:${game.away_team.toLowerCase()}`;
+        const homeFound = teamMap.has(homeKey);
+        const awayFound = teamMap.has(awayKey);
+        console.log(`[logo-debug] ${game.external_game_id}: homeKey="${homeKey}" found=${homeFound}, awayKey="${awayKey}" found=${awayFound}`);
+      }
+      // Log a few team map keys for comparison
+      const sampleKeys = Array.from(teamMap.keys()).slice(0, 5);
+      console.log(`[logo-debug] Sample teamMap keys: ${sampleKeys.join(", ")}`);
+    }
+    
     console.log(`[/api/sports/hot] view=${view} effectiveView=${effectiveView} total=${rawGames.length} filtered=${games.length} returned=${limitedGames.length}`);
 
     return NextResponse.json({

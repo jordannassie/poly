@@ -454,6 +454,7 @@ export async function getAllTeamMapsFromCache(): Promise<Map<string, { id: numbe
 
   // Map by "league:teamname" (lowercase for matching)
   const map = new Map<string, { id: number; name: string; logo: string | null; slug: string }>();
+  let teamsWithLogo = 0;
   for (const team of data) {
     const key = `${team.league.toLowerCase()}:${team.name.toLowerCase()}`;
     map.set(key, {
@@ -462,7 +463,10 @@ export async function getAllTeamMapsFromCache(): Promise<Map<string, { id: numbe
       logo: team.logo,
       slug: team.slug,
     });
+    if (team.logo) teamsWithLogo++;
   }
+
+  console.log(`[games-cache] getAllTeamMapsFromCache: ${data.length} teams loaded, ${teamsWithLogo} have logos`);
 
   return map;
 }
