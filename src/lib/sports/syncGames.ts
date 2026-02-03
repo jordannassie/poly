@@ -376,7 +376,16 @@ export async function syncAllLeagues(params: {
   const results: SyncResult[] = [];
   const errors: string[] = [];
 
+  console.log(`[games-sync] ========================================`);
   console.log(`[games-sync] Starting bulk ${mode} sync for ${ENABLED_LEAGUES.length} leagues`);
+  console.log(`[games-sync] ========================================`);
+  
+  // Log all enabled leagues configuration
+  for (const league of ENABLED_LEAGUES) {
+    const config = getLeagueConfig(league.sportKey);
+    console.log(`[games-sync] ENABLED: sport=${league.sportKey} leagueId=${league.leagueId} season=${league.season} baseUrl=${config.baseUrl}`);
+  }
+  console.log(`[games-sync] ----------------------------------------`);
 
   for (const league of ENABLED_LEAGUES) {
     let result: SyncResult;

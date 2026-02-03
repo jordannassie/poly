@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { ENABLED_LEAGUES } from "@/lib/sports/enabledLeagues";
+import { getLeagueConfig } from "@/lib/apiSports/leagueConfig";
 
 const INTERNAL_CRON_SECRET = process.env.INTERNAL_CRON_SECRET;
 
@@ -46,42 +47,36 @@ export async function GET(request: NextRequest) {
       .from("sports_games")
       .select("*", { count: "exact", head: true });
 
-    // Get game counts by league
-    const { data: leagueCounts } = await adminClient
+    // Get game counts by league using raw query
+    const { data: allGames } = await adminClient
       .from("sports_games")
-      .select("league")
-      .then(async ({ data }) => {
-        if (!data) return { data: [] };
-        
-        const counts: Record<string, number> = {};
-        for (const row of data) {
-          counts[row.league] = (counts[row.league] || 0) + 1;
-        }
-        return { data: Object.entries(counts).map(([league, count]) => ({ league, count })) };
-      });
+      .select("league, status");
+    
+    const leagueCounts: Record<string, number> = {};
+    const statusCounts: Record<string, number> = {};
+    
+    if (allGames) {
+      for (const row of allGames) {
+        leagueCounts[row.league] = (leagueCounts[row.league] || 0) + 1;
+        statusCounts[row.status] = (statusCounts[row.status] || 0) + 1;
+      }
+    }
 
-    // Get game counts by status
-    const { data: statusCounts } = await adminClient
-      .from("sports_games")
-      .select("status")
-      .then(async ({ data }) => {
-        if (!data) return { data: [] };
-        
-        const counts: Record<string, number> = {};
-        for (const row of data) {
-          counts[row.status] = (counts[row.status] || 0) + 1;
-        }
-        return { data: Object.entries(counts).map(([status, count]) => ({ status, count })) };
-      });
-
-    // Get next 10 upcoming games
+    // Get next 10 upcoming games PER LEAGUE
     const now = new Date().toISOString();
-    const { data: upcomingGames } = await adminClient
-      .from("sports_games")
-      .select("id, league, home_team, away_team, starts_at, status")
-      .gte("starts_at", now)
-      .order("starts_at", { ascending: true })
-      .limit(10);
+    const upcomingByLeague: Record<string, any[]> = {};
+    
+    for (const league of ENABLED_LEAGUES) {
+      const { data: upcoming } = await adminClient
+        .from("sports_games")
+        .select("id, league, home_team, away_team, starts_at, status, season")
+        .eq("league", league.sportKey.toLowerCase())
+        .gte("starts_at", now)
+        .order("starts_at", { ascending: true })
+        .limit(5);
+      
+      upcomingByLeague[league.sportKey] = upcoming || [];
+    }
 
     // Get sync state for enabled leagues
     const { data: syncStates } = await adminClient
@@ -97,22 +92,31 @@ export async function GET(request: NextRequest) {
       .order("starts_at", { ascending: true })
       .limit(10);
 
+    // Build detailed league config info
+    const leagueConfigs = ENABLED_LEAGUES.map(l => {
+      const config = getLeagueConfig(l.sportKey);
+      return {
+        sportKey: l.sportKey,
+        leagueId: l.leagueId,
+        season: l.season,
+        baseUrl: config.baseUrl,
+        gamesEndpoint: config.gamesEndpoint,
+        gamesInDb: leagueCounts[l.sportKey.toLowerCase()] || 0,
+      };
+    });
+
     return NextResponse.json({
       success: true,
       timestamp: new Date().toISOString(),
       stats: {
         totalGames: totalGames || 0,
-        byLeague: leagueCounts || [],
-        byStatus: statusCounts || [],
+        byLeague: Object.entries(leagueCounts).map(([league, count]) => ({ league, count })),
+        byStatus: Object.entries(statusCounts).map(([status, count]) => ({ status, count })),
       },
-      enabledLeagues: ENABLED_LEAGUES.map(l => ({
-        sportKey: l.sportKey,
-        leagueId: l.leagueId,
-        season: l.season,
-      })),
+      leagueConfigs,
       syncStates: syncStates || [],
       liveGames: liveGames || [],
-      upcomingGames: upcomingGames || [],
+      upcomingByLeague,
     });
 
   } catch (error) {

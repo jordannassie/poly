@@ -237,14 +237,17 @@ export async function fetchGamesForDate(
   
   const config = getLeagueConfig(league);
   
+  // Log config being used
+  console.log(`[games-sync] CONFIG sport=${league} baseUrl=${config.baseUrl} leagueId=${config.leagueId} currentSeason=${config.currentSeason}`);
+  
   // Calculate the correct season for this specific date
   const dateObj = new Date(date + "T12:00:00Z");
   const primarySeason = seasonForDate(league, dateObj);
   
   // For NFL, also try current year and current year - 1 if primary fails
-  const seasonsToTry = league === "NFL" 
-    ? [primarySeason, dateObj.getUTCFullYear(), dateObj.getUTCFullYear() - 1].filter((v, i, a) => a.indexOf(v) === i)
-    : [primarySeason];
+  // For other sports, also try fallback seasons
+  const currentYear = dateObj.getUTCFullYear();
+  const seasonsToTry = [primarySeason, currentYear, currentYear - 1].filter((v, i, a) => a.indexOf(v) === i);
   
   for (const season of seasonsToTry) {
     let endpoint: string;
@@ -256,20 +259,29 @@ export async function fetchGamesForDate(
       endpoint = `/games?date=${date}&league=${config.leagueId}&season=${season}`;
     }
     
-    const url = buildApiSportsUrl(config.baseUrl, endpoint);
-    const data = await apiSportsFetch<{ response: unknown[] }>(url, API_SPORTS_KEY);
-    const games = config.gameExtractor(data);
+    const fullUrl = buildApiSportsUrl(config.baseUrl, endpoint);
     
-    // Log for debugging
-    console.log(`[sync-games] league=${league} date=${date} season=${season} apiResults=${games.length}`);
+    // Log the full request URL (without API key)
+    console.log(`[games-sync] FETCH sport=${league} date=${date} season=${season} url=${fullUrl}`);
     
-    // If we got games, return them
-    if (games.length > 0) {
-      return games;
+    try {
+      const data = await apiSportsFetch<{ response: unknown[] }>(fullUrl, API_SPORTS_KEY);
+      const games = config.gameExtractor(data);
+      
+      // Log results
+      console.log(`[games-sync] RESULT sport=${league} date=${date} season=${season} fetched=${games.length}`);
+      
+      // If we got games, return them
+      if (games.length > 0) {
+        return games;
+      }
+    } catch (err) {
+      console.error(`[games-sync] ERROR sport=${league} date=${date} season=${season} error=${err instanceof Error ? err.message : 'Unknown'}`);
     }
   }
   
   // No games found for any season
+  console.log(`[games-sync] NO_GAMES sport=${league} date=${date} triedSeasons=${seasonsToTry.join(',')}`);
   return [];
 }
 
