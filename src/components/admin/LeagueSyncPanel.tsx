@@ -24,7 +24,7 @@ const LEAGUES = [
   { id: "soccer", name: "Soccer", icon: "⚽", color: "#37003C" },
 ];
 
-type SyncAction = "test" | "teams" | "games" | "next365" | "scores" | "syncAll" | "syncLeagues" | "nflGames90" | null;
+type SyncAction = "test" | "teams" | "games" | "next365" | "scores" | "syncAll" | "syncLeagues" | "nflGames90" | "syncAllGames" | null;
 
 // Response from sync-all endpoint
 interface SyncAllLeagueResult {
@@ -132,6 +132,42 @@ interface NFLGamesSyncResult {
   error?: string;
 }
 
+// Job for syncing games in windows
+interface SyncGameJob {
+  league: string;
+  windowIndex: number;
+  totalWindows: number;
+  fromDate: string;
+  toDate: string;
+}
+
+// Progress tracking for Sync All Games
+interface SyncAllGamesProgress {
+  totalJobs: number;
+  completedJobs: number;
+  currentLeague: string;
+  currentWindow: number;
+  totalWindowsForLeague: number;
+  leagueProgress: {
+    [league: string]: {
+      completed: number;
+      total: number;
+      games: number;
+      inserted: number;
+      updated: number;
+      error?: string;
+    };
+  };
+  totals: {
+    games: number;
+    inserted: number;
+    updated: number;
+  };
+  failedJobIndex?: number;
+  failedError?: string;
+  done: boolean;
+}
+
 export function LeagueSyncPanel() {
   const [selectedLeague, setSelectedLeague] = useState<string>("nfl");
   const [fromDate, setFromDate] = useState(() => {
@@ -148,6 +184,9 @@ export function LeagueSyncPanel() {
   const [syncAllResult, setSyncAllResult] = useState<SyncAllResponse | null>(null);
   const [syncLeaguesResult, setSyncLeaguesResult] = useState<SyncLeaguesResponse | null>(null);
   const [nflGamesResult, setNflGamesResult] = useState<NFLGamesSyncResult | null>(null);
+  const [syncAllGamesProgress, setSyncAllGamesProgress] = useState<SyncAllGamesProgress | null>(null);
+  const [syncAllGamesJobs, setSyncAllGamesJobs] = useState<SyncGameJob[]>([]);
+  const [syncAllGamesDays, setSyncAllGamesDays] = useState<number>(0);
 
   const selectedLeagueConfig = LEAGUES.find(l => l.id === selectedLeague);
 
@@ -454,6 +493,159 @@ export function LeagueSyncPanel() {
       });
     } finally {
       setLoading(null);
+    }
+  };
+
+  // Build jobs for syncing all games across leagues
+  const buildSyncJobs = (totalDays: number): SyncGameJob[] => {
+    const leagues = ["nfl", "nba", "mlb", "nhl", "soccer"];
+    const jobs: SyncGameJob[] = [];
+    const windowSize = 7; // 7-day windows
+    const totalWindows = Math.ceil(totalDays / windowSize);
+    
+    const today = new Date();
+    
+    for (const league of leagues) {
+      for (let w = 0; w < totalWindows; w++) {
+        const fromOffset = w * windowSize;
+        const toOffset = Math.min((w + 1) * windowSize - 1, totalDays - 1);
+        
+        const fromDate = new Date(today);
+        fromDate.setDate(fromDate.getDate() + fromOffset);
+        
+        const toDate = new Date(today);
+        toDate.setDate(toDate.getDate() + toOffset);
+        
+        jobs.push({
+          league,
+          windowIndex: w,
+          totalWindows,
+          fromDate: fromDate.toISOString().split("T")[0],
+          toDate: toDate.toISOString().split("T")[0],
+        });
+      }
+    }
+    
+    return jobs;
+  };
+
+  // Sync All Games for all leagues
+  const syncAllGames = async (totalDays: number, resumeFromIndex: number = 0) => {
+    setLoading("syncAllGames");
+    setSyncAllGamesDays(totalDays);
+    
+    // Build jobs if starting fresh
+    let jobs = syncAllGamesJobs;
+    if (resumeFromIndex === 0 || jobs.length === 0) {
+      jobs = buildSyncJobs(totalDays);
+      setSyncAllGamesJobs(jobs);
+    }
+    
+    const leagues = ["nfl", "nba", "mlb", "nhl", "soccer"];
+    const windowsPerLeague = Math.ceil(totalDays / 7);
+    
+    // Initialize progress
+    const leagueProgress: SyncAllGamesProgress["leagueProgress"] = {};
+    for (const league of leagues) {
+      leagueProgress[league] = {
+        completed: 0,
+        total: windowsPerLeague,
+        games: 0,
+        inserted: 0,
+        updated: 0,
+      };
+    }
+    
+    // If resuming, restore previous progress
+    if (resumeFromIndex > 0 && syncAllGamesProgress) {
+      Object.assign(leagueProgress, syncAllGamesProgress.leagueProgress);
+    }
+    
+    const progress: SyncAllGamesProgress = {
+      totalJobs: jobs.length,
+      completedJobs: resumeFromIndex,
+      currentLeague: "",
+      currentWindow: 0,
+      totalWindowsForLeague: windowsPerLeague,
+      leagueProgress,
+      totals: syncAllGamesProgress?.totals || { games: 0, inserted: 0, updated: 0 },
+      done: false,
+    };
+    
+    setSyncAllGamesProgress(progress);
+    
+    try {
+      for (let i = resumeFromIndex; i < jobs.length; i++) {
+        const job = jobs[i];
+        
+        // Update current job info
+        progress.currentLeague = job.league.toUpperCase();
+        progress.currentWindow = job.windowIndex + 1;
+        progress.completedJobs = i;
+        setSyncAllGamesProgress({ ...progress });
+        
+        try {
+          const res = await fetch(
+            `/api/admin/api-sports/${job.league}/games/sync?from=${job.fromDate}&to=${job.toDate}`,
+            { method: "POST" }
+          );
+          
+          const contentType = res.headers.get("content-type") || "";
+          
+          if (!contentType.includes("application/json")) {
+            const bodyText = await res.text();
+            throw new Error(`Non-JSON response (${res.status}): ${bodyText.substring(0, 100)}`);
+          }
+          
+          const data = await res.json();
+          
+          if (!data.ok) {
+            throw new Error(data.error || "Sync failed");
+          }
+          
+          // Update league progress
+          leagueProgress[job.league].completed++;
+          leagueProgress[job.league].games += data.totalGames || 0;
+          leagueProgress[job.league].inserted += data.inserted || 0;
+          leagueProgress[job.league].updated += data.updated || 0;
+          
+          // Update totals
+          progress.totals.games += data.totalGames || 0;
+          progress.totals.inserted += data.inserted || 0;
+          progress.totals.updated += data.updated || 0;
+          
+          progress.completedJobs = i + 1;
+          setSyncAllGamesProgress({ ...progress });
+          
+        } catch (jobError) {
+          const errorMsg = jobError instanceof Error ? jobError.message : "Unknown error";
+          console.error(`[syncAllGames] Job ${i} failed:`, errorMsg);
+          
+          // Store failure info for resume
+          leagueProgress[job.league].error = errorMsg;
+          progress.failedJobIndex = i;
+          progress.failedError = `${job.league.toUpperCase()} window ${job.windowIndex + 1}: ${errorMsg}`;
+          progress.done = false;
+          setSyncAllGamesProgress({ ...progress });
+          setLoading(null);
+          return; // Stop here, allow resume
+        }
+      }
+      
+      // All done!
+      progress.done = true;
+      progress.completedJobs = jobs.length;
+      setSyncAllGamesProgress({ ...progress });
+      
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  // Resume sync from failed job
+  const resumeSyncAllGames = () => {
+    if (syncAllGamesProgress?.failedJobIndex !== undefined && syncAllGamesDays > 0) {
+      syncAllGames(syncAllGamesDays, syncAllGamesProgress.failedJobIndex);
     }
   };
 
@@ -840,6 +1032,197 @@ export function LeagueSyncPanel() {
                 Completed in {(nflGamesResult.ms / 1000).toFixed(1)}s
               </div>
             )}
+          </div>
+        )}
+      </div>
+
+      {/* Sync All Games - All Leagues */}
+      <div className="bg-gradient-to-r from-orange-900/30 to-red-900/30 border border-orange-500/50 rounded-xl p-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+          <div>
+            <h3 className="text-white font-semibold flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-orange-400" />
+              Sync All Games - All Leagues
+            </h3>
+            <p className="text-gray-400 text-sm mt-1">
+              Sync games for NFL, NBA, MLB, NHL, and Soccer. Runs in 7-day windows sequentially.
+            </p>
+          </div>
+        </div>
+
+        {/* Sync Buttons */}
+        <div className="flex flex-wrap gap-3 mb-4">
+          <Button
+            onClick={() => syncAllGames(7)}
+            disabled={loading !== null}
+            className="bg-orange-600 hover:bg-orange-700 text-white"
+          >
+            {loading === "syncAllGames" && syncAllGamesDays === 7 ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                Syncing...
+              </>
+            ) : (
+              <>
+                <Calendar className="h-4 w-4 mr-2" />
+                Sync Next 7 Days
+              </>
+            )}
+          </Button>
+          
+          <Button
+            onClick={() => syncAllGames(30)}
+            disabled={loading !== null}
+            className="bg-orange-600 hover:bg-orange-700 text-white"
+          >
+            {loading === "syncAllGames" && syncAllGamesDays === 30 ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                Syncing...
+              </>
+            ) : (
+              <>
+                <Calendar className="h-4 w-4 mr-2" />
+                Sync Next 30 Days
+              </>
+            )}
+          </Button>
+          
+          <Button
+            onClick={() => syncAllGames(365)}
+            disabled={loading !== null}
+            className="bg-orange-600 hover:bg-orange-700 text-white"
+          >
+            {loading === "syncAllGames" && syncAllGamesDays === 365 ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                Syncing...
+              </>
+            ) : (
+              <>
+                <Calendar className="h-4 w-4 mr-2" />
+                Sync Next 365 Days
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* Progress Display */}
+        {syncAllGamesProgress && (
+          <div className={`rounded-lg p-4 ${
+            syncAllGamesProgress.done 
+              ? "bg-green-900/20 border border-green-600/50" 
+              : syncAllGamesProgress.failedError 
+                ? "bg-yellow-900/20 border border-yellow-600/50"
+                : "bg-[#21262d]"
+          }`}>
+            {/* Current Status */}
+            <div className="flex items-center gap-2 mb-3">
+              {syncAllGamesProgress.done ? (
+                <>
+                  <CheckCircle className="h-5 w-5 text-green-400" />
+                  <span className="text-white font-medium">
+                    Sync Complete! {syncAllGamesProgress.totals.games} total games synced.
+                  </span>
+                </>
+              ) : syncAllGamesProgress.failedError ? (
+                <>
+                  <XCircle className="h-5 w-5 text-yellow-400" />
+                  <span className="text-white font-medium">
+                    Sync paused due to error
+                  </span>
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin text-orange-400" />
+                  <span className="text-white font-medium">
+                    {syncAllGamesProgress.currentLeague} - Window {syncAllGamesProgress.currentWindow}/{syncAllGamesProgress.totalWindowsForLeague}
+                  </span>
+                  <span className="text-gray-400 text-sm ml-2">
+                    ({syncAllGamesProgress.completedJobs}/{syncAllGamesProgress.totalJobs} jobs)
+                  </span>
+                </>
+              )}
+            </div>
+
+            {/* Error Message + Resume */}
+            {syncAllGamesProgress.failedError && (
+              <div className="mb-4">
+                <div className="text-yellow-400 bg-yellow-900/30 px-3 py-2 rounded mb-2">
+                  {syncAllGamesProgress.failedError}
+                </div>
+                <Button
+                  onClick={resumeSyncAllGames}
+                  disabled={loading !== null}
+                  className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Resume from Failed Job
+                </Button>
+              </div>
+            )}
+
+            {/* Per-League Progress */}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-4">
+              {LEAGUES.map((league) => {
+                const lp = syncAllGamesProgress.leagueProgress[league.id];
+                if (!lp) return null;
+                const isComplete = lp.completed >= lp.total;
+                const isCurrent = syncAllGamesProgress.currentLeague === league.id.toUpperCase() && !syncAllGamesProgress.done;
+                
+                return (
+                  <div 
+                    key={league.id}
+                    className={`bg-[#161b22] px-3 py-2 rounded text-sm ${
+                      isCurrent ? "ring-2 ring-orange-500" : ""
+                    } ${lp.error ? "border border-yellow-600/50" : ""}`}
+                  >
+                    <div className="flex items-center gap-1 mb-1">
+                      <span>{league.icon}</span>
+                      <span className="text-white font-medium">{league.name}</span>
+                      {isComplete && !lp.error ? (
+                        <CheckCircle className="h-3 w-3 text-green-400 ml-auto" />
+                      ) : lp.error ? (
+                        <XCircle className="h-3 w-3 text-yellow-400 ml-auto" />
+                      ) : isCurrent ? (
+                        <RefreshCw className="h-3 w-3 text-orange-400 animate-spin ml-auto" />
+                      ) : (
+                        <Clock className="h-3 w-3 text-gray-500 ml-auto" />
+                      )}
+                    </div>
+                    <div className="text-gray-400 text-xs">
+                      {lp.completed}/{lp.total} windows
+                    </div>
+                    {lp.games > 0 && (
+                      <div className="text-green-400 text-xs">
+                        {lp.games} games ({lp.inserted} new)
+                      </div>
+                    )}
+                    {lp.error && (
+                      <div className="text-yellow-400 text-xs truncate" title={lp.error}>
+                        Error
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Totals */}
+            <div className="grid grid-cols-3 gap-2 text-sm">
+              <div className="bg-[#161b22] px-3 py-2 rounded">
+                <div className="text-gray-400">Total Games</div>
+                <div className="text-white font-medium">{syncAllGamesProgress.totals.games}</div>
+              </div>
+              <div className="bg-[#161b22] px-3 py-2 rounded">
+                <div className="text-gray-400">Inserted</div>
+                <div className="text-green-400 font-medium">{syncAllGamesProgress.totals.inserted}</div>
+              </div>
+              <div className="bg-[#161b22] px-3 py-2 rounded">
+                <div className="text-gray-400">Updated</div>
+                <div className="text-blue-400 font-medium">{syncAllGamesProgress.totals.updated}</div>
+              </div>
+            </div>
           </div>
         )}
       </div>
