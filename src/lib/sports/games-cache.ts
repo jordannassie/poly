@@ -311,26 +311,29 @@ export async function getGameCountFromCache(league: string): Promise<number> {
 export async function getHotGamesFromCache(): Promise<CachedGame[]> {
   const client = getClient();
   if (!client) {
+    console.error("[games-cache] getHotGamesFromCache: No Supabase client");
     return [];
   }
 
   const now = new Date();
   const end24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-  const { data, error } = await client
+  console.log(`[games-cache] getHotGamesFromCache: querying starts_at >= ${now.toISOString()} AND <= ${end24h.toISOString()}`);
+
+  const { data, error, count } = await client
     .from("sports_games")
-    .select("*")
+    .select("*", { count: "exact" })
     .gte("starts_at", now.toISOString())
     .lte("starts_at", end24h.toISOString())
     .order("starts_at", { ascending: true })
     .limit(50);
 
   if (error) {
-    console.error("[games-cache] Error fetching hot games:", error.message);
+    console.error("[games-cache] Error fetching hot games:", error.message, "code:", error.code, "hint:", error.hint);
     return [];
   }
 
-  console.log(`[games-cache] Hot games (next 24h): ${data?.length || 0}`);
+  console.log(`[games-cache] Hot games (next 24h): returned=${data?.length || 0} totalInWindow=${count}`);
   return data || [];
 }
 
@@ -341,26 +344,29 @@ export async function getHotGamesFromCache(): Promise<CachedGame[]> {
 export async function getStartingSoonGamesFromCache(): Promise<CachedGame[]> {
   const client = getClient();
   if (!client) {
+    console.error("[games-cache] getStartingSoonGamesFromCache: No Supabase client");
     return [];
   }
 
   const now = new Date();
   const end7d = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-  const { data, error } = await client
+  console.log(`[games-cache] getStartingSoonGamesFromCache: querying starts_at >= ${now.toISOString()} AND <= ${end7d.toISOString()}`);
+
+  const { data, error, count } = await client
     .from("sports_games")
-    .select("*")
+    .select("*", { count: "exact" })
     .gte("starts_at", now.toISOString())
     .lte("starts_at", end7d.toISOString())
     .order("starts_at", { ascending: true })
     .limit(100);
 
   if (error) {
-    console.error("[games-cache] Error fetching starting soon games:", error.message);
+    console.error("[games-cache] Error fetching starting soon games:", error.message, "code:", error.code, "hint:", error.hint);
     return [];
   }
 
-  console.log(`[games-cache] Starting soon games (next 7d): ${data?.length || 0}`);
+  console.log(`[games-cache] Starting soon games (next 7d): returned=${data?.length || 0} totalInWindow=${count}`);
   return data || [];
 }
 
