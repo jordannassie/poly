@@ -20,13 +20,13 @@ const SPORT_BASE_URLS: Record<string, string> = {
   nfl: "https://v1.american-football.api-sports.io",
 };
 
-// League record from database
+// League record from database (new schema)
 interface DbLeague {
-  id: number;
+  id: number;           // Auto-increment PK
+  league_id: number;    // API league ID
   sport: string;
   name: string;
-  season: number | null;
-  active: boolean;
+  season: string | null;
 }
 
 // Team from API-Sports
@@ -80,7 +80,8 @@ export interface LeagueDrivenSyncResult {
 }
 
 /**
- * Get active leagues from database
+ * Get active leagues from database (new schema)
+ * Note: New schema doesn't have 'active' column, so we select all leagues
  */
 async function getActiveLeagues(
   adminClient: SupabaseClient,
@@ -88,8 +89,7 @@ async function getActiveLeagues(
 ): Promise<DbLeague[]> {
   let query = adminClient
     .from("sports_leagues")
-    .select("id, sport, name, season, active")
-    .eq("active", true);
+    .select("id, league_id, sport, name, season");
   
   if (sport) {
     query = query.eq("sport", sport.toLowerCase());
@@ -120,14 +120,14 @@ async function fetchTeamsForLeague(
   
   // Build endpoint based on sport
   let endpoint: string;
-  const season = league.season || new Date().getFullYear();
+  const season = league.season || String(new Date().getFullYear());
   
   if (league.sport.toLowerCase() === "soccer") {
     // Soccer uses /teams?league={id}&season={year}
-    endpoint = `/teams?league=${league.id}&season=${season}`;
+    endpoint = `/teams?league=${league.league_id}&season=${season}`;
   } else {
     // Basketball, Baseball, Hockey use /teams?league={id}&season={year}
-    endpoint = `/teams?league=${league.id}&season=${season}`;
+    endpoint = `/teams?league=${league.league_id}&season=${season}`;
   }
   
   const url = buildApiSportsUrl(baseUrl, endpoint);
@@ -265,7 +265,7 @@ async function syncLeagueTeams(
   league: DbLeague
 ): Promise<LeagueSyncResult> {
   const result: LeagueSyncResult = {
-    leagueId: league.id,
+    leagueId: league.league_id,
     leagueName: league.name,
     sport: league.sport,
     success: false,
@@ -297,7 +297,7 @@ async function syncLeagueTeams(
     
     // Sync each team
     for (const team of teams) {
-      const teamResult = await syncTeamToDb(adminClient, league.sport, league.id, team);
+      const teamResult = await syncTeamToDb(adminClient, league.sport, league.league_id, team);
       
       if (existingIds.has(team.id)) {
         result.updated++;
@@ -375,7 +375,7 @@ export async function syncTeamsFromActiveLeagues(
         await new Promise(resolve => setTimeout(resolve, 200));
       } catch (leagueErr) {
         result.leagueResults.push({
-          leagueId: league.id,
+          leagueId: league.league_id,
           leagueName: league.name,
           sport: league.sport,
           success: false,

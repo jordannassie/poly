@@ -3,10 +3,24 @@
  * 
  * Syncs league data from API-Sports to sports_leagues table.
  * Only syncs selected leagues per sport (not all worldwide).
+ * 
+ * Schema (sports_leagues v2):
+ * - id: bigserial (auto-increment PK)
+ * - sport: text
+ * - api_provider: text (default 'api-sports')
+ * - league_id: integer (API league ID)
+ * - name: text
+ * - type: text
+ * - country: text
+ * - country_code: text
+ * - season: text
+ * - logo_url: text
+ * - coverage: jsonb
+ * - unique(api_provider, sport, league_id, season)
  */
 
 import { SupabaseClient } from "@supabase/supabase-js";
-import { apiSportsFetch, buildApiSportsUrl } from "./client";
+import { apiSportsFetchSafe, buildApiSportsUrl } from "./client";
 import { getLeagueConfig, SOCCER_LEAGUES } from "./leagueConfig";
 
 // API-Sports league response structure
@@ -23,18 +37,22 @@ interface ApiSportsLeagueRaw {
   seasons?: Array<{
     year: number;
     current: boolean;
+    coverage?: Record<string, unknown>;
   }>;
 }
 
-// Normalized league for our database
+// Normalized league for our database (matches new schema)
 interface LeagueRecord {
-  id: number;
   sport: string;
+  api_provider: string;
+  league_id: number;
   name: string;
+  type: string | null;
   country: string | null;
-  season: number | null;
-  logo: string | null;
-  active: boolean;
+  country_code: string | null;
+  season: string | null;
+  logo_url: string | null;
+  coverage: Record<string, unknown> | null;
 }
 
 export interface LeagueSyncResult {
@@ -76,7 +94,7 @@ const LEAGUES_TO_SYNC = {
 async function fetchLeaguesFromApi(
   sport: "NBA" | "MLB" | "NHL" | "SOCCER",
   apiKey: string
-): Promise<ApiSportsLeagueRaw[]> {
+): Promise<{ leagues: ApiSportsLeagueRaw[]; error?: string }> {
   const config = getLeagueConfig(sport);
   const url = buildApiSportsUrl(config.baseUrl, "/leagues");
   
@@ -86,16 +104,21 @@ async function fetchLeaguesFromApi(
     response: Array<{
       league: ApiSportsLeagueRaw;
       country?: { name?: string; code?: string; flag?: string };
-      seasons?: Array<{ year: number; current: boolean }>;
+      seasons?: Array<{ year: number; current: boolean; coverage?: Record<string, unknown> }>;
     }>;
   }
   
-  const data = await apiSportsFetch<LeaguesResponse>(url, apiKey);
+  const result = await apiSportsFetchSafe<LeaguesResponse>(url, apiKey);
+  
+  if (!result.ok) {
+    console.error(`[fetchLeaguesFromApi] ${sport} error:`, result.message);
+    return { leagues: [], error: result.message };
+  }
   
   // Normalize the response - different sports have different structures
   const leagues: ApiSportsLeagueRaw[] = [];
   
-  for (const item of data.response || []) {
+  for (const item of result.data.response || []) {
     // Some APIs nest under "league", some don't
     const league = item.league || item;
     
@@ -111,7 +134,7 @@ async function fetchLeaguesFromApi(
   
   console.log(`[fetchLeaguesFromApi] ${sport} found ${leagues.length} total leagues`);
   
-  return leagues;
+  return { leagues };
 }
 
 /**
@@ -133,33 +156,47 @@ function filterLeaguesToSync(
 /**
  * Get current season from seasons array
  */
-function getCurrentSeason(seasons?: Array<{ year: number; current: boolean }>): number | null {
-  if (!seasons || seasons.length === 0) return null;
+function getCurrentSeason(seasons?: Array<{ year: number; current: boolean; coverage?: Record<string, unknown> }>): { season: string | null; coverage: Record<string, unknown> | null } {
+  if (!seasons || seasons.length === 0) return { season: null, coverage: null };
   
   // Find current season
   const current = seasons.find(s => s.current);
-  if (current) return current.year;
+  if (current) {
+    return { 
+      season: String(current.year), 
+      coverage: current.coverage || null 
+    };
+  }
   
   // Fallback to most recent year
   const sorted = [...seasons].sort((a, b) => b.year - a.year);
-  return sorted[0]?.year || null;
+  const latest = sorted[0];
+  return { 
+    season: latest ? String(latest.year) : null, 
+    coverage: latest?.coverage || null 
+  };
 }
 
 /**
- * Convert API league to database record
+ * Convert API league to database record (new schema)
  */
 function normalizeLeague(
   sport: string,
   raw: ApiSportsLeagueRaw
 ): LeagueRecord {
+  const { season, coverage } = getCurrentSeason(raw.seasons);
+  
   return {
-    id: raw.id,
     sport: sport.toLowerCase(),
+    api_provider: "api-sports",
+    league_id: raw.id,
     name: raw.name,
+    type: raw.type || null,
     country: raw.country?.name || null,
-    season: getCurrentSeason(raw.seasons),
-    logo: raw.logo || null,
-    active: true,
+    country_code: raw.country?.code || null,
+    season,
+    logo_url: raw.logo || null,
+    coverage,
   };
 }
 
@@ -173,7 +210,18 @@ export async function syncLeaguesForSport(
 ): Promise<LeagueSyncResult> {
   try {
     // Fetch all leagues from API
-    const allLeagues = await fetchLeaguesFromApi(sport, apiKey);
+    const { leagues: allLeagues, error: fetchError } = await fetchLeaguesFromApi(sport, apiKey);
+    
+    if (fetchError) {
+      return {
+        success: false,
+        sport,
+        totalLeagues: 0,
+        inserted: 0,
+        updated: 0,
+        error: fetchError,
+      };
+    }
     
     // Filter to only the ones we want
     const leaguesToSync = filterLeaguesToSync(sport, allLeagues);
@@ -189,22 +237,31 @@ export async function syncLeaguesForSport(
       };
     }
     
-    // Get existing leagues to track inserted vs updated
-    const leagueIds = leaguesToSync.map(l => l.id);
-    const { data: existingLeagues } = await adminClient
-      .from("sports_leagues")
-      .select("id")
-      .in("id", leagueIds);
-    
-    const existingIds = new Set(existingLeagues?.map(l => l.id) || []);
-    
-    // Normalize and upsert
+    // Normalize records
     const records = leaguesToSync.map(raw => normalizeLeague(sport, raw));
     
+    // Get existing leagues to track inserted vs updated
+    const leagueIds = records.map(r => r.league_id);
+    const { data: existingLeagues, error: selectError } = await adminClient
+      .from("sports_leagues")
+      .select("league_id")
+      .eq("sport", sport.toLowerCase())
+      .eq("api_provider", "api-sports")
+      .in("league_id", leagueIds);
+    
+    if (selectError) {
+      console.error(`[syncLeaguesForSport] ${sport} select error:`, selectError.message);
+      // Continue anyway - we'll just count all as inserted
+    }
+    
+    const existingIds = new Set(existingLeagues?.map(l => l.league_id) || []);
+    
+    // Upsert with new unique constraint columns
     const { error: upsertError } = await adminClient
       .from("sports_leagues")
       .upsert(records, {
-        onConflict: "id",
+        onConflict: "api_provider,sport,league_id,season",
+        ignoreDuplicates: false,
       });
     
     if (upsertError) {
@@ -214,7 +271,7 @@ export async function syncLeaguesForSport(
         totalLeagues: 0,
         inserted: 0,
         updated: 0,
-        error: `Database error: ${upsertError.message}`,
+        error: `Database upsert error: ${upsertError.message}`,
       };
     }
     
@@ -222,7 +279,7 @@ export async function syncLeaguesForSport(
     let inserted = 0;
     let updated = 0;
     for (const record of records) {
-      if (existingIds.has(record.id)) {
+      if (existingIds.has(record.league_id)) {
         updated++;
       } else {
         inserted++;
@@ -235,16 +292,18 @@ export async function syncLeaguesForSport(
       totalLeagues: records.length,
       inserted,
       updated,
-      leagues: records.map(r => ({ id: r.id, name: r.name })),
+      leagues: records.map(r => ({ id: r.league_id, name: r.name })),
     };
   } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(`[syncLeaguesForSport] ${sport} error:`, message);
     return {
       success: false,
       sport,
       totalLeagues: 0,
       inserted: 0,
       updated: 0,
-      error: err instanceof Error ? err.message : "Unknown error",
+      error: message,
     };
   }
 }
@@ -292,13 +351,15 @@ export async function syncAllLeagues(
       await new Promise(resolve => setTimeout(resolve, 300));
     } catch (err) {
       hasErrors = true;
+      const message = err instanceof Error ? err.message : "Unknown error";
+      console.error(`[syncAllLeagues] ${sport} error:`, message);
       results.push({
         success: false,
         sport,
         totalLeagues: 0,
         inserted: 0,
         updated: 0,
-        error: err instanceof Error ? err.message : "Unknown error",
+        error: message,
       });
     }
   }

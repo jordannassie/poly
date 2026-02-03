@@ -73,7 +73,8 @@ interface LeagueResult {
 }
 
 /**
- * Check if there are active leagues for this sport in the database
+ * Check if there are leagues for this sport in the database
+ * Note: New schema doesn't have 'active' column - presence means active
  */
 async function hasActiveLeagues(adminClient: ReturnType<typeof getAdminClient>, sport: string): Promise<boolean> {
   if (!adminClient) return false;
@@ -82,7 +83,6 @@ async function hasActiveLeagues(adminClient: ReturnType<typeof getAdminClient>, 
     .from("sports_leagues")
     .select("id")
     .eq("sport", sport.toLowerCase())
-    .eq("active", true)
     .limit(1);
   
   if (error) {
