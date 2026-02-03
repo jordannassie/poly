@@ -5,6 +5,7 @@
  * Fetches teams from API-Sports and stores in DB with logo URLs.
  * 
  * Features:
+ * - Fetches latest season from /seasons endpoint for NBA/NHL/NFL
  * - 20 second timeout per upstream call (AbortController)
  * - 3 retries with exponential backoff
  * - Proper non-JSON response handling
@@ -52,10 +53,16 @@ const SPORT_LEAGUE_IDS: Record<ValidSport, number[]> = {
   ],
 };
 
+// Sports that require fetching season from /seasons endpoint
+const SPORTS_REQUIRING_SEASON_FETCH: ValidSport[] = ["nfl", "nba", "nhl"];
+
 // Config
 const FETCH_TIMEOUT_MS = 20000;  // 20 second timeout
 const MAX_RETRIES = 3;
 const RETRY_BACKOFF_MS = 1000;   // Base backoff (doubles each retry)
+
+// In-memory season cache (per sport, per request)
+const seasonCache: Record<string, string> = {};
 
 function isAuthorized(request: NextRequest): boolean {
   if (!ADMIN_TOKEN) return false;
@@ -83,25 +90,34 @@ interface ApiTeam {
 interface TeamsApiResponse {
   response: ApiTeam[];
   results?: number;
-  errors?: unknown;
+  errors?: Record<string, unknown> | unknown[];
 }
 
-interface FetchResult {
+interface SeasonsApiResponse {
+  response: (string | number)[];
+  errors?: Record<string, unknown> | unknown[];
+}
+
+interface FetchResult<T = TeamsApiResponse> {
   ok: boolean;
-  data?: TeamsApiResponse;
+  data?: T;
   error?: string;
   status?: number;
   contentType?: string;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 /**
  * Fetch with timeout, retry, and non-JSON handling
  */
-async function fetchWithRetry(
+async function fetchWithRetry<T>(
   url: string,
   apiKey: string,
   retries = MAX_RETRIES
-): Promise<FetchResult> {
+): Promise<FetchResult<T>> {
   let lastError = "";
   
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -160,9 +176,9 @@ async function fetchWithRetry(
       
       // Parse JSON
       try {
-        const data = JSON.parse(bodyText) as TeamsApiResponse;
+        const data = JSON.parse(bodyText) as T;
         return { ok: true, data };
-      } catch (parseError) {
+      } catch {
         return { 
           ok: false, 
           error: `JSON parse error: ${bodyText.substring(0, 100)}`,
@@ -197,8 +213,76 @@ async function fetchWithRetry(
   return { ok: false, error: lastError };
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+/**
+ * Get latest season from API-Sports /seasons endpoint
+ * Returns the highest season value (handles both "2024-2025" and 2024 formats)
+ */
+async function getLatestSeason(
+  baseUrl: string,
+  apiKey: string,
+  sport: string
+): Promise<{ ok: boolean; season?: string; error?: string }> {
+  // Check cache first
+  if (seasonCache[sport]) {
+    console.log(`[getLatestSeason] Using cached season for ${sport}: ${seasonCache[sport]}`);
+    return { ok: true, season: seasonCache[sport] };
+  }
+
+  const url = `${baseUrl}/seasons`;
+  console.log(`[getLatestSeason] Fetching seasons for ${sport}: ${url}`);
+
+  const result = await fetchWithRetry<SeasonsApiResponse>(url, apiKey);
+
+  if (!result.ok) {
+    return { ok: false, error: result.error };
+  }
+
+  const seasons = result.data?.response;
+  
+  // Check for errors in response
+  if (result.data?.errors && Object.keys(result.data.errors).length > 0) {
+    const errStr = JSON.stringify(result.data.errors);
+    console.error(`[getLatestSeason] API errors for ${sport}:`, errStr);
+    return { ok: false, error: `API errors: ${errStr}` };
+  }
+
+  if (!seasons || seasons.length === 0) {
+    return { ok: false, error: "No seasons returned from API" };
+  }
+
+  // Sort seasons to find the latest
+  // Handles both string ("2024-2025") and number (2024) formats
+  const sorted = [...seasons].sort((a, b) => {
+    const aStr = String(a);
+    const bStr = String(b);
+    
+    // Extract the first year for comparison
+    const aYear = parseInt(aStr.split("-")[0], 10);
+    const bYear = parseInt(bStr.split("-")[0], 10);
+    
+    if (isNaN(aYear) || isNaN(bYear)) {
+      return bStr.localeCompare(aStr); // Fallback to string comparison
+    }
+    
+    return bYear - aYear; // Descending (latest first)
+  });
+
+  const latestSeason = String(sorted[0]);
+  console.log(`[getLatestSeason] ${sport} latest season: ${latestSeason} (from ${seasons.length} seasons)`);
+
+  // Cache for this request
+  seasonCache[sport] = latestSeason;
+
+  return { ok: true, season: latestSeason };
+}
+
+/**
+ * Check if API response has errors
+ */
+function hasApiErrors(errors: Record<string, unknown> | unknown[] | undefined): boolean {
+  if (!errors) return false;
+  if (Array.isArray(errors)) return errors.length > 0;
+  return Object.keys(errors).length > 0;
 }
 
 function slugify(name: string): string {
@@ -249,13 +333,34 @@ export async function POST(request: NextRequest) {
 
     console.log(`[sync/teams] Starting ${sport.toUpperCase()} sync...`);
 
-    // Get current season
-    const currentYear = new Date().getFullYear();
-    const season = currentYear;
-
-    // Fetch teams from API-Sports (one league at a time, sequential)
     const baseUrl = SPORT_BASE_URLS[sport];
     const leagueIds = SPORT_LEAGUE_IDS[sport];
+    
+    // Determine season to use
+    let season: string;
+    
+    if (SPORTS_REQUIRING_SEASON_FETCH.includes(sport)) {
+      // Fetch latest season from API for NFL/NBA/NHL
+      const seasonResult = await getLatestSeason(baseUrl, API_SPORTS_KEY, sport);
+      
+      if (!seasonResult.ok || !seasonResult.season) {
+        console.error(`[sync/teams] Failed to get season for ${sport}:`, seasonResult.error);
+        return NextResponse.json({
+          ok: false,
+          league: sport,
+          total: 0,
+          inserted: 0,
+          updated: 0,
+          errors: [`Failed to fetch season: ${seasonResult.error}`],
+        });
+      }
+      
+      season = seasonResult.season;
+      console.log(`[sync/teams] ${sport.toUpperCase()} using season: ${season}`);
+    } else {
+      // Use current year for MLB and Soccer
+      season = String(new Date().getFullYear());
+    }
     
     const allTeams: Array<{ id: number; name: string; logo: string | null; leagueId: number }> = [];
     const errors: string[] = [];
@@ -265,17 +370,39 @@ export async function POST(request: NextRequest) {
       
       console.log(`[sync/teams] Fetching league ${leagueId}: ${endpoint}`);
       
-      const result = await fetchWithRetry(endpoint, API_SPORTS_KEY);
+      const result = await fetchWithRetry<TeamsApiResponse>(endpoint, API_SPORTS_KEY);
       
       if (!result.ok) {
         const errMsg = `League ${leagueId}: ${result.error}`;
         console.error(`[sync/teams] ${errMsg}`);
         errors.push(errMsg);
-        continue; // Continue with other leagues
+        continue;
+      }
+
+      // Check for API errors in response
+      if (hasApiErrors(result.data?.errors)) {
+        const errStr = JSON.stringify(result.data?.errors);
+        console.error(`[sync/teams] API errors for league ${leagueId}:`, errStr);
+        errors.push(`League ${leagueId}: API error - ${errStr}`);
+        continue;
+      }
+
+      const teamsInResponse = result.data?.response || [];
+      
+      // Log if 0 teams returned
+      if (teamsInResponse.length === 0) {
+        console.warn(`[sync/teams] 0 teams for ${sport}`, {
+          sport,
+          leagueId,
+          season,
+          status: result.status,
+          contentType: result.contentType,
+          errors: result.data?.errors,
+        });
       }
 
       // Normalize teams
-      for (const item of result.data?.response || []) {
+      for (const item of teamsInResponse) {
         // Soccer wraps in { team: {...} }
         const team = item.team || item;
         if (team.id && team.name) {
@@ -288,7 +415,7 @@ export async function POST(request: NextRequest) {
         }
       }
       
-      console.log(`[sync/teams] League ${leagueId}: ${result.data?.response?.length || 0} teams`);
+      console.log(`[sync/teams] League ${leagueId}: ${teamsInResponse.length} teams`);
       
       // Small delay between leagues to avoid rate limiting
       if (leagueIds.indexOf(leagueId) < leagueIds.length - 1) {
@@ -298,17 +425,17 @@ export async function POST(request: NextRequest) {
 
     console.log(`[sync/teams] ${sport.toUpperCase()}: Found ${allTeams.length} total teams`);
 
+    // Return ok:false if no teams found
     if (allTeams.length === 0) {
       return NextResponse.json({
-        ok: true,
+        ok: false,
         league: sport,
         total: 0,
         inserted: 0,
         updated: 0,
-        errors,
-        message: errors.length > 0 
-          ? `No teams found. Errors: ${errors.join("; ")}`
-          : "No teams found from API",
+        errors: errors.length > 0 
+          ? errors 
+          : [`No teams found for ${sport} (season: ${season})`],
       });
     }
 
@@ -362,7 +489,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log(`[sync/teams] ${sport.toUpperCase()}: ${inserted} inserted, ${updated} updated`);
+    console.log(`[sync/teams] ${sport.toUpperCase()}: ${inserted} inserted, ${updated} updated (season: ${season})`);
 
     return NextResponse.json({
       ok: true,
