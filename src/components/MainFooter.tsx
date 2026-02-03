@@ -49,7 +49,7 @@ export function MainFooter() {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-white/80 hidden sm:block">
-              Demo UI for prediction markets.
+              Everyone has a trust me bro. Prove it on ProvePicks.
             </span>
             <div className="flex items-center gap-2">
               <SocialLink href="https://www.youtube.com/@ProvePicks" label="YouTube">
