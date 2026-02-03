@@ -133,10 +133,17 @@ export async function GET(request: NextRequest) {
 
     // Fetch games based on view
     let rawGames: CachedGame[];
+    let effectiveView = view;
     
     switch (view) {
       case "live":
         rawGames = await getLiveGamesFromCache();
+        // Fallback: if no live games, show upcoming 7 days
+        if (rawGames.length === 0) {
+          console.log("[/api/sports/hot] No live games, falling back to starting-soon");
+          rawGames = await getStartingSoonGamesFromCache();
+          effectiveView = "starting-soon-fallback";
+        }
         break;
       case "starting-soon":
         rawGames = await getStartingSoonGamesFromCache();
@@ -144,6 +151,12 @@ export async function GET(request: NextRequest) {
       case "hot":
       default:
         rawGames = await getHotGamesFromCache();
+        // Fallback: if no hot games (next 24h), show upcoming 7 days
+        if (rawGames.length === 0) {
+          console.log("[/api/sports/hot] No hot games in 24h, falling back to starting-soon");
+          rawGames = await getStartingSoonGamesFromCache();
+          effectiveView = "starting-soon-fallback";
+        }
         break;
     }
 
@@ -172,12 +185,13 @@ export async function GET(request: NextRequest) {
     const limit = view === "live" ? 20 : 12;
     const limitedGames = games.slice(0, limit);
 
-    console.log(`[/api/sports/hot] view=${view} total=${rawGames.length} filtered=${games.length} returned=${limitedGames.length}`);
+    console.log(`[/api/sports/hot] view=${view} effectiveView=${effectiveView} total=${rawGames.length} filtered=${games.length} returned=${limitedGames.length}`);
 
     return NextResponse.json({
       games: limitedGames,
       count: games.length,
       view,
+      effectiveView,
       fetchedAt: new Date().toISOString(),
     });
   } catch (error) {
