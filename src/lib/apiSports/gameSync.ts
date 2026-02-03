@@ -8,6 +8,7 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { getLeagueConfig, SupportedLeague } from "./leagueConfig";
 import { apiSportsFetch, buildApiSportsUrl } from "./client";
+import { isRealGame } from "@/lib/sports/placeholderTeams";
 
 const API_SPORTS_KEY = process.env.API_SPORTS_KEY;
 
@@ -360,6 +361,7 @@ export async function syncGamesForDateRange(
     }
     
     // Normalize all games, calculating season from game's start time
+    let skippedPlaceholders = 0;
     const normalizedGames = games
       .map(g => {
         // Extract date from game data for season calculation
@@ -372,7 +374,19 @@ export async function syncGamesForDateRange(
         const dateSeason = seasonForDate(league, gameDate);
         return normalizeGame(g, league, dateSeason);
       })
-      .filter((g): g is GameRecord => g !== null);
+      .filter((g): g is GameRecord => {
+        if (g === null) return false;
+        // Filter out placeholder games (NFC vs AFC, All-Stars, TBD, etc.)
+        if (!isRealGame(g.home_team, g.away_team)) {
+          skippedPlaceholders++;
+          return false;
+        }
+        return true;
+      });
+    
+    if (skippedPlaceholders > 0) {
+      console.log(`[games-sync] skippedPlaceholders=${skippedPlaceholders} league=${league}`);
+    }
     
     // Get existing games to track inserted vs updated
     const gameIds = normalizedGames.map(g => g.external_game_id);
@@ -500,10 +514,23 @@ export async function syncLiveGames(
     const todayDate = new Date();
     const dateSeason = seasonForDate(league, todayDate);
     
-    // Normalize games
+    // Normalize games and filter out placeholders
+    let skippedPlaceholders = 0;
     const normalizedGames = allGames
       .map(g => normalizeGame(g, league, dateSeason))
-      .filter((g): g is GameRecord => g !== null);
+      .filter((g): g is GameRecord => {
+        if (g === null) return false;
+        // Filter out placeholder games (NFC vs AFC, All-Stars, TBD, etc.)
+        if (!isRealGame(g.home_team, g.away_team)) {
+          skippedPlaceholders++;
+          return false;
+        }
+        return true;
+      });
+    
+    if (skippedPlaceholders > 0) {
+      console.log(`[games-sync] live skippedPlaceholders=${skippedPlaceholders} league=${league}`);
+    }
     
     // Get existing games
     const gameIds = normalizedGames.map(g => g.external_game_id);

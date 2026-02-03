@@ -6,6 +6,7 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
+import { isRealGame, PLACEHOLDER_TEAM_NAMES } from "./placeholderTeams";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -56,6 +57,14 @@ export interface SimplifiedGame {
 }
 
 /**
+ * Filter out placeholder games (NFC vs AFC, All-Stars, TBD, etc.)
+ * Safety net in case any slipped through sync
+ */
+function filterRealGames(games: CachedGame[]): CachedGame[] {
+  return games.filter(game => isRealGame(game.home_team, game.away_team));
+}
+
+/**
  * Get games from sports_games table for a specific league and date
  */
 export async function getGamesFromCache(
@@ -85,7 +94,8 @@ export async function getGamesFromCache(
     return [];
   }
 
-  return data || [];
+  // Filter out placeholder games (NFC vs AFC, etc.)
+  return filterRealGames(data || []);
 }
 
 /**
@@ -125,9 +135,11 @@ export async function getUpcomingGamesFromCache(
     return [];
   }
 
-  console.log(`[games-cache] ${league} upcoming: ${data?.length || 0} games in next ${days} days (limit=${queryLimit})`);
+  // Filter out placeholder games (NFC vs AFC, etc.)
+  const filtered = filterRealGames(data || []);
+  console.log(`[games-cache] ${league} upcoming: ${data?.length || 0} games, ${filtered.length} after filtering placeholders (limit=${queryLimit})`);
 
-  return data || [];
+  return filtered;
 }
 
 /**
@@ -340,8 +352,10 @@ export async function getHotGamesFromCache(): Promise<CachedGame[]> {
     return [];
   }
 
-  console.log(`[games-cache] Hot games (next 24h): returned=${data?.length || 0} totalInWindow=${count}`);
-  return data || [];
+  // Filter out placeholder games (NFC vs AFC, etc.)
+  const filtered = filterRealGames(data || []);
+  console.log(`[games-cache] Hot games (next 24h): returned=${data?.length || 0} filtered=${filtered.length} totalInWindow=${count}`);
+  return filtered;
 }
 
 /**
@@ -373,8 +387,10 @@ export async function getStartingSoonGamesFromCache(): Promise<CachedGame[]> {
     return [];
   }
 
-  console.log(`[games-cache] Starting soon games (next 7d): returned=${data?.length || 0} totalInWindow=${count}`);
-  return data || [];
+  // Filter out placeholder games (NFC vs AFC, etc.)
+  const filtered = filterRealGames(data || []);
+  console.log(`[games-cache] Starting soon games (next 7d): returned=${data?.length || 0} filtered=${filtered.length} totalInWindow=${count}`);
+  return filtered;
 }
 
 /**
@@ -415,8 +431,8 @@ export async function getLiveGamesFromCache(): Promise<CachedGame[]> {
     return [];
   }
 
-  // Filter for live status
-  const liveGames = (data || []).filter(game => {
+  // Filter for live status and filter out placeholders
+  const liveGames = filterRealGames(data || []).filter(game => {
     const statusLower = (game.status || "").toLowerCase();
     // Not finished/final
     if (statusLower.includes("final") || statusLower.includes("finished") || statusLower === "ft") {
@@ -430,7 +446,7 @@ export async function getLiveGamesFromCache(): Promise<CachedGame[]> {
     return livePatterns.some(pattern => statusLower.includes(pattern));
   });
 
-  console.log(`[games-cache] Live games: ${liveGames.length}`);
+  console.log(`[games-cache] Live games: ${liveGames.length} (placeholders filtered)`);
   return liveGames;
 }
 
