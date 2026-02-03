@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { MessageSquare, TrendingUp, Calendar, Clock, ChevronUp, ChevronDown, Loader2, Plus, Flame, Sparkles, Trash2, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { CreatePostModal } from "./CreatePostModal";
+import { ConfirmModal } from "./ConfirmModal";
 
 interface TeamTabsProps {
   teamName: string;
@@ -161,6 +162,8 @@ function FeedTab({
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<"top" | "new">("top");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [deletePostId, setDeletePostId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Fetch posts for this team
   useEffect(() => {
@@ -214,29 +217,27 @@ function FeedTab({
     setPosts([newPost, ...posts]);
   };
 
-  const handleDelete = async (postId: string) => {
-    if (!confirm("Are you sure you want to delete this post? This cannot be undone.")) {
-      return;
-    }
-
+  const handleDeleteConfirm = async () => {
+    if (!deletePostId) return;
+    
+    setDeleting(true);
     try {
-      const res = await fetch(`/api/posts/${postId}`, {
+      const res = await fetch(`/api/posts/${deletePostId}`, {
         method: "DELETE",
       });
       
       if (res.ok) {
-        setPosts(posts.filter(p => p.id !== postId));
+        setPosts(posts.filter(p => p.id !== deletePostId));
+        setDeletePostId(null);
       } else {
         const data = await res.json();
-        if (data.error === "AUTH_REQUIRED") {
-          alert("Please sign in to delete posts");
-        } else {
-          alert(data.error || "Failed to delete post");
-        }
+        // Show error in modal or handle gracefully
+        console.error("Delete error:", data.error);
       }
     } catch (error) {
       console.error("Delete error:", error);
-      alert("Failed to delete post");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -403,7 +404,7 @@ function FeedTab({
                   {/* Delete Button (Owner Only) */}
                   {post.is_owner && (
                     <button
-                      onClick={() => handleDelete(post.id)}
+                      onClick={() => setDeletePostId(post.id)}
                       className="flex items-center gap-1 text-sm text-[color:var(--text-muted)] hover:text-red-500 transition"
                       title="Delete post"
                     >
@@ -426,6 +427,19 @@ function FeedTab({
         teamId={teamKey}
         teamName={teamName}
         league={league}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deletePostId}
+        onClose={() => setDeletePostId(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Post"
+        message="Are you sure you want to delete this post? This cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deleting}
       />
     </div>
   );
