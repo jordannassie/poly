@@ -262,7 +262,8 @@ function GameCard({ game, league }: { game: Game; league: string }) {
         {/* Away Team */}
         <div className="flex items-center gap-3 flex-1">
           <TeamLogo 
-            team={game.awayTeam} 
+            team={game.awayTeam}
+            league={league}
             hasError={awayImgError}
             onError={() => setAwayImgError(true)}
           />
@@ -304,7 +305,8 @@ function GameCard({ game, league }: { game: Game; league: string }) {
             </div>
           </div>
           <TeamLogo 
-            team={game.homeTeam} 
+            team={game.homeTeam}
+            league={league}
             hasError={homeImgError}
             onError={() => setHomeImgError(true)}
           />
@@ -329,18 +331,30 @@ function GameCard({ game, league }: { game: Game; league: string }) {
   );
 }
 
+// Generate slug from team data
+function getTeamSlug(team: Team, league: string): string {
+  const nameSlug = team.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return `${league.toLowerCase()}-${team.teamId}-${nameSlug}`;
+}
+
 function TeamLogo({ 
   team, 
+  league,
   hasError, 
   onError 
 }: { 
   team: Team; 
+  league: string;
   hasError: boolean; 
   onError: () => void;
 }) {
+  const slug = getTeamSlug(team, league);
+  const teamUrl = `/teams/${league.toLowerCase()}/${slug}`;
+
   return (
-    <div 
-      className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden"
+    <Link 
+      href={teamUrl}
+      className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden hover:ring-2 hover:ring-[color:var(--accent)] transition"
       style={{ backgroundColor: team.primaryColor || "var(--surface-2)" }}
     >
       {team.logoUrl && !hasError ? (
@@ -357,6 +371,6 @@ function TeamLogo({
       ) : (
         <span className="text-white font-bold text-sm">{team.abbreviation}</span>
       )}
-    </div>
+    </Link>
   );
 }

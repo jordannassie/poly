@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { AlertCircle } from "lucide-react";
 import { LightningLoader } from "@/components/ui/LightningLoader";
 
@@ -15,6 +16,15 @@ interface Team {
   secondaryColor: string | null;
   conference: string;
   division: string;
+  slug?: string;  // Optional - if not provided, we generate from teamId and name
+}
+
+// Generate a slug for team if not provided
+function getTeamSlug(team: Team, league: string): string {
+  if (team.slug) return team.slug;
+  // Fallback: generate slug from league, teamId, and name
+  const nameSlug = team.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return `${league.toLowerCase()}-${team.teamId}-${nameSlug}`;
 }
 
 interface TeamsResponse {
@@ -151,7 +161,7 @@ export function TeamLogoGrid({ league = "nfl" }: TeamLogoGridProps) {
           </h3>
           <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4">
             {group.teams.map((team) => (
-              <TeamCard key={team.teamId} team={team} />
+              <TeamCard key={team.teamId} team={team} league={league} />
             ))}
           </div>
         </div>
@@ -177,11 +187,14 @@ export function TeamLogoGrid({ league = "nfl" }: TeamLogoGridProps) {
   );
 }
 
-function TeamCard({ team }: { team: Team }) {
+function TeamCard({ team, league }: { team: Team; league: string }) {
   const [imgError, setImgError] = useState(false);
+  const slug = getTeamSlug(team, league);
+  const teamUrl = `/teams/${league.toLowerCase()}/${slug}`;
 
   return (
-    <div 
+    <Link 
+      href={teamUrl}
       className="flex flex-col items-center p-3 rounded-xl bg-[color:var(--surface)] border border-[color:var(--border-soft)] hover:border-[color:var(--border-strong)] transition cursor-pointer"
       title={team.fullName}
     >
@@ -217,6 +230,6 @@ function TeamCard({ team }: { team: Team }) {
       <span className="text-xs text-[color:var(--text-muted)] text-center truncate w-full">
         {team.name}
       </span>
-    </div>
+    </Link>
   );
 }

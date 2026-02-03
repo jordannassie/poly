@@ -128,7 +128,7 @@ export function FeaturedGameHero({ league = "nfl" }: FeaturedGameHeroProps) {
         {/* Teams VS Display */}
         <div className="flex items-center justify-center gap-4 md:gap-12 mb-8">
           {/* Away Team */}
-          <TeamDisplay team={featured.awayTeam} score={featured.awayScore} side="away" status={featured.status} />
+          <TeamDisplay team={featured.awayTeam} score={featured.awayScore} side="away" status={featured.status} league={league} />
 
           {/* VS */}
           <div className="flex flex-col items-center">
@@ -140,7 +140,7 @@ export function FeaturedGameHero({ league = "nfl" }: FeaturedGameHeroProps) {
           </div>
 
           {/* Home Team */}
-          <TeamDisplay team={featured.homeTeam} score={featured.homeScore} side="home" status={featured.status} />
+          <TeamDisplay team={featured.homeTeam} score={featured.homeScore} side="home" status={featured.status} league={league} />
         </div>
 
         {/* Game Info */}
@@ -199,24 +199,35 @@ export function FeaturedGameHero({ league = "nfl" }: FeaturedGameHeroProps) {
   );
 }
 
+// Generate slug from team data
+function getTeamSlug(team: Team, league: string): string {
+  const nameSlug = team.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return `${league.toLowerCase()}-${team.teamId}-${nameSlug}`;
+}
+
 function TeamDisplay({ 
   team, 
   score, 
   side,
-  status 
+  status,
+  league
 }: { 
   team: Team; 
   score: number | null;
   side: "home" | "away";
   status: FeaturedGame["status"];
+  league: string;
 }) {
   const [imgError, setImgError] = useState(false);
+  const slug = getTeamSlug(team, league);
+  const teamUrl = `/teams/${league.toLowerCase()}/${slug}`;
 
   return (
     <div className="flex flex-col items-center">
-      {/* Team Logo */}
-      <div 
-        className="w-20 h-20 md:w-32 md:h-32 rounded-2xl flex items-center justify-center mb-3 shadow-xl overflow-hidden"
+      {/* Team Logo - Clickable */}
+      <Link 
+        href={teamUrl}
+        className="w-20 h-20 md:w-32 md:h-32 rounded-2xl flex items-center justify-center mb-3 shadow-xl overflow-hidden hover:ring-4 hover:ring-white/30 transition"
         style={{ 
           backgroundColor: team.primaryColor || "#374151",
           boxShadow: team.primaryColor ? `0 10px 40px ${team.primaryColor}40` : undefined
@@ -238,7 +249,7 @@ function TeamDisplay({
             {team.abbreviation}
           </span>
         )}
-      </div>
+      </Link>
 
       {/* Score (if game has started) */}
       {status !== "scheduled" && score !== null && (
