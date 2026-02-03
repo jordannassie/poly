@@ -13,10 +13,11 @@ const SITE_URL = process.env.URL || process.env.DEPLOY_URL || "https://provepick
 const INTERNAL_CRON_SECRET = process.env.INTERNAL_CRON_SECRET;
 
 export default async (request: Request, context: Context) => {
-  console.log("[sync-games-backfill] Starting scheduled backfill sync");
+  const startTime = Date.now();
+  console.log("[cron] mode=backfill status=started");
   
   if (!INTERNAL_CRON_SECRET) {
-    console.error("[sync-games-backfill] INTERNAL_CRON_SECRET not configured");
+    console.error("[cron] mode=backfill status=error reason=INTERNAL_CRON_SECRET_NOT_SET");
     return new Response("INTERNAL_CRON_SECRET not configured", { status: 500 });
   }
 
@@ -34,21 +35,17 @@ export default async (request: Request, context: Context) => {
     });
 
     const data = await response.json();
+    const duration_ms = Date.now() - startTime;
     
-    console.log("[sync-games-backfill] Sync complete:", {
-      success: data.success,
-      totalGames: data.totalGames,
-      totalInserted: data.totalInserted,
-      totalUpdated: data.totalUpdated,
-      duration: data.duration,
-    });
+    console.log(`[cron] mode=backfill status=${data.success ? 'ok' : 'error'} duration_ms=${duration_ms} games=${data.totalGames || 0} inserted=${data.totalInserted || 0} updated=${data.totalUpdated || 0}`);
 
     return new Response(JSON.stringify(data), { 
       status: response.ok ? 200 : 500,
       headers: { "Content-Type": "application/json" }
     });
   } catch (error) {
-    console.error("[sync-games-backfill] Error:", error);
+    const duration_ms = Date.now() - startTime;
+    console.error(`[cron] mode=backfill status=error duration_ms=${duration_ms} error=${error instanceof Error ? error.message : 'Unknown'}`);
     return new Response("Error", { status: 500 });
   }
 };
