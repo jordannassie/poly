@@ -11,7 +11,6 @@ import { TeamOutcomeButton, TeamOutcomeButtonPair } from "@/components/market/Te
 import { MarketComments } from "@/components/market/MarketComments";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatVolume, getWhyMovingReasons } from "@/lib/marketHelpers";
 import { MarketViewModel } from "@/lib/adapters/marketViewModel";
 import { mapMarketOutcomesToTeams, teamToYesNo } from "@/lib/market/outcomeMapping";
@@ -181,32 +180,6 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
               volume={volume}
             />
 
-            {/* Betting Tabs - Default to Game Lines */}
-            <div className="mt-4 md:mt-6 -mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto">
-              <Tabs defaultValue="game-lines">
-                <TabsList className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] p-1 inline-flex w-auto min-w-full md:min-w-0">
-                  <TabsTrigger value="game-lines" className="data-[state=active]:bg-[color:var(--surface-2)] text-xs md:text-sm whitespace-nowrap">
-                    Game Lines
-                  </TabsTrigger>
-                  <TabsTrigger value="1st-half" className="data-[state=active]:bg-[color:var(--surface-2)] text-xs md:text-sm whitespace-nowrap">
-                    1st Half
-                  </TabsTrigger>
-                  <TabsTrigger value="team-totals" className="data-[state=active]:bg-[color:var(--surface-2)] text-xs md:text-sm whitespace-nowrap">
-                    Team Totals
-                  </TabsTrigger>
-                  <TabsTrigger value="touchdowns" className="data-[state=active]:bg-[color:var(--surface-2)] text-xs md:text-sm whitespace-nowrap">
-                    Touchdowns
-                  </TabsTrigger>
-                  <TabsTrigger value="rushing" className="data-[state=active]:bg-[color:var(--surface-2)] text-xs md:text-sm whitespace-nowrap">
-                    Rushing
-                  </TabsTrigger>
-                  <TabsTrigger value="receiving" className="data-[state=active]:bg-[color:var(--surface-2)] text-xs md:text-sm whitespace-nowrap">
-                    Receiving
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
-
             {/* Betting Options */}
             <div className="mt-4 md:mt-6 space-y-3 md:space-y-4">
               {/* Moneyline */}
@@ -287,28 +260,6 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
                 </ul>
               </div>
 
-              {/* Player Props */}
-              <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-3 md:p-4">
-                <div className="flex items-center justify-between mb-2 md:mb-3">
-                  <div>
-                    <div className="font-semibold text-sm md:text-base">Player Props</div>
-                    <div className="text-xs md:text-sm text-[color:var(--text-subtle)]">68 markets</div>
-                  </div>
-                  <Button variant="ghost" size="sm" className="text-xs md:text-sm h-8">
-                    View All <ChevronRight className="h-3 w-3 md:h-4 md:w-4 ml-1" />
-                  </Button>
-                </div>
-                <div className="grid grid-cols-2 gap-2 md:gap-3">
-                  <div className="p-2.5 md:p-3 bg-[color:var(--surface-2)] rounded-lg cursor-pointer hover:bg-[color:var(--surface-3)] transition">
-                    <div className="text-xs md:text-sm text-[color:var(--text-muted)]">QB Passing Yards</div>
-                    <div className="font-semibold text-sm md:text-base mt-1">Over 275.5</div>
-                  </div>
-                  <div className="p-2.5 md:p-3 bg-[color:var(--surface-2)] rounded-lg cursor-pointer hover:bg-[color:var(--surface-3)] transition">
-                    <div className="text-xs md:text-sm text-[color:var(--text-muted)]">Total TDs</div>
-                    <div className="font-semibold text-sm md:text-base mt-1">Over 4.5</div>
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* Comments */}
