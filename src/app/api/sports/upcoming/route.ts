@@ -79,9 +79,9 @@ export async function GET(request: NextRequest) {
     const leagueParam = url.searchParams.get("league")?.toLowerCase() || "nfl";
     const daysParam = url.searchParams.get("days");
     
-    // All leagues use sports_games cache with configurable day ranges
-    // NFL defaults to 90 days, others to 30 days
-    const defaultDays = leagueParam === "nfl" ? 90 : 30;
+    // All leagues default to 30 days for faster queries
+    // Max 365 days allowed, capped to 200 games for performance
+    const defaultDays = 30;
     const maxDays = 365;
     const days = Math.min(Math.max(parseInt(daysParam || String(defaultDays), 10) || defaultDays, 1), maxDays);
 

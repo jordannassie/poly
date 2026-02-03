@@ -90,19 +90,26 @@ export async function getGamesFromCache(
 
 /**
  * Get upcoming games from sports_games table for a league
+ * Uses indexed query on (league, starts_at)
  */
 export async function getUpcomingGamesFromCache(
   league: string,
-  days: number = 7
+  days: number = 30
 ): Promise<CachedGame[]> {
   const client = getClient();
   if (!client) {
+    console.error(`[games-cache] getUpcomingGamesFromCache: No Supabase client`);
     return [];
   }
 
   const now = new Date();
   const endDate = new Date(now);
   endDate.setDate(endDate.getDate() + days);
+
+  // Use higher limit for longer date ranges, cap at 200 for performance
+  const queryLimit = Math.min(200, days > 90 ? 200 : 100);
+
+  console.log(`[games-cache] getUpcomingGamesFromCache: league=${league} days=${days} window=${now.toISOString()} to ${endDate.toISOString()}`);
 
   const { data, error } = await client
     .from("sports_games")
@@ -111,14 +118,14 @@ export async function getUpcomingGamesFromCache(
     .gte("starts_at", now.toISOString())
     .lte("starts_at", endDate.toISOString())
     .order("starts_at", { ascending: true })
-    .limit(100);
+    .limit(queryLimit);
 
   if (error) {
-    console.error(`[games-cache] Error fetching upcoming ${league} games:`, error.message);
+    console.error(`[games-cache] Error fetching upcoming ${league} games:`, error.message, "code:", error.code);
     return [];
   }
 
-  console.log(`[games-cache] ${league} upcoming: ${data?.length || 0} games in next ${days} days`);
+  console.log(`[games-cache] ${league} upcoming: ${data?.length || 0} games in next ${days} days (limit=${queryLimit})`);
 
   return data || [];
 }
@@ -269,7 +276,7 @@ export async function getGamesWithTeamsFromCache(
  */
 export async function getUpcomingGamesWithTeamsFromCache(
   league: string,
-  days: number = 7
+  days: number = 30
 ): Promise<SimplifiedGame[]> {
   const [games, teamMap] = await Promise.all([
     getUpcomingGamesFromCache(league, days),

@@ -61,8 +61,8 @@ function getGameRoute(league: string, gameId: string): string {
 }
 
 export function UpcomingGames({ league = "nfl", days: initialDays }: UpcomingGamesProps) {
-  // Default to 365 days for NFL (cached), 7 days for others
-  const defaultDays = league === "nfl" ? 365 : 7;
+  // Default to 30 days for all leagues - shows more games without being overwhelming
+  const defaultDays = 30;
   const [selectedDays, setSelectedDays] = useState(initialDays || defaultDays);
   const [data, setData] = useState<UpcomingResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -152,28 +152,26 @@ export function UpcomingGames({ league = "nfl", days: initialDays }: UpcomingGam
 
   return (
     <div className="space-y-6">
-      {/* Filter Buttons - Show for NFL */}
-      {league === "nfl" && (
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-[color:var(--text-muted)]">Show:</span>
-            {DATE_FILTERS.map((filter) => (
-              <Button
-                key={filter.days}
-                variant={selectedDays === filter.days ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedDays(filter.days)}
-                className={selectedDays === filter.days ? "bg-orange-500 hover:bg-orange-600" : ""}
-              >
-                {filter.label}
-              </Button>
-            ))}
-          </div>
-          <span className="text-sm text-[color:var(--text-muted)]">
-            {data.count} matchup{data.count !== 1 ? "s" : ""} found
-          </span>
+      {/* Filter Buttons - Show for all leagues */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-[color:var(--text-muted)]">Show:</span>
+          {DATE_FILTERS.map((filter) => (
+            <Button
+              key={filter.days}
+              variant={selectedDays === filter.days ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedDays(filter.days)}
+              className={selectedDays === filter.days ? "bg-orange-500 hover:bg-orange-600" : ""}
+            >
+              {filter.label}
+            </Button>
+          ))}
         </div>
-      )}
+        <span className="text-sm text-[color:var(--text-muted)]">
+          {data.count} matchup{data.count !== 1 ? "s" : ""} found
+        </span>
+      </div>
 
       {sortedDates.map((dateKey) => {
         const games = gamesByDate.get(dateKey)!;
