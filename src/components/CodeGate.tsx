@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Zap, Lock, ArrowRight, Trophy, Users, TrendingUp, ChevronDown, Check, Flame, Clock, DollarSign, Activity, X, Minus } from "lucide-react";
+import { Lock, ArrowRight, Trophy, Users, TrendingUp, ChevronDown, Check, Flame, Clock, DollarSign, Activity, X, Minus } from "lucide-react";
+import { LOGO_URL } from "./ui/ProvePicksLogo";
 
 // Competitor logos
 const competitors = [
@@ -240,7 +241,10 @@ export function CodeGate({ children }: CodeGateProps) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
         <div className="animate-pulse">
-          <Zap className="h-12 w-12 text-orange-500" />
+          <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center overflow-hidden shadow-lg shadow-orange-500/40">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={LOGO_URL} alt="ProvePicks" className="h-12 w-12 object-contain" />
+          </div>
         </div>
       </div>
     );
@@ -274,8 +278,9 @@ export function CodeGate({ children }: CodeGateProps) {
             <div className="text-center lg:text-left">
               {/* Logo */}
               <div className="flex items-center justify-center lg:justify-start gap-3 mb-6">
-                <div className="h-12 w-12 md:h-14 md:w-14 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/25">
-                  <Zap className="h-7 w-7 md:h-8 md:w-8 text-white" />
+                <div className="h-12 w-12 md:h-14 md:w-14 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/25 overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={LOGO_URL} alt="ProvePicks" className="h-10 w-10 md:h-12 md:w-12 object-contain" />
                 </div>
                 <span className="text-2xl md:text-3xl font-bold">ProvePicks</span>
               </div>
@@ -632,8 +637,9 @@ export function CodeGate({ children }: CodeGateProps) {
                     <th key={comp.name} className="py-4 px-3 text-center">
                       {comp.isProvePicks ? (
                         <div className="flex flex-col items-center gap-2">
-                          <div className="h-24 w-24 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
-                            <Zap className="h-10 w-10 text-white" />
+                          <div className="h-24 w-24 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center overflow-hidden">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={LOGO_URL} alt="ProvePicks" className="h-20 w-20 object-contain" />
                           </div>
                           <span className="text-sm font-bold text-orange-400">ProvePicks</span>
                         </div>
@@ -763,8 +769,9 @@ export function CodeGate({ children }: CodeGateProps) {
                     <div key={j} className="flex flex-col items-center gap-2">
                       {/* Logo */}
                       {item.isProvePicks ? (
-                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
-                          <Zap className="h-5 w-5 text-white" />
+                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center overflow-hidden">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={LOGO_URL} alt="ProvePicks" className="h-8 w-8 object-contain" />
                         </div>
                       ) : (
                         <div className="h-10 w-10 rounded-lg bg-white/10 overflow-hidden flex items-center justify-center">
@@ -883,8 +890,9 @@ export function CodeGate({ children }: CodeGateProps) {
       <footer className="border-t border-gray-800 py-8">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
-              <Zap className="h-4 w-4 text-white" />
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={LOGO_URL} alt="ProvePicks" className="h-6 w-6 object-contain" />
             </div>
             <span className="font-semibold">ProvePicks</span>
           </div>

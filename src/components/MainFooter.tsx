@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Zap } from "lucide-react";
+import { LOGO_URL } from "./ui/ProvePicksLogo";
 
 export function MainFooter() {
   return (
@@ -7,8 +7,9 @@ export function MainFooter() {
       <div className="mx-auto w-full max-w-6xl px-4 py-10 space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3 text-white">
-            <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
-              <Zap className="h-6 w-6 text-white" />
+            <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={LOGO_URL} alt="ProvePicks" className="h-8 w-8 object-contain" />
             </div>
             <span className="text-lg font-bold text-white">ProvePicks</span>
           </div>

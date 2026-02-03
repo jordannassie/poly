@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
-import { ChevronDown, Moon, Sun, Bell, Zap, Menu, X, Home, Trophy, Settings, Wallet, Radio, BarChart3 } from "lucide-react";
+import { ChevronDown, Moon, Sun, Bell, Menu, X, Home, Trophy, Settings, Wallet, Radio, BarChart3 } from "lucide-react";
+import { ProvePicksLogo } from "./ui/ProvePicksLogo";
 import { Button } from "./ui/button";
 import { AuthModal } from "./AuthModal";
 import { HowItWorksModal } from "./HowItWorksModal";
@@ -142,9 +143,7 @@ export function TopNav() {
       <div className="bg-gradient-to-r from-orange-500 to-amber-500">
         <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-4 py-4">
           <Link href="/" className="flex items-center gap-2 text-white">
-            <div className="h-9 w-9 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
-              <Zap className="h-5 w-5 text-white" />
-            </div>
+            <ProvePicksLogo size="sm" glow />
             <span className="text-lg font-bold text-white">
               ProvePicks
             </span>
@@ -275,9 +274,7 @@ export function TopNav() {
               <SheetContent side="left" className="w-[280px] p-0">
                 <SheetHeader className="p-4 border-b border-[color:var(--border-soft)]">
                   <SheetTitle className="flex items-center gap-2 text-[color:var(--text-strong)]">
-                    <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
-                      <Zap className="h-4 w-4 text-white" />
-                    </div>
+                    <ProvePicksLogo size="sm" />
                     ProvePicks
                   </SheetTitle>
                 </SheetHeader>
