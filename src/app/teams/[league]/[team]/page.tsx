@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { getTeamBySlug } from "@/lib/teams/getTeamBySlug";
 import { TopNav } from "@/components/TopNav";
+import { CategoryTabs } from "@/components/CategoryTabs";
+import { SportsSidebar } from "@/components/SportsSidebar";
 import { MainFooter } from "@/components/MainFooter";
 import { TeamBanner } from "@/components/TeamBanner";
 import { TeamTabs } from "@/components/TeamTabs";
@@ -55,18 +57,24 @@ export default async function TeamPage({ params }: TeamPageProps) {
     return (
       <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
         <TopNav />
-        <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-          <div className="text-6xl mb-4">🏈</div>
-          <h1 className="text-2xl font-bold mb-2">Team Not Found</h1>
-          <p className="text-[color:var(--text-muted)] mb-6">
-            We couldn't find a team matching "{teamSlug}" in {league.toUpperCase()}.
-          </p>
-          <a 
-            href={`/sports?league=${league}`}
-            className="text-[color:var(--accent)] hover:underline"
-          >
-            Browse all {league.toUpperCase()} teams →
-          </a>
+        <CategoryTabs />
+        <div className="flex">
+          <SportsSidebar activeSport={league} />
+          <main className="flex-1 p-4 md:p-6">
+            <div className="max-w-4xl mx-auto py-16 text-center">
+              <div className="text-6xl mb-4">🏈</div>
+              <h1 className="text-2xl font-bold mb-2">Team Not Found</h1>
+              <p className="text-[color:var(--text-muted)] mb-6">
+                We couldn't find a team matching "{teamSlug}" in {league.toUpperCase()}.
+              </p>
+              <a 
+                href={`/sports?league=${league}`}
+                className="text-[color:var(--accent)] hover:underline"
+              >
+                Browse all {league.toUpperCase()} teams →
+              </a>
+            </div>
+          </main>
         </div>
         <MainFooter />
       </div>
@@ -76,23 +84,34 @@ export default async function TeamPage({ params }: TeamPageProps) {
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
       <TopNav />
+      <CategoryTabs />
 
-      {/* Team Banner with Logo */}
-      <TeamBanner
-        teamId={team.id}
-        teamName={team.name}
-        league={team.league}
-        logoUrl={team.logoUrl}
-        primaryColor={team.primaryColor}
-      />
+      <div className="flex">
+        {/* Left Sidebar */}
+        <SportsSidebar activeSport={team.league.toLowerCase()} />
 
-      {/* Community Tabs */}
-      <TeamTabs
-        teamName={team.name}
-        teamId={team.apiTeamId}
-        league={team.league}
-        primaryColor={team.primaryColor}
-      />
+        {/* Main Content */}
+        <main className="flex-1">
+          {/* Team Banner with Logo */}
+          <TeamBanner
+            teamId={team.id}
+            teamName={team.name}
+            league={team.league}
+            logoUrl={team.logoUrl}
+            primaryColor={team.primaryColor}
+          />
+
+          {/* Community Tabs */}
+          <div className="max-w-4xl mx-auto px-4">
+            <TeamTabs
+              teamName={team.name}
+              teamId={team.apiTeamId}
+              league={team.league}
+              primaryColor={team.primaryColor}
+            />
+          </div>
+        </main>
+      </div>
 
       <MainFooter />
     </div>
