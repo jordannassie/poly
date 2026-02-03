@@ -53,8 +53,11 @@ const SPORT_LEAGUE_IDS: Record<ValidSport, number[]> = {
   ],
 };
 
-// Sports that use month-based season calculation (NBA/NHL seasons span two years)
-const SPORTS_WITH_MONTH_BASED_SEASON: ValidSport[] = ["nba", "nhl"];
+// Sports that use month-based season calculation (NHL seasons span two years)
+const SPORTS_WITH_MONTH_BASED_SEASON: ValidSport[] = ["nhl"];
+
+// NBA uses a robust multi-season fallback (tries 5 years + no-season)
+const NBA_SPORT: ValidSport = "nba";
 
 // NFL still fetches from /seasons endpoint
 const SPORTS_REQUIRING_SEASON_FETCH: ValidSport[] = ["nfl"];
@@ -386,55 +389,32 @@ export async function POST(request: NextRequest) {
     const baseUrl = SPORT_BASE_URLS[sport];
     const leagueIds = SPORT_LEAGUE_IDS[sport];
     
-    // Determine seasons to try based on sport type
-    let seasonsToTry: string[] = [];
-    
-    if (SPORTS_WITH_MONTH_BASED_SEASON.includes(sport)) {
-      // NBA/NHL: Use month-based season calculation with fallback
-      const { primary, fallback } = getMonthBasedSeasons();
-      seasonsToTry = [String(primary), String(fallback)];
-      console.log(`[sync/teams] ${sport.toUpperCase()} using month-based seasons: primary=${primary}, fallback=${fallback}`);
-    } else if (SPORTS_REQUIRING_SEASON_FETCH.includes(sport)) {
-      // NFL: Fetch from /seasons endpoint
-      const seasonResult = await getLatestSeason(baseUrl, API_SPORTS_KEY, sport);
-      
-      if (!seasonResult.ok || !seasonResult.season) {
-        console.error(`[sync/teams] Failed to get season for ${sport}:`, seasonResult.error);
-        return NextResponse.json({
-          ok: false,
-          league: sport,
-          total: 0,
-          inserted: 0,
-          updated: 0,
-          reason: `Failed to fetch season: ${seasonResult.error}`,
-          errors: [`Failed to fetch season: ${seasonResult.error}`],
-        });
-      }
-      
-      seasonsToTry = [seasonResult.season];
-      console.log(`[sync/teams] ${sport.toUpperCase()} using fetched season: ${seasonResult.season}`);
-    } else {
-      // MLB and Soccer: Use current year
-      seasonsToTry = [String(new Date().getFullYear())];
-    }
-    
     const allTeams: Array<{ id: number; name: string; logo: string | null; leagueId: number }> = [];
     const errors: string[] = [];
     const attemptedSeasons: string[] = [];
+    let triedNoSeason = false;
+    let usedSeason = "";
 
-    // Helper to fetch teams for a given season
-    const fetchTeamsForSeason = async (season: string): Promise<number> => {
+    // Helper to fetch teams for a given season (or no season if null)
+    const fetchTeamsForSeasonOrNoSeason = async (season: string | null): Promise<number> => {
       let teamsFound = 0;
       
       for (const leagueId of leagueIds) {
-        const endpoint = `${baseUrl}/teams?league=${leagueId}&season=${season}`;
+        const endpoint = season 
+          ? `${baseUrl}/teams?league=${leagueId}&season=${season}`
+          : `${baseUrl}/teams?league=${leagueId}`;
         
-        console.log(`[sync/teams] Fetching league ${leagueId}, season ${season}: ${endpoint}`);
+        // NBA-specific logging
+        if (sport === NBA_SPORT) {
+          console.log(`[NBA] Fetching: ${endpoint}`);
+        } else {
+          console.log(`[sync/teams] Fetching league ${leagueId}${season ? `, season ${season}` : ""}: ${endpoint}`);
+        }
         
         const result = await fetchWithRetry<TeamsApiResponse>(endpoint, API_SPORTS_KEY);
         
         if (!result.ok) {
-          const errMsg = `League ${leagueId} season ${season}: ${result.error}`;
+          const errMsg = `League ${leagueId}${season ? ` season ${season}` : ""}: ${result.error}`;
           console.error(`[sync/teams] ${errMsg}`);
           errors.push(errMsg);
           continue;
@@ -450,8 +430,13 @@ export async function POST(request: NextRequest) {
 
         const teamsInResponse = result.data?.response || [];
         
-        // Log if 0 teams returned
-        if (teamsInResponse.length === 0) {
+        // NBA-specific logging
+        if (sport === NBA_SPORT) {
+          console.log(`[NBA] Season ${season || "none"}: ${teamsInResponse.length} teams`);
+          if (teamsInResponse.length === 0) {
+            console.log(`[NBA] 0 teams for season ${season || "none"}, status=${result.status}, contentType=${result.contentType}`);
+          }
+        } else if (teamsInResponse.length === 0) {
           console.warn(`[sync/teams] 0 teams for ${sport}`, {
             sport,
             leagueId,
@@ -477,7 +462,9 @@ export async function POST(request: NextRequest) {
           }
         }
         
-        console.log(`[sync/teams] League ${leagueId}, season ${season}: ${teamsInResponse.length} teams`);
+        if (sport !== NBA_SPORT) {
+          console.log(`[sync/teams] League ${leagueId}${season ? `, season ${season}` : ""}: ${teamsInResponse.length} teams`);
+        }
         
         // Small delay between leagues
         if (leagueIds.indexOf(leagueId) < leagueIds.length - 1) {
@@ -488,38 +475,125 @@ export async function POST(request: NextRequest) {
       return teamsFound;
     };
 
-    // Try seasons in order, stop when we find teams
-    let usedSeason = seasonsToTry[0];
-    
-    for (const season of seasonsToTry) {
-      attemptedSeasons.push(season);
-      console.log(`[sync/teams] ${sport.toUpperCase()}: Trying season ${season}...`);
+    // ============ NBA: Robust multi-season fallback ============
+    if (sport === NBA_SPORT) {
+      const currentYear = new Date().getFullYear();
+      // Try: currentYear, currentYear-1, currentYear-2, currentYear-3, currentYear-4
+      const nbaSeasons = [
+        currentYear,
+        currentYear - 1,
+        currentYear - 2,
+        currentYear - 3,
+        currentYear - 4,
+      ].map(String);
       
-      const teamsFound = await fetchTeamsForSeason(season);
+      console.log(`[NBA] Starting sync with candidate seasons: ${nbaSeasons.join(", ")}`);
       
-      if (teamsFound > 0) {
-        usedSeason = season;
-        console.log(`[sync/teams] ${sport.toUpperCase()}: Found ${teamsFound} teams with season ${season}`);
-        break;
-      } else {
-        console.log(`[sync/teams] ${sport.toUpperCase()}: 0 teams for season ${season}, trying next...`);
+      for (const season of nbaSeasons) {
+        attemptedSeasons.push(season);
+        console.log(`[NBA] Trying season ${season}...`);
+        
+        const teamsFound = await fetchTeamsForSeasonOrNoSeason(season);
+        
+        if (teamsFound > 0) {
+          usedSeason = season;
+          console.log(`[NBA] SUCCESS: Found ${teamsFound} teams with season ${season}`);
+          break;
+        } else {
+          console.log(`[NBA] Season ${season}: 0 teams, trying next...`);
+        }
       }
+      
+      // If all seasons returned 0, try without season param
+      if (allTeams.length === 0) {
+        console.log(`[NBA] All seasons returned 0 teams, trying without season param...`);
+        triedNoSeason = true;
+        const teamsFound = await fetchTeamsForSeasonOrNoSeason(null);
+        
+        if (teamsFound > 0) {
+          usedSeason = "none";
+          console.log(`[NBA] SUCCESS: Found ${teamsFound} teams without season param`);
+        } else {
+          console.log(`[NBA] FAILED: 0 teams even without season param`);
+        }
+      }
+    }
+    // ============ NHL: Month-based with fallback ============
+    else if (SPORTS_WITH_MONTH_BASED_SEASON.includes(sport)) {
+      const { primary, fallback } = getMonthBasedSeasons();
+      const seasonsToTry = [String(primary), String(fallback)];
+      console.log(`[sync/teams] ${sport.toUpperCase()} using month-based seasons: primary=${primary}, fallback=${fallback}`);
+      
+      for (const season of seasonsToTry) {
+        attemptedSeasons.push(season);
+        console.log(`[sync/teams] ${sport.toUpperCase()}: Trying season ${season}...`);
+        
+        const teamsFound = await fetchTeamsForSeasonOrNoSeason(season);
+        
+        if (teamsFound > 0) {
+          usedSeason = season;
+          console.log(`[sync/teams] ${sport.toUpperCase()}: Found ${teamsFound} teams with season ${season}`);
+          break;
+        } else {
+          console.log(`[sync/teams] ${sport.toUpperCase()}: 0 teams for season ${season}, trying next...`);
+        }
+      }
+    }
+    // ============ NFL: Fetch from /seasons endpoint ============
+    else if (SPORTS_REQUIRING_SEASON_FETCH.includes(sport)) {
+      const seasonResult = await getLatestSeason(baseUrl, API_SPORTS_KEY, sport);
+      
+      if (!seasonResult.ok || !seasonResult.season) {
+        console.error(`[sync/teams] Failed to get season for ${sport}:`, seasonResult.error);
+        return NextResponse.json({
+          ok: false,
+          league: sport,
+          total: 0,
+          inserted: 0,
+          updated: 0,
+          reason: `Failed to fetch season: ${seasonResult.error}`,
+          errors: [`Failed to fetch season: ${seasonResult.error}`],
+        });
+      }
+      
+      usedSeason = seasonResult.season;
+      attemptedSeasons.push(usedSeason);
+      console.log(`[sync/teams] ${sport.toUpperCase()} using fetched season: ${usedSeason}`);
+      
+      await fetchTeamsForSeasonOrNoSeason(usedSeason);
+    }
+    // ============ MLB and Soccer: Current year ============
+    else {
+      usedSeason = String(new Date().getFullYear());
+      attemptedSeasons.push(usedSeason);
+      console.log(`[sync/teams] ${sport.toUpperCase()} using current year: ${usedSeason}`);
+      
+      await fetchTeamsForSeasonOrNoSeason(usedSeason);
     }
 
     console.log(`[sync/teams] ${sport.toUpperCase()}: Found ${allTeams.length} total teams`);
 
     // Return ok:false if no teams found after trying all seasons
     if (allTeams.length === 0) {
-      return NextResponse.json({
+      const response: Record<string, unknown> = {
         ok: false,
         league: sport,
         total: 0,
         inserted: 0,
         updated: 0,
-        reason: `No teams found for seasons tried`,
+        reason: `No teams found`,
         attemptedSeasons,
-        errors: errors.length > 0 ? errors : undefined,
-      });
+      };
+      
+      if (sport === NBA_SPORT) {
+        response.triedNoSeason = triedNoSeason;
+      }
+      
+      if (errors.length > 0) {
+        response.errors = errors;
+      }
+      
+      return NextResponse.json(response);
     }
 
     // Get existing teams to track inserted vs updated
