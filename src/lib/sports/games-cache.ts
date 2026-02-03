@@ -299,3 +299,157 @@ export async function getGameCountFromCache(league: string): Promise<number> {
 
   return count || 0;
 }
+
+// ============================================================================
+// HOMEPAGE GAME QUERIES
+// ============================================================================
+
+/**
+ * Get "Hot Right Now" games - starts_at between now() and now()+24h
+ * Returns games from ALL leagues
+ */
+export async function getHotGamesFromCache(): Promise<CachedGame[]> {
+  const client = getClient();
+  if (!client) {
+    return [];
+  }
+
+  const now = new Date();
+  const end24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+  const { data, error } = await client
+    .from("sports_games")
+    .select("*")
+    .gte("starts_at", now.toISOString())
+    .lte("starts_at", end24h.toISOString())
+    .order("starts_at", { ascending: true })
+    .limit(50);
+
+  if (error) {
+    console.error("[games-cache] Error fetching hot games:", error.message);
+    return [];
+  }
+
+  console.log(`[games-cache] Hot games (next 24h): ${data?.length || 0}`);
+  return data || [];
+}
+
+/**
+ * Get "Starting Soon" games - starts_at between now() and now()+7d
+ * Returns games from ALL leagues
+ */
+export async function getStartingSoonGamesFromCache(): Promise<CachedGame[]> {
+  const client = getClient();
+  if (!client) {
+    return [];
+  }
+
+  const now = new Date();
+  const end7d = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  const { data, error } = await client
+    .from("sports_games")
+    .select("*")
+    .gte("starts_at", now.toISOString())
+    .lte("starts_at", end7d.toISOString())
+    .order("starts_at", { ascending: true })
+    .limit(100);
+
+  if (error) {
+    console.error("[games-cache] Error fetching starting soon games:", error.message);
+    return [];
+  }
+
+  console.log(`[games-cache] Starting soon games (next 7d): ${data?.length || 0}`);
+  return data || [];
+}
+
+/**
+ * Get "Live" games - status indicates in-progress
+ * Returns games from ALL leagues that are currently live
+ */
+export async function getLiveGamesFromCache(): Promise<CachedGame[]> {
+  const client = getClient();
+  if (!client) {
+    return [];
+  }
+
+  // Live statuses to check for (case-insensitive patterns)
+  // Common API-Sports live statuses: "In Progress", "1H", "2H", "Q1", "Q2", "Q3", "Q4", "HT", "LIVE"
+  const livePatterns = [
+    "in progress",
+    "inprogress", 
+    "live",
+    "1h", "2h", "ht", // soccer halves
+    "q1", "q2", "q3", "q4", "ot", // basketball/football quarters
+    "p1", "p2", "p3", // hockey periods
+  ];
+
+  // Query for games that started recently (within last 6 hours) and have a live-ish status
+  const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+  const now = new Date();
+
+  const { data, error } = await client
+    .from("sports_games")
+    .select("*")
+    .gte("starts_at", sixHoursAgo.toISOString())
+    .lte("starts_at", now.toISOString())
+    .order("starts_at", { ascending: false })
+    .limit(100);
+
+  if (error) {
+    console.error("[games-cache] Error fetching live games:", error.message);
+    return [];
+  }
+
+  // Filter for live status
+  const liveGames = (data || []).filter(game => {
+    const statusLower = (game.status || "").toLowerCase();
+    // Not finished/final
+    if (statusLower.includes("final") || statusLower.includes("finished") || statusLower === "ft") {
+      return false;
+    }
+    // Not canceled/postponed
+    if (statusLower.includes("cancel") || statusLower.includes("postpone")) {
+      return false;
+    }
+    // Check if any live pattern matches
+    return livePatterns.some(pattern => statusLower.includes(pattern));
+  });
+
+  console.log(`[games-cache] Live games: ${liveGames.length}`);
+  return liveGames;
+}
+
+/**
+ * Get all team maps for multiple leagues at once
+ */
+export async function getAllTeamMapsFromCache(): Promise<Map<string, { id: number; name: string; logo: string | null; slug: string }>> {
+  const client = getClient();
+  if (!client) {
+    return new Map();
+  }
+
+  const { data, error } = await client
+    .from("sports_teams")
+    .select("id, name, logo, slug, league");
+
+  if (error || !data) {
+    console.error("[games-cache] Error fetching all teams:", error?.message);
+    return new Map();
+  }
+
+  // Map by "league:teamname" (lowercase for matching)
+  const map = new Map<string, { id: number; name: string; logo: string | null; slug: string }>();
+  for (const team of data) {
+    const key = `${team.league.toLowerCase()}:${team.name.toLowerCase()}`;
+    map.set(key, {
+      id: team.id,
+      name: team.name,
+      logo: team.logo,
+      slug: team.slug,
+    });
+  }
+
+  return map;
+}

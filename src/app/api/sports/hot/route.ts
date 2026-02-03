@@ -1,13 +1,24 @@
 /**
  * GET /api/sports/hot
- * Returns hot/live games from all leagues.
+ * Returns games for homepage sections:
+ * - Hot Right Now: starts_at between now() and now()+24h
+ * - Starting Soon: starts_at between now() and now()+7d  
+ * - Live: status indicates in-progress
  * 
- * All leagues use sports_games table (v2 schema).
+ * Query params:
+ * - view: "hot" | "starting-soon" | "live" (default: "hot")
+ * 
+ * All data from sports_games table - no external API calls.
  */
 
-import { NextResponse } from "next/server";
-import { ALL_FRONTEND_LEAGUES } from "@/lib/sports/providers";
-import { getGamesFromCache, getTeamMapFromCache } from "@/lib/sports/games-cache";
+import { NextRequest, NextResponse } from "next/server";
+import { 
+  getHotGamesFromCache, 
+  getStartingSoonGamesFromCache, 
+  getLiveGamesFromCache,
+  getAllTeamMapsFromCache,
+  CachedGame
+} from "@/lib/sports/games-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -62,87 +73,117 @@ function getAbbr(name: string): string {
   return name.slice(0, 3).toUpperCase();
 }
 
-export async function GET() {
+// Check if a game is live based on status
+function isGameLive(status: string): boolean {
+  const statusLower = (status || "").toLowerCase();
+  const livePatterns = [
+    "in progress", "inprogress", "live",
+    "1h", "2h", "ht",
+    "q1", "q2", "q3", "q4", "ot",
+    "p1", "p2", "p3",
+  ];
+  return livePatterns.some(pattern => statusLower.includes(pattern));
+}
+
+// Transform CachedGame to HotGame
+function transformGame(
+  game: CachedGame, 
+  teamMap: Map<string, { id: number; name: string; logo: string | null; slug: string }>
+): HotGame {
+  const league = game.league.toLowerCase();
+  const homeTeamKey = `${league}:${game.home_team.toLowerCase()}`;
+  const awayTeamKey = `${league}:${game.away_team.toLowerCase()}`;
+  
+  const homeTeam = teamMap.get(homeTeamKey);
+  const awayTeam = teamMap.get(awayTeamKey);
+  
+  const isLive = isGameLive(game.status);
+  const [team1Odds, team2Odds] = generateOdds();
+  const activity = generateMockActivity();
+
+  return {
+    id: game.external_game_id,
+    title: `${game.away_team} vs ${game.home_team}`,
+    league: league.toUpperCase(),
+    team1: {
+      abbr: getAbbr(game.away_team),
+      name: game.away_team,
+      odds: team1Odds,
+      color: "#6366f1",
+      logoUrl: awayTeam?.logo || null,
+    },
+    team2: {
+      abbr: getAbbr(game.home_team),
+      name: game.home_team,
+      odds: team2Odds,
+      color: "#6366f1",
+      logoUrl: homeTeam?.logo || null,
+    },
+    startTime: game.starts_at,
+    status: isLive ? "in_progress" : "scheduled",
+    isLive,
+    ...activity,
+  };
+}
+
+export async function GET(request: NextRequest) {
   try {
-    const allGames: HotGame[] = [];
-    const today = new Date();
-    const todayStr = today.toISOString().split("T")[0];
+    const url = new URL(request.url);
+    const view = url.searchParams.get("view") || "hot";
 
-    // Fetch games from all leagues using unified sports_games table
-    for (const league of ALL_FRONTEND_LEAGUES) {
-      try {
-        const [cachedGames, teamMap] = await Promise.all([
-          getGamesFromCache(league, todayStr),
-          getTeamMapFromCache(league),
-        ]);
-
-        for (const game of cachedGames) {
-          const statusLower = (game.status || "").toLowerCase();
-          const isOver = statusLower.includes("final") || statusLower.includes("finished");
-          const isCanceled = statusLower.includes("cancel") || statusLower.includes("postpone");
-          
-          // Skip completed/canceled games
-          if (isOver || isCanceled) continue;
-
-          // Look up team data by name
-          const homeTeam = teamMap.get(game.home_team.toLowerCase());
-          const awayTeam = teamMap.get(game.away_team.toLowerCase());
-
-          const isLive = statusLower.includes("progress") || statusLower.includes("live") ||
-                        statusLower.includes("1h") || statusLower.includes("2h") ||
-                        statusLower.includes("q1") || statusLower.includes("q2") ||
-                        statusLower.includes("q3") || statusLower.includes("q4");
-
-          const [team1Odds, team2Odds] = generateOdds();
-          const activity = generateMockActivity();
-
-          allGames.push({
-            id: game.external_game_id,
-            title: `${game.away_team} vs ${game.home_team}`,
-            league: league.toUpperCase(),
-            team1: {
-              abbr: getAbbr(game.away_team),
-              name: game.away_team,
-              odds: team1Odds,
-              color: "#6366f1",
-              logoUrl: awayTeam?.logo || null,
-            },
-            team2: {
-              abbr: getAbbr(game.home_team),
-              name: game.home_team,
-              odds: team2Odds,
-              color: "#6366f1",
-              logoUrl: homeTeam?.logo || null,
-            },
-            startTime: game.starts_at,
-            status: isLive ? "in_progress" : "scheduled",
-            isLive,
-            ...activity,
-          });
-        }
-      } catch (error) {
-        console.error(`Failed to fetch ${league} games:`, error);
-        // Continue with other leagues
-      }
+    // Fetch games based on view
+    let rawGames: CachedGame[];
+    
+    switch (view) {
+      case "live":
+        rawGames = await getLiveGamesFromCache();
+        break;
+      case "starting-soon":
+        rawGames = await getStartingSoonGamesFromCache();
+        break;
+      case "hot":
+      default:
+        rawGames = await getHotGamesFromCache();
+        break;
     }
 
+    // Get team data for logos
+    const teamMap = await getAllTeamMapsFromCache();
+
+    // Filter out completed/canceled games
+    const filteredGames = rawGames.filter(game => {
+      const statusLower = (game.status || "").toLowerCase();
+      const isOver = statusLower.includes("final") || statusLower.includes("finished") || statusLower === "ft";
+      const isCanceled = statusLower.includes("cancel") || statusLower.includes("postpone");
+      return !isOver && !isCanceled;
+    });
+
+    // Transform to HotGame format
+    const games: HotGame[] = filteredGames.map(game => transformGame(game, teamMap));
+
     // Sort: Live games first, then by start time
-    allGames.sort((a, b) => {
+    games.sort((a, b) => {
       if (a.isLive && !b.isLive) return -1;
       if (!a.isLive && b.isLive) return 1;
       return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
     });
 
-    // Return top 12 games
+    // Limit results
+    const limit = view === "live" ? 20 : 12;
+    const limitedGames = games.slice(0, limit);
+
+    console.log(`[/api/sports/hot] view=${view} total=${rawGames.length} filtered=${games.length} returned=${limitedGames.length}`);
+
     return NextResponse.json({
-      games: allGames.slice(0, 12),
-      count: allGames.length,
+      games: limitedGames,
+      count: games.length,
+      view,
       fetchedAt: new Date().toISOString(),
     });
   } catch (error) {
     console.error("Hot games API error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch hot games", games: [] },
+      { error: "Failed to fetch hot games", games: [], count: 0 },
       { status: 500 }
     );
   }
