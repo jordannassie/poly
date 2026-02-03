@@ -140,12 +140,20 @@ export async function POST(request: NextRequest) {
       image_url 
     } = body;
     
-    // Title is required for discussion posts
-    if (!title || title.trim().length === 0) {
+    // For market comments (team_id starts with "market:"), title is optional
+    const isMarketComment = team_id?.startsWith("market:");
+    
+    // Title is required for discussion posts (but optional for market comments)
+    if (!isMarketComment && (!title || title.trim().length === 0)) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
     }
     
-    if (title.length > 300) {
+    // For market comments, content is required if no title
+    if (isMarketComment && !title && (!content || content.trim().length === 0)) {
+      return NextResponse.json({ error: "Comment is required" }, { status: 400 });
+    }
+    
+    if (title && title.length > 300) {
       return NextResponse.json({ error: "Title too long (max 300 chars)" }, { status: 400 });
     }
     
@@ -153,8 +161,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Content too long (max 10000 chars)" }, { status: 400 });
     }
     
-    // Validate post type
-    if (!["text", "image", "link", "poll"].includes(post_type)) {
+    // Validate post type (skip for market comments which use "comment" type)
+    if (!isMarketComment && !["text", "image", "link", "poll"].includes(post_type)) {
       return NextResponse.json({ error: "Invalid post type" }, { status: 400 });
     }
     
@@ -163,11 +171,11 @@ export async function POST(request: NextRequest) {
       .from("posts")
       .insert({
         user_id: userId,
-        title: title.trim(),
+        title: title?.trim() || null,
         content: content?.trim() || null,
         team_id: team_id || null,
         league: league?.toLowerCase() || null,
-        post_type,
+        post_type: isMarketComment ? "comment" : post_type,
         flair: flair || null,
         link_url: link_url || null,
         image_url: image_url || null,
