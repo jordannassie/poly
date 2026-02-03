@@ -13,6 +13,17 @@ const COOKIE_NAME = "pp_admin";
 const API_SPORTS_KEY = process.env.API_SPORTS_KEY;
 const API_SPORTS_BASE_URL = process.env.API_SPORTS_BASE_URL || "https://v1.american-football.api-sports.io";
 
+/**
+ * Calculate the correct NFL season for a given date.
+ * NFL season runs Sep-Feb, so Jan/Feb games belong to prior year.
+ * Example: Feb 2026 => season 2025
+ */
+function seasonForDate(d: Date): number {
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth() + 1; // 1-12
+  return m <= 2 ? y - 1 : y;
+}
+
 function isAuthorized(request: NextRequest): boolean {
   if (!ADMIN_TOKEN) return false;
   
@@ -138,13 +149,16 @@ export async function POST(request: NextRequest) {
       const dateStr = d.toISOString().split("T")[0];
       fetchedDates.push(dateStr);
       
-      const gamesUrl = buildApiSportsUrl(API_SPORTS_BASE_URL, `/games?date=${dateStr}&league=1`);
+      // Calculate the correct NFL season for this date
+      const season = seasonForDate(d);
+      const gamesUrl = buildApiSportsUrl(API_SPORTS_BASE_URL, `/games?date=${dateStr}&league=1&season=${season}`);
       
       try {
         const data = await apiSportsFetch<GamesResponse>(gamesUrl, API_SPORTS_KEY);
         
         if (data.response && Array.isArray(data.response)) {
           allGames.push(...data.response);
+          console.log(`[sync-games] league=nfl date=${dateStr} season=${season} apiResults=${data.response.length}`);
         }
       } catch (fetchErr) {
         console.warn(`[games sync] Failed to fetch ${dateStr}:`, fetchErr);
@@ -220,6 +234,9 @@ export async function POST(request: NextRequest) {
     }
 
     const ms = Date.now() - startTime;
+    
+    // Summary log
+    console.log(`[sync-games] league=nfl totalGames=${games.length} inserted=${inserted} updated=${updated}`);
 
     return NextResponse.json({
       ok: true,

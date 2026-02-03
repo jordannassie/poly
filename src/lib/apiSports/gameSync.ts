@@ -11,6 +11,43 @@ import { apiSportsFetch, buildApiSportsUrl } from "./client";
 
 const API_SPORTS_KEY = process.env.API_SPORTS_KEY;
 
+// ============================================================================
+// SEASON CALCULATION
+// ============================================================================
+
+/**
+ * Calculate the correct season year for a given date and league.
+ * 
+ * NFL: Games in Jan/Feb belong to the prior year's season (e.g., Feb 2026 => season 2025)
+ * NBA/NHL: Games Jan-Jun belong to the prior year's season (e.g., Mar 2026 => season 2025)
+ * MLB: Season matches calendar year
+ * Soccer: Season matches calendar year (Aug-May format handled by API)
+ */
+export function seasonForDate(league: string, d: Date): number {
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth() + 1; // 1-12
+  
+  const leagueUpper = league.toUpperCase();
+  
+  if (leagueUpper === "NFL") {
+    // NFL season runs Sep-Feb, so Jan/Feb games belong to prior year
+    return m <= 2 ? y - 1 : y;
+  }
+  
+  if (leagueUpper === "NBA" || leagueUpper === "NHL") {
+    // NBA/NHL season runs Oct-Jun, so Jan-Jun games belong to prior year
+    return m <= 6 ? y - 1 : y;
+  }
+  
+  if (leagueUpper === "MLB") {
+    // MLB runs Apr-Oct, matches calendar year
+    return y;
+  }
+  
+  // Soccer and default: use calendar year
+  return y;
+}
+
 // Unified game record for database
 export interface GameRecord {
   league: string;
@@ -180,18 +217,33 @@ export async function fetchGamesForDate(
   
   const config = getLeagueConfig(league);
   
+  // Calculate the correct season for this specific date
+  const dateObj = new Date(date + "T12:00:00Z");
+  const season = seasonForDate(league, dateObj);
+  
   let endpoint: string;
   if (league === "SOCCER") {
-    // Soccer uses /fixtures?date=YYYY-MM-DD&league=39&season=2024
-    endpoint = `/fixtures?date=${date}&league=${config.leagueId}&season=${config.currentSeason}`;
+    // Soccer uses /fixtures?date=YYYY-MM-DD&league=39&season=YYYY
+    endpoint = `/fixtures?date=${date}&league=${config.leagueId}&season=${season}`;
+  } else if (league === "NFL") {
+    // NFL: /games?date=YYYY-MM-DD&league=1&season=YYYY
+    endpoint = `/games?date=${date}&league=${config.leagueId}&season=${season}`;
+  } else if (league === "NBA" || league === "NHL") {
+    // NBA/NHL: /games?date=YYYY-MM-DD&league=X&season=YYYY
+    endpoint = `/games?date=${date}&league=${config.leagueId}&season=${season}`;
   } else {
-    // Other sports use /games?date=YYYY-MM-DD&league=X
-    endpoint = `/games?date=${date}&league=${config.leagueId}`;
+    // MLB and others: /games?date=YYYY-MM-DD&league=X&season=YYYY
+    endpoint = `/games?date=${date}&league=${config.leagueId}&season=${season}`;
   }
   
   const url = buildApiSportsUrl(config.baseUrl, endpoint);
   const data = await apiSportsFetch<{ response: unknown[] }>(url, API_SPORTS_KEY);
-  return config.gameExtractor(data);
+  const games = config.gameExtractor(data);
+  
+  // Log for debugging
+  console.log(`[sync-games] league=${league} date=${date} season=${season} apiResults=${games.length}`);
+  
+  return games;
 }
 
 /**
@@ -309,6 +361,9 @@ export async function syncGamesForDateRange(
         }
       }
     }
+    
+    // Summary log
+    console.log(`[sync-games] league=${league} totalGames=${normalizedGames.length} inserted=${inserted} updated=${updated}`);
     
     return {
       success: true,
