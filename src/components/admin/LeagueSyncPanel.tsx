@@ -24,7 +24,7 @@ const LEAGUES = [
   { id: "soccer", name: "Soccer", icon: "⚽", color: "#37003C" },
 ];
 
-type SyncAction = "test" | "teams" | "games" | "next365" | "scores" | "syncAll" | null;
+type SyncAction = "test" | "teams" | "games" | "next365" | "scores" | "syncAll" | "syncLeagues" | null;
 
 // Response from sync-all endpoint
 interface SyncAllLeagueResult {
@@ -47,6 +47,29 @@ interface SyncAllResponse {
     updated: number;
     logosUploaded: number;
     logosFailed: number;
+  };
+  message: string;
+  error?: string;
+}
+
+// Response from leagues sync-all endpoint
+interface SyncLeaguesLeagueResult {
+  sport: string;
+  success: boolean;
+  totalLeagues: number;
+  inserted: number;
+  updated: number;
+  leagues?: Array<{ id: number; name: string }>;
+  error?: string;
+}
+
+interface SyncLeaguesResponse {
+  ok: boolean;
+  results: SyncLeaguesLeagueResult[];
+  totals: {
+    totalLeagues: number;
+    inserted: number;
+    updated: number;
   };
   message: string;
   error?: string;
@@ -107,6 +130,7 @@ export function LeagueSyncPanel() {
   const [loading, setLoading] = useState<SyncAction>(null);
   const [result, setResult] = useState<ApiResponse | null>(null);
   const [syncAllResult, setSyncAllResult] = useState<SyncAllResponse | null>(null);
+  const [syncLeaguesResult, setSyncLeaguesResult] = useState<SyncLeaguesResponse | null>(null);
 
   const selectedLeagueConfig = LEAGUES.find(l => l.id === selectedLeague);
 
@@ -239,6 +263,31 @@ export function LeagueSyncPanel() {
     }
   };
 
+  // Sync ALL leagues for all sports
+  const syncAllLeagues = async () => {
+    setLoading("syncLeagues");
+    setResult(null);
+    setSyncLeaguesResult(null);
+    
+    try {
+      const res = await fetch("/api/admin/api-sports/leagues/sync-all", {
+        method: "POST",
+      });
+      const data: SyncLeaguesResponse = await res.json();
+      setSyncLeaguesResult(data);
+    } catch (error) {
+      setSyncLeaguesResult({
+        ok: false,
+        results: [],
+        totals: { totalLeagues: 0, inserted: 0, updated: 0 },
+        message: "",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    } finally {
+      setLoading(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Bulk Sync - ALL Teams */}
@@ -358,6 +407,125 @@ export function LeagueSyncPanel() {
                 <div className={`font-medium ${syncAllResult.totals.logosFailed > 0 ? "text-yellow-400" : "text-gray-400"}`}>
                   {syncAllResult.totals.logosFailed}
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Bulk Sync - ALL Leagues (NBA, MLB, NHL, Soccer) */}
+      <div className="bg-gradient-to-r from-green-900/30 to-teal-900/30 border border-green-500/50 rounded-xl p-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h3 className="text-white font-semibold flex items-center gap-2">
+              <Database className="h-5 w-5 text-green-400" />
+              Sync Leagues to Database
+            </h3>
+            <p className="text-gray-400 text-sm mt-1">
+              Sync league info for NBA, MLB, NHL, and Soccer (top-tier leagues only).
+            </p>
+          </div>
+          <Button
+            onClick={syncAllLeagues}
+            disabled={loading !== null}
+            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 text-lg"
+          >
+            {loading === "syncLeagues" ? (
+              <>
+                <RefreshCw className="h-5 w-5 animate-spin mr-2" />
+                Syncing Leagues...
+              </>
+            ) : (
+              <>
+                <Database className="h-5 w-5 mr-2" />
+                Sync ALL Leagues
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* Progress/Results for Sync Leagues */}
+        {loading === "syncLeagues" && (
+          <div className="mt-4 bg-[#21262d] rounded-lg p-4">
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <RefreshCw className="h-4 w-4 animate-spin" />
+              <span>Syncing leagues: NBA → MLB → NHL → Soccer...</span>
+            </div>
+          </div>
+        )}
+
+        {syncLeaguesResult && (
+          <div className={`mt-4 rounded-lg p-4 ${
+            syncLeaguesResult.ok ? "bg-green-900/20 border border-green-600/50" : "bg-yellow-900/20 border border-yellow-600/50"
+          }`}>
+            {/* Summary */}
+            <div className="flex items-center gap-2 mb-3">
+              {syncLeaguesResult.ok ? (
+                <CheckCircle className="h-5 w-5 text-green-400" />
+              ) : (
+                <XCircle className="h-5 w-5 text-yellow-400" />
+              )}
+              <span className="text-white font-medium">{syncLeaguesResult.message}</span>
+            </div>
+
+            {/* Error message */}
+            {syncLeaguesResult.error && (
+              <div className="text-yellow-400 bg-yellow-900/30 px-3 py-2 rounded mb-3">
+                {syncLeaguesResult.error}
+              </div>
+            )}
+
+            {/* Per-sport results */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-4">
+              {syncLeaguesResult.results.map((sportResult) => {
+                const sportConfig = LEAGUES.find(l => l.id === sportResult.sport.toLowerCase());
+                return (
+                  <div 
+                    key={sportResult.sport}
+                    className={`bg-[#21262d] px-3 py-2 rounded text-sm ${
+                      sportResult.success ? "" : "border border-yellow-600/50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1 mb-1">
+                      <span>{sportConfig?.icon || "🏆"}</span>
+                      <span className="text-white font-medium">{sportResult.sport}</span>
+                      {sportResult.success ? (
+                        <CheckCircle className="h-3 w-3 text-green-400 ml-auto" />
+                      ) : (
+                        <XCircle className="h-3 w-3 text-yellow-400 ml-auto" />
+                      )}
+                    </div>
+                    <div className="text-gray-400 text-xs">
+                      {sportResult.success ? (
+                        <>{sportResult.totalLeagues} leagues ({sportResult.inserted} new, {sportResult.updated} updated)</>
+                      ) : (
+                        <span className="text-yellow-400">{sportResult.error || "Failed"}</span>
+                      )}
+                    </div>
+                    {/* Show league names */}
+                    {sportResult.leagues && sportResult.leagues.length > 0 && (
+                      <div className="text-gray-500 text-xs mt-1 truncate" title={sportResult.leagues.map(l => l.name).join(", ")}>
+                        {sportResult.leagues.map(l => l.name).join(", ")}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Totals */}
+            <div className="grid grid-cols-3 gap-2 text-sm">
+              <div className="bg-[#161b22] px-3 py-2 rounded">
+                <div className="text-gray-400">Total Leagues</div>
+                <div className="text-white font-medium">{syncLeaguesResult.totals.totalLeagues}</div>
+              </div>
+              <div className="bg-[#161b22] px-3 py-2 rounded">
+                <div className="text-gray-400">Inserted</div>
+                <div className="text-green-400 font-medium">{syncLeaguesResult.totals.inserted}</div>
+              </div>
+              <div className="bg-[#161b22] px-3 py-2 rounded">
+                <div className="text-gray-400">Updated</div>
+                <div className="text-blue-400 font-medium">{syncLeaguesResult.totals.updated}</div>
               </div>
             </div>
           </div>
