@@ -48,19 +48,18 @@ export function seasonForDate(league: string, d: Date): number {
   return y;
 }
 
-// Unified game record for database
+// Unified game record for database (matches sports_games v2 schema)
 export interface GameRecord {
   league: string;
-  api_game_id: number;
-  home_team_id: number | null;
-  away_team_id: number | null;
-  start_time: string | null;
-  status: string | null;
+  external_game_id: string;  // TEXT, from API provider
+  provider: string;          // 'api-sports'
+  season: number;
+  starts_at: string;         // TIMESTAMPTZ
+  status: string;            // Default 'scheduled'
+  home_team: string;         // Team name (no FK)
+  away_team: string;         // Team name (no FK)
   home_score: number | null;
   away_score: number | null;
-  season: number | null;
-  raw: any;
-  updated_at: string;
 }
 
 export interface GameSyncResult {
@@ -144,60 +143,81 @@ function parseStatus(status: any): string | null {
 /**
  * Normalize game from NFL/NBA/MLB/NHL API format
  */
-function normalizeAmericanSportsGame(game: any, league: SupportedLeague): GameRecord | null {
+function normalizeAmericanSportsGame(game: any, league: SupportedLeague, dateSeason: number): GameRecord | null {
   // Handle nested structure (game.game.id) or flat (game.id)
   const gameId = game.game?.id ?? game.id;
   if (!gameId) return null;
   
   const dateObj = game.game?.date ?? game.date;
   const statusObj = game.game?.status ?? game.status;
+  const startTime = parseGameDate(dateObj);
+  
+  // Require valid start time
+  if (!startTime) return null;
+  
+  // Get team names
+  const homeTeamName = game.teams?.home?.name ?? `Team ${game.teams?.home?.id ?? 'Unknown'}`;
+  const awayTeamName = game.teams?.away?.name ?? `Team ${game.teams?.away?.id ?? 'Unknown'}`;
+  
+  // Use season from API or fallback to date-based calculation
+  const season = game.league?.season ?? game.season ?? dateSeason;
   
   return {
-    league,
-    api_game_id: gameId,
-    home_team_id: game.teams?.home?.id ?? null,
-    away_team_id: game.teams?.away?.id ?? null,
-    start_time: parseGameDate(dateObj),
-    status: parseStatus(statusObj),
+    league: league.toLowerCase(),
+    external_game_id: String(gameId),
+    provider: "api-sports",
+    season,
+    starts_at: startTime,
+    status: parseStatus(statusObj) ?? "scheduled",
+    home_team: homeTeamName,
+    away_team: awayTeamName,
     home_score: parseScore(game.scores?.home?.total ?? game.scores?.home),
     away_score: parseScore(game.scores?.away?.total ?? game.scores?.away),
-    season: game.league?.season ?? game.season ?? null,
-    raw: game,
-    updated_at: new Date().toISOString(),
   };
 }
 
 /**
  * Normalize game from Soccer (football) API format
  */
-function normalizeSoccerGame(game: any): GameRecord | null {
+function normalizeSoccerGame(game: any, dateSeason: number): GameRecord | null {
   // Soccer uses fixture.id
   const gameId = game.fixture?.id ?? game.id;
   if (!gameId) return null;
   
+  const startTime = parseGameDate(game.fixture);
+  
+  // Require valid start time
+  if (!startTime) return null;
+  
+  // Get team names
+  const homeTeamName = game.teams?.home?.name ?? `Team ${game.teams?.home?.id ?? 'Unknown'}`;
+  const awayTeamName = game.teams?.away?.name ?? `Team ${game.teams?.away?.id ?? 'Unknown'}`;
+  
+  // Use season from API or fallback to date-based calculation
+  const season = game.league?.season ?? dateSeason;
+  
   return {
-    league: "SOCCER",
-    api_game_id: gameId,
-    home_team_id: game.teams?.home?.id ?? null,
-    away_team_id: game.teams?.away?.id ?? null,
-    start_time: parseGameDate(game.fixture),
-    status: parseStatus(game.fixture?.status),
+    league: "soccer",
+    external_game_id: String(gameId),
+    provider: "api-sports",
+    season,
+    starts_at: startTime,
+    status: parseStatus(game.fixture?.status) ?? "scheduled",
+    home_team: homeTeamName,
+    away_team: awayTeamName,
     home_score: parseScore(game.goals?.home ?? game.score?.fulltime?.home),
     away_score: parseScore(game.goals?.away ?? game.score?.fulltime?.away),
-    season: game.league?.season ?? null,
-    raw: game,
-    updated_at: new Date().toISOString(),
   };
 }
 
 /**
  * Normalize game based on league
  */
-function normalizeGame(game: any, league: SupportedLeague): GameRecord | null {
+function normalizeGame(game: any, league: SupportedLeague, dateSeason: number): GameRecord | null {
   if (league === "SOCCER") {
-    return normalizeSoccerGame(game);
+    return normalizeSoccerGame(game, dateSeason);
   }
-  return normalizeAmericanSportsGame(game, league);
+  return normalizeAmericanSportsGame(game, league, dateSeason);
 }
 
 // ============================================================================
@@ -320,20 +340,30 @@ export async function syncGamesForDateRange(
       };
     }
     
-    // Normalize all games
+    // Normalize all games, calculating season from game's start time
     const normalizedGames = games
-      .map(g => normalizeGame(g, league))
+      .map(g => {
+        // Extract date from game data for season calculation
+        const dateObj = league === "SOCCER" 
+          ? g.fixture 
+          : (g.game?.date ?? g.date);
+        const gameDate = dateObj?.timestamp 
+          ? new Date(Number(dateObj.timestamp) * 1000)
+          : (dateObj?.date ? new Date(dateObj.date) : new Date());
+        const dateSeason = seasonForDate(league, gameDate);
+        return normalizeGame(g, league, dateSeason);
+      })
       .filter((g): g is GameRecord => g !== null);
     
     // Get existing games to track inserted vs updated
-    const gameIds = normalizedGames.map(g => g.api_game_id);
+    const gameIds = normalizedGames.map(g => g.external_game_id);
     const { data: existingGames } = await adminClient
       .from("sports_games")
-      .select("api_game_id")
-      .eq("league", league)
-      .in("api_game_id", gameIds);
+      .select("external_game_id")
+      .eq("league", league.toLowerCase())
+      .in("external_game_id", gameIds);
     
-    const existingGameIds = new Set(existingGames?.map(g => g.api_game_id) || []);
+    const existingGameIds = new Set(existingGames?.map(g => g.external_game_id) || []);
     
     // Upsert games in batches
     const BATCH_SIZE = 100;
@@ -346,7 +376,7 @@ export async function syncGamesForDateRange(
       const { error } = await adminClient
         .from("sports_games")
         .upsert(batch, {
-          onConflict: "league,api_game_id",
+          onConflict: "league,external_game_id",
         });
       
       if (error) {
@@ -354,7 +384,7 @@ export async function syncGamesForDateRange(
       }
       
       for (const game of batch) {
-        if (existingGameIds.has(game.api_game_id)) {
+        if (existingGameIds.has(game.external_game_id)) {
           updated++;
         } else {
           inserted++;
@@ -447,26 +477,30 @@ export async function syncLiveGames(
       };
     }
     
+    // Calculate season for today's date
+    const todayDate = new Date();
+    const dateSeason = seasonForDate(league, todayDate);
+    
     // Normalize games
     const normalizedGames = allGames
-      .map(g => normalizeGame(g, league))
+      .map(g => normalizeGame(g, league, dateSeason))
       .filter((g): g is GameRecord => g !== null);
     
     // Get existing games
-    const gameIds = normalizedGames.map(g => g.api_game_id);
+    const gameIds = normalizedGames.map(g => g.external_game_id);
     const { data: existingGames } = await adminClient
       .from("sports_games")
-      .select("api_game_id")
-      .eq("league", league)
-      .in("api_game_id", gameIds);
+      .select("external_game_id")
+      .eq("league", league.toLowerCase())
+      .in("external_game_id", gameIds);
     
-    const existingGameIds = new Set(existingGames?.map(g => g.api_game_id) || []);
+    const existingGameIds = new Set(existingGames?.map(g => g.external_game_id) || []);
     
     // Upsert
     const { error } = await adminClient
       .from("sports_games")
       .upsert(normalizedGames, {
-        onConflict: "league,api_game_id",
+        onConflict: "league,external_game_id",
       });
     
     if (error) {
@@ -483,7 +517,7 @@ export async function syncLiveGames(
     let inserted = 0;
     let updated = 0;
     for (const game of normalizedGames) {
-      if (existingGameIds.has(game.api_game_id)) {
+      if (existingGameIds.has(game.external_game_id)) {
         updated++;
       } else {
         inserted++;
