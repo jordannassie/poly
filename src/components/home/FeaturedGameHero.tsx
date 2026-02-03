@@ -1,10 +1,90 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Calendar, Tv, Trophy, ChevronRight } from "lucide-react";
+import { Calendar, Tv, Trophy, ChevronRight, Clock, Flame } from "lucide-react";
 import { LightningLoader } from "@/components/ui/LightningLoader";
 import { Button } from "@/components/ui/button";
+
+// Countdown timer hook
+function useCountdown(targetDate: string) {
+  const calculateTimeLeft = useCallback(() => {
+    const difference = new Date(targetDate).getTime() - new Date().getTime();
+    
+    if (difference <= 0) {
+      return { days: 0, hours: 0, minutes: 0, seconds: 0, total: 0 };
+    }
+    
+    return {
+      days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+      hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+      minutes: Math.floor((difference / 1000 / 60) % 60),
+      seconds: Math.floor((difference / 1000) % 60),
+      total: difference,
+    };
+  }, [targetDate]);
+
+  const [timeLeft, setTimeLeft] = useState(calculateTimeLeft);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft(calculateTimeLeft());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [calculateTimeLeft]);
+
+  return timeLeft;
+}
+
+// Countdown display component
+function CountdownTimer({ targetDate }: { targetDate: string }) {
+  const timeLeft = useCountdown(targetDate);
+  
+  if (timeLeft.total <= 0) {
+    return (
+      <div className="flex items-center gap-2 text-green-400 font-bold animate-pulse">
+        <Flame className="h-5 w-5" />
+        <span>STARTING NOW!</span>
+      </div>
+    );
+  }
+
+  const units = [
+    { value: timeLeft.days, label: "DAYS" },
+    { value: timeLeft.hours, label: "HRS" },
+    { value: timeLeft.minutes, label: "MIN" },
+    { value: timeLeft.seconds, label: "SEC" },
+  ];
+
+  // Only show days if > 0
+  const displayUnits = timeLeft.days > 0 ? units : units.slice(1);
+
+  return (
+    <div className="flex items-center justify-center gap-1 md:gap-3">
+      <Clock className="h-4 w-4 md:h-5 md:w-5 text-orange-400 animate-pulse" />
+      <div className="flex items-center gap-1 md:gap-2">
+        {displayUnits.map((unit, index) => (
+          <div key={unit.label} className="flex items-center gap-1 md:gap-2">
+            <div className="flex flex-col items-center">
+              <div className="bg-gradient-to-b from-[#2a2f3e] to-[#1a1f2e] border border-white/10 rounded-lg px-2 py-1 md:px-3 md:py-2 min-w-[40px] md:min-w-[56px] shadow-lg">
+                <span className="text-lg md:text-2xl font-mono font-bold text-white tabular-nums">
+                  {String(unit.value).padStart(2, "0")}
+                </span>
+              </div>
+              <span className="text-[10px] md:text-xs text-white/50 mt-1 font-medium tracking-wider">
+                {unit.label}
+              </span>
+            </div>
+            {index < displayUnits.length - 1 && (
+              <span className="text-xl md:text-2xl font-bold text-orange-400/60 animate-pulse mb-4">:</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 interface Team {
   teamId: number;
@@ -87,17 +167,21 @@ export function FeaturedGameHero({ league = "nfl" }: FeaturedGameHeroProps) {
   const { featured } = data;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a1f2e] to-[#0d1117]">
-      {/* Background decoration */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-orange-500 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500 rounded-full blur-3xl" />
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a1f2e] via-[#151922] to-[#0d1117] border border-white/5">
+      {/* Animated background decoration */}
+      <div className="absolute inset-0 opacity-20">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-orange-500 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-amber-400 rounded-full blur-3xl opacity-30" />
       </div>
+
+      {/* Subtle grid pattern overlay */}
+      <div className="absolute inset-0 opacity-5" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)", backgroundSize: "32px 32px" }} />
 
       {/* Super Bowl badge */}
       {featured.isSuperBowl && (
         <div className="absolute top-4 left-4 md:top-6 md:left-6 z-10">
-          <div className="flex items-center gap-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
+          <div className="flex items-center gap-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg shadow-yellow-500/30 animate-pulse">
             <Trophy className="h-4 w-4" />
             <span>SUPER BOWL</span>
           </div>
@@ -107,7 +191,7 @@ export function FeaturedGameHero({ league = "nfl" }: FeaturedGameHeroProps) {
       {/* Live badge */}
       {featured.status === "in_progress" && (
         <div className="absolute top-4 right-4 md:top-6 md:right-6 z-10">
-          <div className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-full text-sm font-bold animate-pulse">
+          <div className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-full text-sm font-bold animate-pulse shadow-lg shadow-red-500/30">
             <span className="w-2 h-2 bg-white rounded-full" />
             <span>LIVE</span>
           </div>
@@ -116,9 +200,11 @@ export function FeaturedGameHero({ league = "nfl" }: FeaturedGameHeroProps) {
 
       <div className="relative z-10 p-6 md:p-12">
         {/* Game Name */}
-        <div className="text-center mb-8">
-          <h2 className="text-sm md:text-base text-orange-400 font-semibold uppercase tracking-wider mb-2">
+        <div className="text-center mb-6">
+          <h2 className="text-sm md:text-base text-orange-400 font-semibold uppercase tracking-wider mb-2 flex items-center justify-center gap-2">
+            <Flame className="h-4 w-4 animate-pulse" />
             Featured Matchup
+            <Flame className="h-4 w-4 animate-pulse" />
           </h2>
           <h1 className="text-2xl md:text-4xl font-bold text-white">
             {featured.name}
@@ -143,11 +229,18 @@ export function FeaturedGameHero({ league = "nfl" }: FeaturedGameHeroProps) {
           <TeamDisplay team={featured.homeTeam} score={featured.homeScore} side="home" status={featured.status} league={league} />
         </div>
 
+        {/* Countdown Timer */}
+        {featured.status === "scheduled" && (
+          <div className="mb-6">
+            <CountdownTimer targetDate={featured.startTime} />
+          </div>
+        )}
+
         {/* Game Info */}
         <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 text-white/70 text-sm mb-8">
           {featured.status === "scheduled" && (
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
+            <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-full">
+              <Calendar className="h-4 w-4 text-orange-400" />
               <span>
                 {new Date(featured.startTime).toLocaleDateString("en-US", {
                   weekday: "short",
@@ -160,8 +253,8 @@ export function FeaturedGameHero({ league = "nfl" }: FeaturedGameHeroProps) {
             </div>
           )}
           {featured.channel && (
-            <div className="flex items-center gap-2">
-              <Tv className="h-4 w-4" />
+            <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-full">
+              <Tv className="h-4 w-4 text-purple-400" />
               <span>{featured.channel}</span>
             </div>
           )}
