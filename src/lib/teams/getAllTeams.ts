@@ -30,7 +30,7 @@ export interface TeamListItem {
 }
 
 // Names to filter out (conferences, not actual teams)
-const EXCLUDED_NAMES = ["afc", "nfc"];
+const EXCLUDED_NAMES = ["afc", "nfc", "east", "west"];
 
 /**
  * Get all teams for a specific league

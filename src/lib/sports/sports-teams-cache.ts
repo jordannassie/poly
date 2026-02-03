@@ -30,7 +30,7 @@ function getClient() {
 }
 
 // Names to filter out (conferences, not actual teams)
-const EXCLUDED_NAMES = ["afc", "nfc"];
+const EXCLUDED_NAMES = ["afc", "nfc", "east", "west"];
 
 // Type matching the NEW sports_teams table schema
 export interface CachedSportsTeam {

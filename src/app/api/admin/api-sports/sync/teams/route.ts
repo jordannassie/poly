@@ -38,7 +38,8 @@ const SPORT_BASE_URLS: Record<ValidSport, string> = {
 };
 
 // Names to filter out (conferences, not actual teams)
-const EXCLUDED_TEAM_NAMES = ["afc", "nfc"];
+// AFC/NFC for NFL, East/West for NBA
+const EXCLUDED_TEAM_NAMES = ["afc", "nfc", "east", "west"];
 
 // League IDs for each sport
 const SPORT_LEAGUE_IDS: Record<ValidSport, number[]> = {
@@ -662,11 +663,12 @@ export async function POST(request: NextRequest) {
     const existingIds = new Set(existingTeams?.map(t => t.id) || []);
 
     // Prepare records for upsert
+    // slug is name-only (no league prefix) - e.g., "arizona-cardinals" not "nfl-arizona-cardinals"
     const records = allTeams.map(team => ({
       id: team.id,
       league: sport.toLowerCase(),
       name: team.name,
-      slug: `${sport.toLowerCase()}-${slugify(team.name)}`,
+      slug: slugify(team.name),  // Name-only slug for cleaner URLs
       logo: team.logo,
       country: null,
       updated_at: new Date().toISOString(),

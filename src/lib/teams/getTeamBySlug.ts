@@ -2,15 +2,24 @@
  * Get Team by Slug
  * 
  * Fetches team data from the sports_teams cache using league and slug.
+ * 
+ * New schema:
+ * - id: API team ID (bigint)
+ * - league: lowercase (nfl, nba, mlb, nhl, soccer)
+ * - name, slug, logo, country
+ * 
+ * URL format: /teams/{league}/{slug}
+ * Example: /teams/nfl/arizona-cardinals
  */
 
 import { createClient } from "@supabase/supabase-js";
-import { slugToSearchPattern, slugifyTeam } from "./slugifyTeam";
-import { getTeamLogoUrl } from "./getTeamLogoUrl";
 import { getTeamColor } from "./teamColors";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+
+// Names to filter out (conferences, not actual teams)
+const EXCLUDED_NAMES = ["afc", "nfc", "east", "west"];
 
 function getClient() {
   if (!supabaseUrl || !supabaseAnonKey) {
@@ -27,13 +36,14 @@ export interface TeamData {
   slug: string;
   logoUrl: string;
   primaryColor: string;
+  country?: string;
 }
 
 /**
  * Fetch a team by league and slug
  * 
  * @param league - League code (e.g., "nfl", "nba", "soccer")
- * @param slug - Team slug (e.g., "new-england-patriots")
+ * @param slug - Team slug (e.g., "arizona-cardinals")
  * @returns TeamData or null if not found
  */
 export async function getTeamBySlug(
@@ -46,68 +56,64 @@ export async function getTeamBySlug(
     return null;
   }
 
-  const leagueUpper = league.toUpperCase();
+  // Always lowercase for query
+  const leagueLower = league.toLowerCase();
+  const slugLower = slug.toLowerCase();
   
-  // Fetch all teams for this league
-  const { data: teams, error } = await client
+  // Query directly by league and slug
+  const { data: team, error } = await client
     .from("sports_teams")
-    .select("id, league, api_team_id, name, logo_path, logo_url_original")
-    .eq("league", leagueUpper);
+    .select("id, league, name, slug, logo, country")
+    .eq("league", leagueLower)
+    .eq("slug", slugLower)
+    .single();
 
-  if (error) {
-    console.error("[getTeamBySlug] Error fetching teams:", error.message);
-    return null;
-  }
-
-  if (!teams || teams.length === 0) {
-    return null;
-  }
-
-  // Find the team whose slugified name matches the slug
-  const matchedTeam = teams.find(team => slugifyTeam(team.name) === slug);
-
-  if (!matchedTeam) {
-    // Try partial match as fallback
-    const searchPattern = slugToSearchPattern(slug).toLowerCase();
-    const partialMatch = teams.find(team => 
-      team.name.toLowerCase().includes(searchPattern) ||
-      searchPattern.includes(team.name.toLowerCase())
-    );
+  if (error || !team) {
+    // Try fallback: maybe slug still has league prefix from old URLs
+    const legacySlug = `${leagueLower}-${slugLower}`;
+    const { data: legacyTeam } = await client
+      .from("sports_teams")
+      .select("id, league, name, slug, logo, country")
+      .eq("league", leagueLower)
+      .eq("slug", legacySlug)
+      .single();
     
-    if (!partialMatch) {
-      return null;
+    if (legacyTeam) {
+      return transformTeam(legacyTeam);
     }
     
-    return transformTeam(partialMatch);
+    console.log("[getTeamBySlug] Team not found:", { league: leagueLower, slug: slugLower });
+    return null;
   }
 
-  return transformTeam(matchedTeam);
+  // Filter out conferences
+  if (EXCLUDED_NAMES.includes(team.name.toLowerCase())) {
+    return null;
+  }
+
+  return transformTeam(team);
 }
 
 /**
  * Transform raw database team to TeamData
  */
 function transformTeam(team: {
-  id: string;
+  id: number;
   league: string;
-  api_team_id: number;
   name: string;
-  logo_path: string | null;
-  logo_url_original: string | null;
+  slug: string;
+  logo: string | null;
+  country?: string | null;
 }): TeamData {
-  const logoUrl = getTeamLogoUrl({
-    logo_path: team.logo_path,
-    logo_url_original: team.logo_url_original,
-  });
-
   return {
-    id: team.id,
+    id: String(team.id),
     league: team.league,
-    apiTeamId: team.api_team_id,
+    apiTeamId: team.id,
     name: team.name,
-    slug: slugifyTeam(team.name),
-    logoUrl: logoUrl !== "/placeholder-team.png" ? logoUrl : "",
+    slug: team.slug,
+    logoUrl: team.logo || "",
     primaryColor: getTeamColor(team.name, team.league),
+    country: team.country || undefined,
   };
 }
 
@@ -122,13 +128,15 @@ export async function getAllTeamsForLeague(league: string): Promise<TeamData[]> 
 
   const { data: teams, error } = await client
     .from("sports_teams")
-    .select("id, league, api_team_id, name, logo_path, logo_url_original")
-    .eq("league", league.toUpperCase())
+    .select("id, league, name, slug, logo, country")
+    .eq("league", league.toLowerCase())
     .order("name");
 
   if (error || !teams) {
     return [];
   }
 
-  return teams.map(transformTeam);
+  // Filter out conferences
+  const filtered = teams.filter(t => !EXCLUDED_NAMES.includes(t.name.toLowerCase()));
+  return filtered.map(transformTeam);
 }

@@ -20,7 +20,7 @@ function getClient() {
 }
 
 // Names to filter out (conferences, not actual teams)
-const EXCLUDED_NAMES = ["afc", "nfc"];
+const EXCLUDED_NAMES = ["afc", "nfc", "east", "west"];
 
 // Curated list of popular team names to show in sidebar
 // Order matters - these are displayed in this order

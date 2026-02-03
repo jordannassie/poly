@@ -50,9 +50,27 @@ export default async function TeamPage({ params }: TeamPageProps) {
   // Fetch team data from cache
   const team = await getTeamBySlug(league, teamSlug);
 
-  // Show 404 if team not found
+  // Show friendly message if team not found (not a hard 404)
   if (!team) {
-    notFound();
+    return (
+      <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
+        <TopNav />
+        <div className="max-w-4xl mx-auto px-4 py-20 text-center">
+          <div className="text-6xl mb-4">🏈</div>
+          <h1 className="text-2xl font-bold mb-2">Team Not Found</h1>
+          <p className="text-[color:var(--text-muted)] mb-6">
+            We couldn't find a team matching "{teamSlug}" in {league.toUpperCase()}.
+          </p>
+          <a 
+            href={`/sports?league=${league}`}
+            className="text-[color:var(--accent)] hover:underline"
+          >
+            Browse all {league.toUpperCase()} teams →
+          </a>
+        </div>
+        <MainFooter />
+      </div>
+    );
   }
 
   return (
