@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { Bell, BellOff, Share2, MoreHorizontal } from "lucide-react";
+import { Button } from "./ui/button";
 
 interface TeamBannerProps {
+  teamId: string;
   teamName: string;
   league: string;
   logoUrl: string;
@@ -12,10 +15,13 @@ interface TeamBannerProps {
 /**
  * Team Banner Component
  * 
- * Reddit-style banner with team color background and overlapping logo.
+ * Reddit-style banner with team color background, overlapping logo,
+ * and follow/notification buttons.
  */
-export function TeamBanner({ teamName, league, logoUrl, primaryColor }: TeamBannerProps) {
+export function TeamBanner({ teamId, teamName, league, logoUrl, primaryColor }: TeamBannerProps) {
   const [imgError, setImgError] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [showShareToast, setShowShareToast] = useState(false);
 
   // Generate initials for fallback
   const initials = teamName
@@ -24,6 +30,30 @@ export function TeamBanner({ teamName, league, logoUrl, primaryColor }: TeamBann
     .join("")
     .slice(0, 2)
     .toUpperCase();
+
+  const handleFollow = () => {
+    setIsFollowing(!isFollowing);
+    // TODO: Implement actual follow logic with backend
+  };
+
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `${teamName} Community`,
+          text: `Check out the ${teamName} community on ProvePicks`,
+          url: window.location.href,
+        });
+      } else {
+        // Fallback: copy to clipboard
+        await navigator.clipboard.writeText(window.location.href);
+        setShowShareToast(true);
+        setTimeout(() => setShowShareToast(false), 2000);
+      }
+    } catch (error) {
+      // User cancelled share
+    }
+  };
 
   return (
     <div className="relative">
@@ -37,10 +67,10 @@ export function TeamBanner({ teamName, league, logoUrl, primaryColor }: TeamBann
 
       {/* Content Container */}
       <div className="max-w-4xl mx-auto px-4">
-        {/* Logo - overlaps banner */}
-        <div className="relative -mt-12 md:-mt-16 mb-4">
+        <div className="flex items-end gap-4 -mt-12 md:-mt-16">
+          {/* Logo - overlaps banner */}
           <div 
-            className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-[color:var(--surface)] overflow-hidden flex items-center justify-center shadow-lg"
+            className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-[color:var(--surface)] overflow-hidden flex items-center justify-center shadow-lg flex-shrink-0"
             style={{ backgroundColor: primaryColor }}
           >
             {logoUrl && !imgError ? (
@@ -60,18 +90,76 @@ export function TeamBanner({ teamName, league, logoUrl, primaryColor }: TeamBann
               </span>
             )}
           </div>
-        </div>
 
-        {/* Team Info */}
-        <div className="pb-4">
-          <h1 className="text-2xl md:text-3xl font-bold text-[color:var(--text-strong)]">
-            {teamName}
-          </h1>
-          <p className="text-sm text-[color:var(--text-muted)] mt-1">
-            r/{teamName.toLowerCase().replace(/\s+/g, "")} • {league.toUpperCase()}
-          </p>
+          {/* Team Info & Actions */}
+          <div className="flex-1 pb-4 flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+            {/* Team Info */}
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-[color:var(--text-strong)]">
+                {teamName}
+              </h1>
+              <p className="text-sm text-[color:var(--text-muted)] mt-1">
+                r/{teamName.toLowerCase().replace(/\s+/g, "")} • {league.toUpperCase()}
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2">
+              {/* Follow Button */}
+              <Button
+                onClick={handleFollow}
+                variant={isFollowing ? "outline" : "default"}
+                className={`gap-2 ${
+                  isFollowing 
+                    ? "border-[color:var(--border-strong)] text-[color:var(--text-strong)]" 
+                    : ""
+                }`}
+                style={!isFollowing ? { backgroundColor: primaryColor } : undefined}
+              >
+                {isFollowing ? (
+                  <>
+                    <BellOff className="h-4 w-4" />
+                    Following
+                  </>
+                ) : (
+                  <>
+                    <Bell className="h-4 w-4" />
+                    Follow
+                  </>
+                )}
+              </Button>
+
+              {/* Share Button */}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleShare}
+                className="border-[color:var(--border-strong)]"
+                title="Share"
+              >
+                <Share2 className="h-4 w-4" />
+              </Button>
+
+              {/* More Options */}
+              <Button
+                variant="outline"
+                size="icon"
+                className="border-[color:var(--border-strong)]"
+                title="More options"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Share Toast */}
+      {showShareToast && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-[color:var(--surface)] border border-[color:var(--border-strong)] px-4 py-2 rounded-lg shadow-lg z-50">
+          <span className="text-sm text-[color:var(--text-strong)]">Link copied to clipboard!</span>
+        </div>
+      )}
     </div>
   );
 }

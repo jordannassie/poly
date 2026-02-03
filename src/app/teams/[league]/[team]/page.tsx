@@ -61,6 +61,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
 
       {/* Team Banner with Logo */}
       <TeamBanner
+        teamId={team.id}
         teamName={team.name}
         league={team.league}
         logoUrl={team.logoUrl}
@@ -70,6 +71,8 @@ export default async function TeamPage({ params }: TeamPageProps) {
       {/* Community Tabs */}
       <TeamTabs
         teamName={team.name}
+        teamId={team.apiTeamId}
+        league={team.league}
         primaryColor={team.primaryColor}
       />
 
