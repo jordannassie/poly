@@ -24,7 +24,7 @@ const LEAGUES = [
   { id: "soccer", name: "Soccer", icon: "⚽", color: "#37003C" },
 ];
 
-type SyncAction = "test" | "teams" | "games" | "next365" | "scores" | "syncAll" | "syncLeagues" | null;
+type SyncAction = "test" | "teams" | "games" | "next365" | "scores" | "syncAll" | "syncLeagues" | "nflGames90" | null;
 
 // Response from sync-all endpoint
 interface SyncAllLeagueResult {
@@ -118,6 +118,20 @@ interface ApiResponse {
   [key: string]: any;
 }
 
+// Response from NFL games sync
+interface NFLGamesSyncResult {
+  ok: boolean;
+  ms?: number;
+  league?: string;
+  fromDate?: string;
+  toDate?: string;
+  totalGames?: number;
+  inserted?: number;
+  updated?: number;
+  message?: string;
+  error?: string;
+}
+
 export function LeagueSyncPanel() {
   const [selectedLeague, setSelectedLeague] = useState<string>("nfl");
   const [fromDate, setFromDate] = useState(() => {
@@ -133,6 +147,7 @@ export function LeagueSyncPanel() {
   const [result, setResult] = useState<ApiResponse | null>(null);
   const [syncAllResult, setSyncAllResult] = useState<SyncAllResponse | null>(null);
   const [syncLeaguesResult, setSyncLeaguesResult] = useState<SyncLeaguesResponse | null>(null);
+  const [nflGamesResult, setNflGamesResult] = useState<NFLGamesSyncResult | null>(null);
 
   const selectedLeagueConfig = LEAGUES.find(l => l.id === selectedLeague);
 
@@ -442,6 +457,43 @@ export function LeagueSyncPanel() {
     }
   };
 
+  // Sync NFL Games (Next 90 Days)
+  const syncNFLGames90Days = async () => {
+    setLoading("nflGames90");
+    setNflGamesResult(null);
+    
+    try {
+      const res = await fetch("/api/admin/api-sports/nfl/games/sync", {
+        method: "POST",
+      });
+      
+      const contentType = res.headers.get("content-type") || "";
+      
+      if (!contentType.includes("application/json")) {
+        const bodyText = await res.text();
+        setNflGamesResult({
+          ok: false,
+          error: `Non-JSON response (status: ${res.status}). Body: ${bodyText.substring(0, 200)}`,
+        });
+        return;
+      }
+      
+      const data: NFLGamesSyncResult = await res.json();
+      setNflGamesResult(data);
+    } catch (error) {
+      let errorMsg = error instanceof Error ? error.message : "Unknown error";
+      if (errorMsg.includes("Unexpected token")) {
+        errorMsg = "Server returned invalid JSON. Check server logs.";
+      }
+      setNflGamesResult({
+        ok: false,
+        error: errorMsg,
+      });
+    } finally {
+      setLoading(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Bulk Sync - ALL Teams */}
@@ -689,6 +741,105 @@ export function LeagueSyncPanel() {
                 <div className="text-blue-400 font-medium">{syncLeaguesResult.totals.updated}</div>
               </div>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Sync NFL Games - Next 90 Days */}
+      <div className="bg-gradient-to-r from-blue-900/30 to-indigo-900/30 border border-blue-500/50 rounded-xl p-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h3 className="text-white font-semibold flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-blue-400" />
+              NFL Games Sync
+            </h3>
+            <p className="text-gray-400 text-sm mt-1">
+              Sync NFL games for the next 90 days to sports_games table.
+            </p>
+          </div>
+          <Button
+            onClick={syncNFLGames90Days}
+            disabled={loading !== null}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-lg"
+          >
+            {loading === "nflGames90" ? (
+              <>
+                <RefreshCw className="h-5 w-5 animate-spin mr-2" />
+                Syncing NFL Games...
+              </>
+            ) : (
+              <>
+                <Calendar className="h-5 w-5 mr-2" />
+                Sync NFL Games (Next 90 Days)
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* Progress for NFL Games Sync */}
+        {loading === "nflGames90" && (
+          <div className="mt-4 bg-[#21262d] rounded-lg p-4">
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <RefreshCw className="h-4 w-4 animate-spin" />
+              <span>Fetching NFL games from API-Sports...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Results for NFL Games Sync */}
+        {nflGamesResult && (
+          <div className={`mt-4 rounded-lg p-4 ${
+            nflGamesResult.ok ? "bg-green-900/20 border border-green-600/50" : "bg-yellow-900/20 border border-yellow-600/50"
+          }`}>
+            {/* Summary */}
+            <div className="flex items-center gap-2 mb-3">
+              {nflGamesResult.ok ? (
+                <CheckCircle className="h-5 w-5 text-green-400" />
+              ) : (
+                <XCircle className="h-5 w-5 text-yellow-400" />
+              )}
+              <span className="text-white font-medium">
+                {nflGamesResult.message || (nflGamesResult.ok ? "Success" : "Failed")}
+              </span>
+            </div>
+
+            {/* Error message */}
+            {nflGamesResult.error && (
+              <div className="text-yellow-400 bg-yellow-900/30 px-3 py-2 rounded mb-3">
+                {nflGamesResult.error}
+              </div>
+            )}
+
+            {/* Stats */}
+            {nflGamesResult.ok && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                <div className="bg-[#161b22] px-3 py-2 rounded">
+                  <div className="text-gray-400">Date Range</div>
+                  <div className="text-white font-medium text-xs">
+                    {nflGamesResult.fromDate} → {nflGamesResult.toDate}
+                  </div>
+                </div>
+                <div className="bg-[#161b22] px-3 py-2 rounded">
+                  <div className="text-gray-400">Total Games</div>
+                  <div className="text-white font-medium">{nflGamesResult.totalGames || 0}</div>
+                </div>
+                <div className="bg-[#161b22] px-3 py-2 rounded">
+                  <div className="text-gray-400">Inserted</div>
+                  <div className="text-green-400 font-medium">{nflGamesResult.inserted || 0}</div>
+                </div>
+                <div className="bg-[#161b22] px-3 py-2 rounded">
+                  <div className="text-gray-400">Updated</div>
+                  <div className="text-blue-400 font-medium">{nflGamesResult.updated || 0}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Timing */}
+            {nflGamesResult.ms && (
+              <div className="mt-2 text-xs text-gray-500">
+                Completed in {(nflGamesResult.ms / 1000).toFixed(1)}s
+              </div>
+            )}
           </div>
         )}
       </div>
