@@ -239,31 +239,38 @@ export async function fetchGamesForDate(
   
   // Calculate the correct season for this specific date
   const dateObj = new Date(date + "T12:00:00Z");
-  const season = seasonForDate(league, dateObj);
+  const primarySeason = seasonForDate(league, dateObj);
   
-  let endpoint: string;
-  if (league === "SOCCER") {
-    // Soccer uses /fixtures?date=YYYY-MM-DD&league=39&season=YYYY
-    endpoint = `/fixtures?date=${date}&league=${config.leagueId}&season=${season}`;
-  } else if (league === "NFL") {
-    // NFL: /games?date=YYYY-MM-DD&league=1&season=YYYY
-    endpoint = `/games?date=${date}&league=${config.leagueId}&season=${season}`;
-  } else if (league === "NBA" || league === "NHL") {
-    // NBA/NHL: /games?date=YYYY-MM-DD&league=X&season=YYYY
-    endpoint = `/games?date=${date}&league=${config.leagueId}&season=${season}`;
-  } else {
-    // MLB and others: /games?date=YYYY-MM-DD&league=X&season=YYYY
-    endpoint = `/games?date=${date}&league=${config.leagueId}&season=${season}`;
+  // For NFL, also try current year and current year - 1 if primary fails
+  const seasonsToTry = league === "NFL" 
+    ? [primarySeason, dateObj.getUTCFullYear(), dateObj.getUTCFullYear() - 1].filter((v, i, a) => a.indexOf(v) === i)
+    : [primarySeason];
+  
+  for (const season of seasonsToTry) {
+    let endpoint: string;
+    if (league === "SOCCER") {
+      // Soccer uses /fixtures?date=YYYY-MM-DD&league=39&season=YYYY
+      endpoint = `/fixtures?date=${date}&league=${config.leagueId}&season=${season}`;
+    } else {
+      // NFL/NBA/NHL/MLB: /games?date=YYYY-MM-DD&league=X&season=YYYY
+      endpoint = `/games?date=${date}&league=${config.leagueId}&season=${season}`;
+    }
+    
+    const url = buildApiSportsUrl(config.baseUrl, endpoint);
+    const data = await apiSportsFetch<{ response: unknown[] }>(url, API_SPORTS_KEY);
+    const games = config.gameExtractor(data);
+    
+    // Log for debugging
+    console.log(`[sync-games] league=${league} date=${date} season=${season} apiResults=${games.length}`);
+    
+    // If we got games, return them
+    if (games.length > 0) {
+      return games;
+    }
   }
   
-  const url = buildApiSportsUrl(config.baseUrl, endpoint);
-  const data = await apiSportsFetch<{ response: unknown[] }>(url, API_SPORTS_KEY);
-  const games = config.gameExtractor(data);
-  
-  // Log for debugging
-  console.log(`[sync-games] league=${league} date=${date} season=${season} apiResults=${games.length}`);
-  
-  return games;
+  // No games found for any season
+  return [];
 }
 
 /**

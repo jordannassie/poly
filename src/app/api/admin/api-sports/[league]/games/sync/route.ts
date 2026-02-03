@@ -60,7 +60,10 @@ export async function POST(
   const url = new URL(request.url);
   const today = new Date();
   const defaultEnd = new Date(today);
-  defaultEnd.setDate(defaultEnd.getDate() + 7);
+  
+  // NFL defaults to 90 days, others to 7 days
+  const defaultDays = params.league.toLowerCase() === "nfl" ? 90 : 7;
+  defaultEnd.setDate(defaultEnd.getDate() + defaultDays);
   
   const fromDate = url.searchParams.get("from") || today.toISOString().split("T")[0];
   const toDate = url.searchParams.get("to") || defaultEnd.toISOString().split("T")[0];
