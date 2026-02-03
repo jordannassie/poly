@@ -214,8 +214,11 @@ async function fetchWithRetry<T>(
 }
 
 /**
- * Get latest season from API-Sports /seasons endpoint
- * Returns the highest season value (handles both "2024-2025" and 2024 formats)
+ * Get latest VALID season from API-Sports /seasons endpoint
+ * Uses SAFE WINDOW logic to avoid future seasons:
+ * 1. Filter out seasons > currentYear + 1
+ * 2. Pick highest season <= currentYear
+ * 3. Fallback to currentYear - 1
  */
 async function getLatestSeason(
   baseUrl: string,
@@ -250,30 +253,52 @@ async function getLatestSeason(
     return { ok: false, error: "No seasons returned from API" };
   }
 
-  // Sort seasons to find the latest
-  // Handles both string ("2024-2025") and number (2024) formats
-  const sorted = [...seasons].sort((a, b) => {
-    const aStr = String(a);
-    const bStr = String(b);
-    
-    // Extract the first year for comparison
-    const aYear = parseInt(aStr.split("-")[0], 10);
-    const bYear = parseInt(bStr.split("-")[0], 10);
-    
-    if (isNaN(aYear) || isNaN(bYear)) {
-      return bStr.localeCompare(aStr); // Fallback to string comparison
-    }
-    
-    return bYear - aYear; // Descending (latest first)
-  });
+  const currentYear = new Date().getFullYear();
+  const maxAllowedYear = currentYear + 1; // Don't allow seasons more than 1 year in future
+  
+  console.log(`[getLatestSeason] ${sport}: currentYear=${currentYear}, maxAllowed=${maxAllowedYear}, raw seasons:`, seasons.slice(0, 10));
 
-  const latestSeason = String(sorted[0]);
-  console.log(`[getLatestSeason] ${sport} latest season: ${latestSeason} (from ${seasons.length} seasons)`);
+  // Helper to extract the primary year from a season value
+  // Handles: 2024, "2024", "2024-2025"
+  const extractYear = (s: string | number): number => {
+    const str = String(s);
+    const firstPart = str.split("-")[0];
+    return parseInt(firstPart, 10);
+  };
+
+  // Filter to valid seasons only (not in the future)
+  const validSeasons = seasons
+    .map(s => ({ original: s, year: extractYear(s) }))
+    .filter(s => !isNaN(s.year) && s.year <= maxAllowedYear)
+    .sort((a, b) => b.year - a.year); // Descending by year
+
+  console.log(`[getLatestSeason] ${sport}: ${validSeasons.length} valid seasons (filtered from ${seasons.length})`);
+
+  // Pick the best season:
+  // 1. Prefer highest season <= currentYear
+  // 2. If none, use highest valid season
+  // 3. If still none, fallback to currentYear - 1
+  let selectedSeason: string | null = null;
+
+  // Try to find season <= currentYear
+  const currentOrPast = validSeasons.find(s => s.year <= currentYear);
+  if (currentOrPast) {
+    selectedSeason = String(currentOrPast.original);
+  } else if (validSeasons.length > 0) {
+    // Use the highest valid season (might be currentYear + 1)
+    selectedSeason = String(validSeasons[0].original);
+  } else {
+    // Fallback to currentYear - 1
+    selectedSeason = String(currentYear - 1);
+    console.warn(`[getLatestSeason] ${sport}: No valid seasons found, using fallback: ${selectedSeason}`);
+  }
+
+  console.log(`[getLatestSeason] ${sport}: selected season = ${selectedSeason}`);
 
   // Cache for this request
-  seasonCache[sport] = latestSeason;
+  seasonCache[sport] = selectedSeason;
 
-  return { ok: true, season: latestSeason };
+  return { ok: true, season: selectedSeason };
 }
 
 /**
@@ -433,9 +458,9 @@ export async function POST(request: NextRequest) {
         total: 0,
         inserted: 0,
         updated: 0,
-        errors: errors.length > 0 
-          ? errors 
-          : [`No teams found for ${sport} (season: ${season})`],
+        reason: `No teams found for season ${season}`,
+        attemptedSeason: season,
+        errors: errors.length > 0 ? errors : undefined,
       });
     }
 
