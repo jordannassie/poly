@@ -363,10 +363,18 @@ export async function syncGamesForDateRange(
   fromDate: string,
   toDate: string
 ): Promise<GameSyncResult> {
+  const leagueNormalized = league.toLowerCase(); // ALWAYS normalize to lowercase
+  const config = getLeagueConfig(league);
+  
+  console.log(`[games-sync] START league=${leagueNormalized} from=${fromDate} to=${toDate} provider=${config.baseUrl}`);
+  
   try {
     const { games, dates } = await fetchGamesForDateRange(league, fromDate, toDate);
     
+    console.log(`[games-sync] FETCH league=${leagueNormalized} rawGames=${games.length} dates=${dates.length}`);
+    
     if (games.length === 0) {
+      console.warn(`[games-sync] WARNING league=${leagueNormalized} fetched=0 games from provider`);
       return {
         success: true,
         league,
@@ -379,30 +387,59 @@ export async function syncGamesForDateRange(
     
     // Normalize all games, calculating season from game's start time
     let skippedPlaceholders = 0;
-    const normalizedGames = games
-      .map(g => {
-        // Extract date from game data for season calculation
-        const dateObj = league === "SOCCER" 
-          ? g.fixture 
-          : (g.game?.date ?? g.date);
-        const gameDate = dateObj?.timestamp 
-          ? new Date(Number(dateObj.timestamp) * 1000)
-          : (dateObj?.date ? new Date(dateObj.date) : new Date());
-        const dateSeason = seasonForDate(league, gameDate);
-        return normalizeGame(g, league, dateSeason);
-      })
-      .filter((g): g is GameRecord => {
-        if (g === null) return false;
-        // Filter out placeholder games (NFC vs AFC, All-Stars, TBD, etc.)
-        if (!isRealGame(g.home_team, g.away_team)) {
-          skippedPlaceholders++;
-          return false;
-        }
-        return true;
-      });
+    let skippedNullNormalize = 0;
     
-    if (skippedPlaceholders > 0) {
-      console.log(`[games-sync] skippedPlaceholders=${skippedPlaceholders} league=${league}`);
+    const normalizedGames: GameRecord[] = [];
+    
+    for (const g of games) {
+      // Extract date from game data for season calculation
+      const dateObj = league === "SOCCER" 
+        ? g.fixture 
+        : (g.game?.date ?? g.date);
+      
+      let gameDate: Date;
+      if (dateObj?.timestamp) {
+        gameDate = new Date(Number(dateObj.timestamp) * 1000);
+      } else if (typeof dateObj === "string") {
+        gameDate = new Date(dateObj);
+      } else if (dateObj?.date) {
+        gameDate = new Date(dateObj.date);
+      } else {
+        gameDate = new Date();
+      }
+      
+      const dateSeason = seasonForDate(league, gameDate);
+      const normalized = normalizeGame(g, league, dateSeason);
+      
+      if (normalized === null) {
+        skippedNullNormalize++;
+        continue;
+      }
+      
+      // CRITICAL: Force league to lowercase
+      normalized.league = leagueNormalized;
+      
+      // Filter out placeholder games (NFC vs AFC, All-Stars, TBD, etc.)
+      if (!isRealGame(normalized.home_team, normalized.away_team)) {
+        skippedPlaceholders++;
+        continue;
+      }
+      
+      normalizedGames.push(normalized);
+    }
+    
+    console.log(`[games-sync] NORMALIZE league=${leagueNormalized} valid=${normalizedGames.length} skippedNull=${skippedNullNormalize} skippedPlaceholders=${skippedPlaceholders}`);
+    
+    if (normalizedGames.length === 0) {
+      console.warn(`[games-sync] WARNING league=${leagueNormalized} all games filtered out!`);
+      return {
+        success: true,
+        league,
+        totalGames: 0,
+        inserted: 0,
+        updated: 0,
+        dates,
+      };
     }
     
     // Get existing games to track inserted vs updated
@@ -410,57 +447,66 @@ export async function syncGamesForDateRange(
     const { data: existingGames } = await adminClient
       .from("sports_games")
       .select("external_game_id")
-      .eq("league", league.toLowerCase())
+      .eq("league", leagueNormalized)
       .in("external_game_id", gameIds);
     
     const existingGameIds = new Set(existingGames?.map(g => g.external_game_id) || []);
     
-    // Upsert games in batches
-    const BATCH_SIZE = 100;
+    // Upsert games in batches with detailed error tracking
+    const BATCH_SIZE = 50; // Smaller batches for better error isolation
     let inserted = 0;
     let updated = 0;
+    let upsertErrors = 0;
     
     for (let i = 0; i < normalizedGames.length; i += BATCH_SIZE) {
       const batch = normalizedGames.slice(i, i + BATCH_SIZE);
       
-      const { error } = await adminClient
+      const { data: upsertData, error } = await adminClient
         .from("sports_games")
         .upsert(batch, {
           onConflict: "league,external_game_id",
-        });
+        })
+        .select("id");
       
       if (error) {
-        console.error(`[gameSync] Batch upsert error:`, error.message);
-      }
-      
-      for (const game of batch) {
-        if (existingGameIds.has(game.external_game_id)) {
-          updated++;
-        } else {
-          inserted++;
+        console.error(`[games-sync] UPSERT_ERROR league=${leagueNormalized} batch=${i/BATCH_SIZE + 1} error="${error.message}" code=${error.code}`);
+        upsertErrors += batch.length;
+      } else {
+        // Count based on what was actually returned
+        const actualUpserted = upsertData?.length || 0;
+        for (const game of batch) {
+          if (existingGameIds.has(game.external_game_id)) {
+            updated++;
+          } else {
+            inserted++;
+          }
         }
+        console.log(`[games-sync] BATCH league=${leagueNormalized} batch=${i/BATCH_SIZE + 1} rows=${actualUpserted}`);
       }
     }
     
     // Summary log
-    console.log(`[sync-games] league=${league} totalGames=${normalizedGames.length} inserted=${inserted} updated=${updated}`);
+    console.log(`[games-sync] COMPLETE league=${leagueNormalized} total=${normalizedGames.length} inserted=${inserted} updated=${updated} errors=${upsertErrors}`);
     
     return {
-      success: true,
+      success: upsertErrors === 0,
       league,
       totalGames: normalizedGames.length,
       inserted,
       updated,
       dates,
+      error: upsertErrors > 0 ? `${upsertErrors} rows failed to upsert` : undefined,
     };
   } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : "Unknown error";
+    console.error(`[games-sync] EXCEPTION league=${leagueNormalized} error="${errorMsg}"`);
     return {
       success: false,
       league,
       totalGames: 0,
       inserted: 0,
       updated: 0,
-      error: err instanceof Error ? err.message : "Unknown error",
+      error: errorMsg,
     };
   }
 }

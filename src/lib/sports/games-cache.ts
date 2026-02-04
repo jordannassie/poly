@@ -101,6 +101,7 @@ export async function getGamesFromCache(
 /**
  * Get upcoming games from sports_games table for a league
  * Uses indexed query on (league, starts_at)
+ * Includes both upcoming scheduled games and live/in-progress games
  */
 export async function getUpcomingGamesFromCache(
   league: string,
@@ -112,32 +113,37 @@ export async function getUpcomingGamesFromCache(
     return [];
   }
 
-  const now = new Date();
-  const endDate = new Date(now);
+  const leagueNormalized = league.toLowerCase();
+  
+  // Start from beginning of today (UTC) to include games that started earlier today
+  const startOfToday = new Date();
+  startOfToday.setUTCHours(0, 0, 0, 0);
+  
+  const endDate = new Date();
   endDate.setDate(endDate.getDate() + days);
 
   // Use higher limit for longer date ranges, cap at 200 for performance
   const queryLimit = Math.min(200, days > 90 ? 200 : 100);
 
-  console.log(`[games-cache] getUpcomingGamesFromCache: league=${league} days=${days} window=${now.toISOString()} to ${endDate.toISOString()}`);
+  console.log(`[games-cache] QUERY league=${leagueNormalized} days=${days} from=${startOfToday.toISOString()} to=${endDate.toISOString()}`);
 
-  const { data, error } = await client
+  const { data, error, count } = await client
     .from("sports_games")
-    .select("*")
-    .eq("league", league.toLowerCase())
-    .gte("starts_at", now.toISOString())
+    .select("*", { count: "exact" })
+    .eq("league", leagueNormalized)
+    .gte("starts_at", startOfToday.toISOString())
     .lte("starts_at", endDate.toISOString())
     .order("starts_at", { ascending: true })
     .limit(queryLimit);
 
   if (error) {
-    console.error(`[games-cache] Error fetching upcoming ${league} games:`, error.message, "code:", error.code);
+    console.error(`[games-cache] ERROR league=${leagueNormalized} error="${error.message}" code=${error.code} hint="${error.hint || 'none'}"`);
     return [];
   }
 
   // Filter out placeholder games (NFC vs AFC, etc.)
   const filtered = filterRealGames(data || []);
-  console.log(`[games-cache] ${league} upcoming: ${data?.length || 0} games, ${filtered.length} after filtering placeholders (limit=${queryLimit})`);
+  console.log(`[games-cache] RESULT league=${leagueNormalized} totalInDb=${count} returned=${data?.length || 0} afterFilter=${filtered.length}`);
 
   return filtered;
 }
