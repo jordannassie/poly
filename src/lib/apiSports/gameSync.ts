@@ -255,8 +255,12 @@ export async function fetchGamesForDate(
     if (league === "SOCCER") {
       // Soccer uses /fixtures?date=YYYY-MM-DD&league=39&season=YYYY
       endpoint = `/fixtures?date=${date}&league=${config.leagueId}&season=${season}`;
+    } else if (league === "NBA") {
+      // NBA Basketball API requires season format: "2024-2025" for 2024-25 season
+      const seasonFormatted = `${season}-${season + 1}`;
+      endpoint = `/games?date=${date}&league=${config.leagueId}&season=${seasonFormatted}`;
     } else {
-      // NFL/NBA/NHL/MLB: /games?date=YYYY-MM-DD&league=X&season=YYYY
+      // NFL/NHL/MLB: /games?date=YYYY-MM-DD&league=X&season=YYYY
       endpoint = `/games?date=${date}&league=${config.leagueId}&season=${season}`;
     }
     
