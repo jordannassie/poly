@@ -34,7 +34,7 @@ export async function GET() {
     results.fetchResult = { count: rawGames.length };
     
     // Step 2: Manually normalize each game and try to insert
-    for (const game of rawGames.slice(0, 3)) { // Only first 3 for testing
+    for (const game of rawGames) { // All games
       const dateObj = game.game?.date ?? game.date;
       const gameId = game.game?.id ?? game.id;
       const statusObj = game.game?.status ?? game.status;
