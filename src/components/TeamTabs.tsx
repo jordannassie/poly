@@ -35,13 +35,17 @@ interface Post {
 
 interface Game {
   id: number;
+  externalGameId: string;
   homeTeam: string;
   awayTeam: string;
+  homeTeamLogo: string | null;
+  awayTeamLogo: string | null;
   homeScore: number | null;
   awayScore: number | null;
   startTime: string;
   status: string;
   isHome: boolean;
+  league: string;
 }
 
 type TabId = "feed" | "games" | "picks";
@@ -489,7 +493,7 @@ function GamesTab({
 }
 
 /**
- * Game Card
+ * Game Card - Styled like other game cards in the app
  */
 function GameCard({ 
   game, 
@@ -502,65 +506,122 @@ function GameCard({
 }) {
   const gameDate = new Date(game.startTime);
   const isLive = game.status?.toLowerCase().includes("live") || 
+                  game.status?.toLowerCase().includes("in_progress") ||
                   game.status?.toLowerCase().includes("in progress");
   const isFinished = game.status?.toLowerCase().includes("finished") || 
                       game.status?.toLowerCase().includes("final");
+  const isScheduled = !isLive && !isFinished;
+
+  // Generate game URL
+  const gameUrl = `/${game.league}/game/${game.externalGameId || game.id}`;
 
   return (
-    <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-lg p-4 hover:border-[color:var(--border-strong)] transition">
-      <div className="flex items-center justify-between">
-        {/* Teams */}
-        <div className="flex-1">
-          <div className={`flex items-center gap-2 ${game.isHome ? "" : "text-[color:var(--text-muted)]"}`}>
-            <span className="font-medium">{game.awayTeam}</span>
-            {game.awayScore !== null && (
-              <span className="font-bold">{game.awayScore}</span>
-            )}
-            {!game.isHome && (
-              <span 
-                className="w-2 h-2 rounded-full" 
-                style={{ backgroundColor: primaryColor }}
-              />
-            )}
-          </div>
-          <div className={`flex items-center gap-2 mt-1 ${game.isHome ? "" : "text-[color:var(--text-muted)]"}`}>
-            <span className="font-medium">{game.homeTeam}</span>
-            {game.homeScore !== null && (
-              <span className="font-bold">{game.homeScore}</span>
-            )}
-            {game.isHome && (
-              <span 
-                className="w-2 h-2 rounded-full" 
-                style={{ backgroundColor: primaryColor }}
-              />
-            )}
-          </div>
-        </div>
+    <Link 
+      href={gameUrl}
+      className="block bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4 hover:border-orange-500/50 hover:bg-[color:var(--surface-2)] transition group"
+    >
+      {/* Status Badge */}
+      <div className="flex items-center justify-between mb-3">
+        {isLive ? (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-500/20 text-red-400 rounded-full text-xs font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+            LIVE
+          </span>
+        ) : isFinished ? (
+          <span className="inline-flex items-center px-2.5 py-1 bg-gray-500/20 text-gray-400 rounded-full text-xs font-medium">
+            Final
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 text-blue-400 rounded-full text-xs font-medium">
+            <Clock className="h-3 w-3" />
+            {gameDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+          </span>
+        )}
+        {isScheduled && (
+          <span className="text-sm text-[color:var(--text-muted)]">
+            {gameDate.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+          </span>
+        )}
+      </div>
 
-        {/* Game Status / Time */}
-        <div className="text-right">
-          {isLive ? (
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-              LIVE
-            </span>
-          ) : isFinished ? (
-            <span className="text-[color:var(--text-muted)] text-sm">Final</span>
-          ) : (
-            <div className="text-sm text-[color:var(--text-muted)]">
-              <div className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                {gameDate.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-              </div>
-              <div className="flex items-center gap-1 mt-0.5">
-                <Clock className="h-3 w-3" />
-                {gameDate.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
-              </div>
+      {/* Teams Matchup */}
+      <div className="flex items-center gap-4">
+        {/* Away Team */}
+        <div className="flex-1 flex items-center gap-3">
+          <div 
+            className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden"
+            style={{ backgroundColor: !game.isHome ? primaryColor : "var(--surface-2)" }}
+          >
+            {game.awayTeamLogo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={game.awayTeamLogo} alt={game.awayTeam} className="w-9 h-9 object-contain" />
+            ) : (
+              <span className="text-xs font-bold text-white">{game.awayTeam.slice(0, 3).toUpperCase()}</span>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className={`font-semibold truncate ${!game.isHome ? "text-[color:var(--text-strong)]" : "text-[color:var(--text-muted)]"}`}>
+              {game.awayTeam}
             </div>
+            {!game.isHome && (
+              <span className="text-xs text-orange-500">Your Team</span>
+            )}
+          </div>
+          {(isLive || isFinished) && game.awayScore !== null && (
+            <span className={`text-2xl font-bold ${
+              isFinished && game.awayScore > (game.homeScore || 0) ? "text-green-500" : "text-[color:var(--text-strong)]"
+            }`}>
+              {game.awayScore}
+            </span>
           )}
         </div>
+
+        {/* VS Separator */}
+        <div className="text-[color:var(--text-subtle)] text-sm font-medium px-2">
+          {isLive || isFinished ? "-" : "VS"}
+        </div>
+
+        {/* Home Team */}
+        <div className="flex-1 flex items-center gap-3 justify-end">
+          {(isLive || isFinished) && game.homeScore !== null && (
+            <span className={`text-2xl font-bold ${
+              isFinished && game.homeScore > (game.awayScore || 0) ? "text-green-500" : "text-[color:var(--text-strong)]"
+            }`}>
+              {game.homeScore}
+            </span>
+          )}
+          <div className="flex-1 min-w-0 text-right">
+            <div className={`font-semibold truncate ${game.isHome ? "text-[color:var(--text-strong)]" : "text-[color:var(--text-muted)]"}`}>
+              {game.homeTeam}
+            </div>
+            {game.isHome && (
+              <span className="text-xs text-orange-500">Your Team</span>
+            )}
+          </div>
+          <div 
+            className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden"
+            style={{ backgroundColor: game.isHome ? primaryColor : "var(--surface-2)" }}
+          >
+            {game.homeTeamLogo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={game.homeTeamLogo} alt={game.homeTeam} className="w-9 h-9 object-contain" />
+            ) : (
+              <span className="text-xs font-bold text-white">{game.homeTeam.slice(0, 3).toUpperCase()}</span>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
+
+      {/* View Matchup CTA */}
+      <div className="mt-4 pt-3 border-t border-[color:var(--border-soft)] flex items-center justify-center">
+        <span className="text-sm text-orange-500 group-hover:text-orange-400 font-medium flex items-center gap-1">
+          View Matchup
+          <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </span>
+      </div>
+    </Link>
   );
 }
 

@@ -20,13 +20,17 @@ function getClient() {
 
 interface GameResponse {
   id: number;
+  externalGameId: string;
   homeTeam: string;
   awayTeam: string;
+  homeTeamLogo: string | null;
+  awayTeamLogo: string | null;
   homeScore: number | null;
   awayScore: number | null;
   startTime: string;
   status: string;
   isHome: boolean;
+  league: string;
 }
 
 export async function GET(
@@ -47,16 +51,17 @@ export async function GET(
 
   try {
     // Fetch games where this team is home or away
+    // Using correct column names: home_team_api_id and away_team_api_id
     const { data: games, error } = await client
       .from("sports_games")
       .select("*")
-      .eq("league", league.toUpperCase())
-      .or(`home_team_id.eq.${teamIdNum},away_team_id.eq.${teamIdNum}`)
-      .order("start_time", { ascending: true })
-      .limit(10);
+      .eq("league", league.toLowerCase())
+      .or(`home_team_api_id.eq.${teamIdNum},away_team_api_id.eq.${teamIdNum}`)
+      .order("starts_at", { ascending: true })
+      .limit(20);
 
     if (error) {
-      console.error("[/api/teams/games] Error:", error.message);
+      console.error("[/api/teams/games] Error:", error.message, error.hint);
       return NextResponse.json({ error: error.message, games: [] }, { status: 500 });
     }
 
@@ -67,41 +72,50 @@ export async function GET(
       });
     }
 
-    // Get team names for the games
+    // Get team info (names and logos) for the games
     const teamIds = new Set<number>();
     for (const game of games) {
-      if (game.home_team_id) teamIds.add(game.home_team_id);
-      if (game.away_team_id) teamIds.add(game.away_team_id);
+      if (game.home_team_api_id) teamIds.add(game.home_team_api_id);
+      if (game.away_team_api_id) teamIds.add(game.away_team_api_id);
     }
 
     const { data: teams } = await client
       .from("sports_teams")
-      .select("api_team_id, name")
-      .eq("league", league.toUpperCase())
+      .select("api_team_id, name, logo_url")
+      .eq("league", league.toLowerCase())
       .in("api_team_id", Array.from(teamIds));
 
-    const teamMap = new Map<number, string>();
+    const teamMap = new Map<number, { name: string; logo: string | null }>();
     for (const team of teams || []) {
-      teamMap.set(team.api_team_id, team.name);
+      teamMap.set(team.api_team_id, { name: team.name, logo: team.logo_url });
     }
 
     // Transform games
-    const transformedGames: GameResponse[] = games.map(game => ({
-      id: game.api_game_id,
-      homeTeam: teamMap.get(game.home_team_id) || `Team ${game.home_team_id}`,
-      awayTeam: teamMap.get(game.away_team_id) || `Team ${game.away_team_id}`,
-      homeScore: game.home_score,
-      awayScore: game.away_score,
-      startTime: game.start_time,
-      status: game.status || "Scheduled",
-      isHome: game.home_team_id === teamIdNum,
-    }));
+    const transformedGames: GameResponse[] = games.map(game => {
+      const homeTeamInfo = teamMap.get(game.home_team_api_id);
+      const awayTeamInfo = teamMap.get(game.away_team_api_id);
+      
+      return {
+        id: game.id,
+        externalGameId: game.external_game_id,
+        homeTeam: homeTeamInfo?.name || game.home_team || `Team ${game.home_team_api_id}`,
+        awayTeam: awayTeamInfo?.name || game.away_team || `Team ${game.away_team_api_id}`,
+        homeTeamLogo: homeTeamInfo?.logo || null,
+        awayTeamLogo: awayTeamInfo?.logo || null,
+        homeScore: game.home_score,
+        awayScore: game.away_score,
+        startTime: game.starts_at,
+        status: game.status || "scheduled",
+        isHome: game.home_team_api_id === teamIdNum,
+        league: league.toLowerCase(),
+      };
+    });
 
     return NextResponse.json({
       games: transformedGames,
       count: transformedGames.length,
       teamId: teamIdNum,
-      league: league.toUpperCase(),
+      league: league.toLowerCase(),
     });
   } catch (error) {
     console.error("[/api/teams/games] Error:", error);
