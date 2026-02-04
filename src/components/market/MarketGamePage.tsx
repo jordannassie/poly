@@ -15,12 +15,8 @@ import { formatVolume, getWhyMovingReasons } from "@/lib/marketHelpers";
 import { MarketViewModel } from "@/lib/adapters/marketViewModel";
 import { mapMarketOutcomesToTeams, teamToYesNo } from "@/lib/market/outcomeMapping";
 import {
-  Settings,
-  Code,
   Bookmark,
   Share2,
-  Heart,
-  MoreHorizontal,
   ChevronRight,
   ChevronDown,
   Clock,
@@ -30,6 +26,7 @@ import {
   Sparkles,
   ImageIcon,
   Lock,
+  Check,
 } from "lucide-react";
 
 // Countdown hook for trading lock-in time
@@ -193,9 +190,32 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
   // Picks Card modal state
   const [picksCardOpen, setPicksCardOpen] = useState(false);
   
+  // Share button state
+  const [copied, setCopied] = useState(false);
+  
   // User state for picks card
   const [userHandle, setUserHandle] = useState<string>("Guest");
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
+  
+  // Handle share button click
+  const handleShare = useCallback(async () => {
+    const url = window.location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = url;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, []);
   
   // Fetch logged-in user
   useEffect(() => {
@@ -262,13 +282,7 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 md:mb-6">
               <h1 className="text-xl md:text-2xl font-bold">{market.title}</h1>
               <div className="flex items-center gap-1 md:gap-2">
-                <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9">
-                  <Settings className="h-4 w-4 md:h-5 md:w-5" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9">
-                  <Code className="h-4 w-4 md:h-5 md:w-5" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9">
+                <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9" title="Bookmark">
                   <Bookmark className="h-4 w-4 md:h-5 md:w-5" />
                 </Button>
                 <Button 
@@ -280,8 +294,18 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
                 >
                   <ImageIcon className="h-4 w-4 md:h-5 md:w-5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9">
-                  <Share2 className="h-4 w-4 md:h-5 md:w-5" />
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className={`h-8 w-8 md:h-9 md:w-9 ${copied ? "text-green-500" : ""}`}
+                  onClick={handleShare}
+                  title={copied ? "Copied!" : "Share"}
+                >
+                  {copied ? (
+                    <Check className="h-4 w-4 md:h-5 md:w-5" />
+                  ) : (
+                    <Share2 className="h-4 w-4 md:h-5 md:w-5" />
+                  )}
                 </Button>
               </div>
             </div>
