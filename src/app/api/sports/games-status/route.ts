@@ -20,6 +20,19 @@ export async function GET(request: NextRequest) {
   const now = new Date().toISOString();
   const leagues = ["nfl", "nba", "nhl", "mlb", "soccer"];
 
+  // First, get all distinct league values to debug
+  const { data: distinctLeagues } = await client
+    .from("sports_games")
+    .select("league")
+    .limit(1000);
+  
+  const uniqueLeagueValues = [...new Set((distinctLeagues || []).map(g => g.league))];
+  
+  // Get total count in table
+  const { count: totalCount } = await client
+    .from("sports_games")
+    .select("id", { count: "exact", head: true });
+
   const results: Record<string, any> = {
     timestamp: now,
     leagues: {},
@@ -78,6 +91,13 @@ export async function GET(request: NextRequest) {
       nextGames: nextGames || [],
     };
   }
+
+  // Add debug info
+  results.debug = {
+    totalGamesInTable: totalCount || 0,
+    uniqueLeagueValues,
+    supabaseUrl: supabaseUrl.split('.')[0] + "..." // Partial URL for verification
+  };
 
   return NextResponse.json(results);
 }
