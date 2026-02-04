@@ -18,11 +18,19 @@ const API_SPORTS_KEY = process.env.API_SPORTS_KEY;
 
 /**
  * Calculate the correct season year for a given date and league.
+ * Works for 2026-2030 and beyond.
  * 
- * NFL: Games in Jan/Feb belong to the prior year's season (e.g., Feb 2026 => season 2025)
- * NBA/NHL: Games Jan-Jun belong to the prior year's season (e.g., Mar 2026 => season 2025)
- * MLB: Season matches calendar year
- * Soccer: Season matches calendar year (Aug-May format handled by API)
+ * NFL: Season runs Sep-Feb. Jan/Feb games belong to prior year's season.
+ *   Example: Feb 2026 → season 2025, Sep 2026 → season 2026
+ * 
+ * NBA/NHL: Season runs Oct-Jun. Jan-Jun games belong to prior year's season.
+ *   Example: Feb 2026 → season 2025 (2025-26), Oct 2026 → season 2026 (2026-27)
+ * 
+ * MLB: Season runs Apr-Oct, matches calendar year.
+ *   Example: Apr 2026 → season 2026
+ * 
+ * Soccer: Season runs Aug-May spanning two years. Jan-Jul games belong to prior year.
+ *   Example: Feb 2026 → season 2025 (2025-26), Aug 2026 → season 2026 (2026-27)
  */
 export function seasonForDate(league: string, d: Date): number {
   const y = d.getUTCFullYear();
@@ -45,7 +53,12 @@ export function seasonForDate(league: string, d: Date): number {
     return y;
   }
   
-  // Soccer and default: use calendar year
+  if (leagueUpper === "SOCCER" || leagueUpper === "FOOTBALL") {
+    // Soccer season runs Aug-May, so Jan-Jul games belong to prior year
+    return m <= 7 ? y - 1 : y;
+  }
+  
+  // Default: use calendar year
   return y;
 }
 

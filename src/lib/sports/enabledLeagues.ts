@@ -21,30 +21,37 @@ export interface EnabledLeague {
 /**
  * Currently enabled leagues for game syncing
  * 
- * Season notes (as of Feb 2026):
- * - NFL: 2025 season runs Sep 2025 - Feb 2026 (current)
- * - NBA: 2025-26 season, API uses season=2025 (Oct 2025 - Jun 2026)
- * - NHL: 2025-26 season, API uses season=2025 (Oct 2025 - Jun 2026)
- * - MLB: 2026 season (Apr-Oct 2026, upcoming)
- * - Soccer: 2025-26 season
+ * Season calculation (dynamic, works through 2030):
+ * - NFL: Season year = games Sep-Dec use that year, Jan-Feb use prior year
+ *   Example: Feb 2026 game → season 2025, Sep 2026 game → season 2026
+ * - NBA: Season year = Oct-Jun spanning two years, API uses start year
+ *   Example: Feb 2026 game → season 2025 (2025-2026), Oct 2026 → season 2026 (2026-2027)
+ * - NHL: Same as NBA (Oct-Jun)
+ * - MLB: Season year = calendar year (Apr-Oct)
+ *   Example: Apr 2026 → season 2026
+ * - Soccer: Season year = Aug-May spanning two years, uses start year
+ *   Example: Feb 2026 → season 2025 (2025-26), Aug 2026 → season 2026 (2026-27)
+ * 
+ * Note: The `season` field below is the BASE season. The sync logic dynamically
+ * calculates the correct season per date using seasonForDate().
  */
 export const ENABLED_LEAGUES: EnabledLeague[] = [
   {
     sportKey: "NFL",
     leagueId: 1,
-    season: 2025,  // 2025 season = Sep 2025 - Feb 2026
+    season: 2026,  // Will sync 2025-2026 seasons based on date
     displayName: "NFL",
   },
   {
     sportKey: "NBA",
     leagueId: 12,
-    season: 2025,  // 2025-26 season = Oct 2025 - Jun 2026
+    season: 2026,  // API format: 2025-2026 or 2026-2027 based on date
     displayName: "NBA",
   },
   {
     sportKey: "NHL",
     leagueId: 57,
-    season: 2025,  // 2025-26 season = Oct 2025 - Jun 2026
+    season: 2026,  // Will sync 2025-2026 seasons based on date
     displayName: "NHL",
   },
   {
@@ -56,7 +63,7 @@ export const ENABLED_LEAGUES: EnabledLeague[] = [
   {
     sportKey: "SOCCER",
     leagueId: 39, // Premier League
-    season: 2025,  // 2025-26 season
+    season: 2026,  // Will sync 2025-2026 seasons based on date
     displayName: "Soccer - Premier League",
     subLeagues: [
       { id: 39, name: "Premier League" },
