@@ -29,7 +29,135 @@ import {
   TrendingUp,
   Sparkles,
   ImageIcon,
+  Lock,
 } from "lucide-react";
+
+// Countdown hook for trading lock-in time
+function useCountdown(targetDate: Date | undefined) {
+  const [timeLeft, setTimeLeft] = useState({
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+    total: 0,
+  });
+
+  useEffect(() => {
+    if (!targetDate) return;
+
+    const calculateTimeLeft = () => {
+      const now = new Date();
+      const diff = targetDate.getTime() - now.getTime();
+
+      if (diff <= 0) {
+        return { days: 0, hours: 0, minutes: 0, seconds: 0, total: 0 };
+      }
+
+      return {
+        days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+        minutes: Math.floor((diff / (1000 * 60)) % 60),
+        seconds: Math.floor((diff / 1000) % 60),
+        total: diff,
+      };
+    };
+
+    setTimeLeft(calculateTimeLeft());
+    const timer = setInterval(() => {
+      setTimeLeft(calculateTimeLeft());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [targetDate]);
+
+  return timeLeft;
+}
+
+// Countdown Timer component for game pages
+function LocksInCountdown({ targetDate, status }: { targetDate: Date | undefined; status?: string }) {
+  const timeLeft = useCountdown(targetDate);
+  
+  // If game is live or finished, show appropriate message
+  if (status === "in_progress") {
+    return (
+      <div className="flex items-center justify-center gap-2 py-3 px-4 bg-red-500/10 border border-red-500/30 rounded-xl">
+        <div className="relative">
+          <Lock className="h-5 w-5 text-red-500" />
+          <span className="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full animate-ping" />
+        </div>
+        <span className="text-red-500 font-semibold">TRADING LOCKED - Game In Progress</span>
+      </div>
+    );
+  }
+  
+  if (status === "final" || status === "canceled" || status === "postponed") {
+    return (
+      <div className="flex items-center justify-center gap-2 py-3 px-4 bg-gray-500/10 border border-gray-500/30 rounded-xl">
+        <Lock className="h-5 w-5 text-gray-500" />
+        <span className="text-gray-500 font-semibold">
+          {status === "final" ? "TRADING CLOSED - Game Finished" : `TRADING CLOSED - Game ${status.charAt(0).toUpperCase() + status.slice(1)}`}
+        </span>
+      </div>
+    );
+  }
+  
+  // If countdown is done but game not started yet
+  if (timeLeft.total <= 0) {
+    return (
+      <div className="flex items-center justify-center gap-2 py-3 px-4 bg-orange-500/10 border border-orange-500/30 rounded-xl animate-pulse">
+        <Lock className="h-5 w-5 text-orange-500" />
+        <span className="text-orange-500 font-semibold">LOCKING SOON!</span>
+      </div>
+    );
+  }
+
+  const isUrgent = timeLeft.days === 0 && timeLeft.hours < 6;
+  
+  return (
+    <div className={`rounded-xl border ${isUrgent ? "bg-orange-500/10 border-orange-500/30" : "bg-[color:var(--surface)] border-[color:var(--border-soft)]"} p-4`}>
+      <div className="flex items-center justify-center gap-2 mb-3">
+        <Lock className={`h-4 w-4 ${isUrgent ? "text-orange-500" : "text-[color:var(--text-muted)]"}`} />
+        <span className={`text-sm font-medium ${isUrgent ? "text-orange-500" : "text-[color:var(--text-muted)]"}`}>
+          Trading Locks In
+        </span>
+        {isUrgent && <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-500 animate-pulse">HURRY!</span>}
+      </div>
+      <div className="flex items-center justify-center gap-2 md:gap-3">
+        {timeLeft.days > 0 && (
+          <>
+            <div className="flex flex-col items-center">
+              <div className={`text-2xl md:text-3xl font-bold tabular-nums ${isUrgent ? "text-orange-500" : "text-[color:var(--text-strong)]"}`}>
+                {timeLeft.days.toString().padStart(2, "0")}
+              </div>
+              <div className="text-[10px] md:text-xs text-[color:var(--text-subtle)] uppercase">Days</div>
+            </div>
+            <span className={`text-xl md:text-2xl font-light ${isUrgent ? "text-orange-500/50" : "text-[color:var(--text-subtle)]"}`}>:</span>
+          </>
+        )}
+        <div className="flex flex-col items-center">
+          <div className={`text-2xl md:text-3xl font-bold tabular-nums ${isUrgent ? "text-orange-500" : "text-[color:var(--text-strong)]"}`}>
+            {timeLeft.hours.toString().padStart(2, "0")}
+          </div>
+          <div className="text-[10px] md:text-xs text-[color:var(--text-subtle)] uppercase">Hrs</div>
+        </div>
+        <span className={`text-xl md:text-2xl font-light ${isUrgent ? "text-orange-500/50" : "text-[color:var(--text-subtle)]"}`}>:</span>
+        <div className="flex flex-col items-center">
+          <div className={`text-2xl md:text-3xl font-bold tabular-nums ${isUrgent ? "text-orange-500" : "text-[color:var(--text-strong)]"}`}>
+            {timeLeft.minutes.toString().padStart(2, "0")}
+          </div>
+          <div className="text-[10px] md:text-xs text-[color:var(--text-subtle)] uppercase">Min</div>
+        </div>
+        <span className={`text-xl md:text-2xl font-light ${isUrgent ? "text-orange-500/50 animate-pulse" : "text-[color:var(--text-subtle)]"}`}>:</span>
+        <div className="flex flex-col items-center">
+          <div className={`text-2xl md:text-3xl font-bold tabular-nums ${isUrgent ? "text-orange-500 animate-pulse" : "text-[color:var(--text-strong)]"}`}>
+            {timeLeft.seconds.toString().padStart(2, "0")}
+          </div>
+          <div className="text-[10px] md:text-xs text-[color:var(--text-subtle)] uppercase">Sec</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 import { PicksCardModal } from "@/components/picks-card/PicksCardModal";
 import { PicksCard, type PicksCardData } from "@/components/picks-card/PicksCard";
 
@@ -156,6 +284,11 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
                   <Share2 className="h-4 w-4 md:h-5 md:w-5" />
                 </Button>
               </div>
+            </div>
+
+            {/* Locks In Countdown Timer */}
+            <div className="mb-4 md:mb-6">
+              <LocksInCountdown targetDate={market.startTime} status={market.status} />
             </div>
 
             {/* Head to Head Chart */}
