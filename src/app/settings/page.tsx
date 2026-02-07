@@ -6,7 +6,7 @@ import { CategoryTabs } from "@/components/CategoryTabs";
 import { MainFooter } from "@/components/MainFooter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getDemoUser, DemoUser } from "@/lib/demoAuth";
+// Note: getDemoUser is deprecated - using /api/me for real auth
 import { validateUsername } from "@/lib/profiles";
 import { Upload, Check, AlertCircle, Loader2, Wallet, X, User } from "lucide-react";
 
@@ -466,7 +466,7 @@ function AccountSection() {
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState("profile");
-  const [user, setUser] = useState<DemoUser | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
@@ -492,38 +492,48 @@ export default function SettingsPage() {
   const [usernameError, setUsernameError] = useState("");
 
   useEffect(() => {
-    // Load demo user for fallback
-    const demoUser = getDemoUser();
-    if (demoUser) {
-      setUser(demoUser);
-      setEmail(demoUser.email);
-      setUsername(demoUser.handle.replace("@", ""));
-      setDisplayName(demoUser.name);
-    }
-    
-    // Also try to load real profile from API
-    const fetchProfile = async () => {
+    // Check real authentication via /api/me
+    const fetchUser = async () => {
       try {
-        const res = await fetch("/api/profile");
-        if (res.ok) {
-          const data = await res.json();
-          if (data.profile) {
-            setUsername(data.profile.username || "");
-            setDisplayName(data.profile.display_name || "");
-            setBio(data.profile.bio || "");
-            setWebsite(data.profile.website || "provepicks.com");
-            setAvatarUrl(data.profile.avatar_url || "");
-            setBannerUrl(data.profile.banner_url || "");
-            setAuthProvider(data.profile.auth_provider || null);
-            setEmailVisible(data.profile.email_visible !== false);
+        const meRes = await fetch("/api/me");
+        const meData = await meRes.json();
+        
+        if (meData.user) {
+          setIsAuthenticated(true);
+          // Set initial values from /api/me
+          setUsername(meData.user.username || "");
+          setDisplayName(meData.user.display_name || "");
+          setAvatarUrl(meData.user.avatar_url || "");
+          if (meData.authType === "wallet") {
+            setAuthProvider("wallet");
           }
+          
+          // Also fetch full profile for additional fields
+          const profileRes = await fetch("/api/profile");
+          if (profileRes.ok) {
+            const profileData = await profileRes.json();
+            if (profileData.profile) {
+              setUsername(profileData.profile.username || meData.user.username || "");
+              setDisplayName(profileData.profile.display_name || meData.user.display_name || "");
+              setBio(profileData.profile.bio || "");
+              setWebsite(profileData.profile.website || "provepicks.com");
+              setAvatarUrl(profileData.profile.avatar_url || meData.user.avatar_url || "");
+              setBannerUrl(profileData.profile.banner_url || "");
+              setAuthProvider(profileData.profile.auth_provider || meData.authType || null);
+              setEmailVisible(profileData.profile.email_visible !== false);
+            }
+          }
+        } else {
+          setIsAuthenticated(false);
         }
       } catch {
-        // Use demo user data as fallback
+        setIsAuthenticated(false);
+      } finally {
+        setLoading(false);
       }
     };
-    fetchProfile();
-    setLoading(false);
+    
+    fetchUser();
   }, []);
 
   // Validate username on change
@@ -652,8 +662,8 @@ export default function SettingsPage() {
     }
   };
 
-  // Show sign-in prompt if not logged in as demo user
-  if (!loading && !user) {
+  // Show sign-in prompt if not logged in
+  if (!loading && !isAuthenticated) {
     return (
       <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
         <TopNav />
@@ -667,7 +677,10 @@ export default function SettingsPage() {
             <p className="text-[color:var(--text-muted)] mb-6">
               Please sign in to access your settings.
             </p>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => window.location.href = "/"}
+            >
               Sign In
             </Button>
           </div>
