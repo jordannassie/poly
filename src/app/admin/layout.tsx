@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 
 // Logo URL from Supabase storage
-const LOGO_URL = "https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/public/SPORTS/logos/underdog_image-and-text_vertical.webp";
+const LOGO_URL = "https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/public/SPORTS/logos/ICON%20P.jpg";
 
 // Operations tabs - always visible
 const operationsNavItems = [
