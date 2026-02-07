@@ -9,53 +9,66 @@
  */
 
 import type { Config, Context } from "@netlify/functions";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 const SITE_URL = process.env.URL || process.env.DEPLOY_URL || "https://provepicks.com";
 const INTERNAL_CRON_SECRET = process.env.INTERNAL_CRON_SECRET;
 const JOB_SECRET = process.env.SPORTS_JOB_SECRET || INTERNAL_CRON_SECRET;
 const JOB_NAME = "sync-games-live";
 
-async function logToDb(event: {
-  type: string;
-  status: string;
-  duration_ms?: number;
-  payload?: Record<string, unknown>;
-}) {
+function getClient(): SupabaseClient | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, { auth: { persistSession: false } });
+}
+
+async function startJobRun(client: SupabaseClient | null): Promise<string | null> {
+  if (!client) return null;
   try {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !key) return;
-    
-    const client = createClient(url, key, { auth: { persistSession: false } });
-    await client.from("system_events").insert({
-      event_type: event.type,
-      severity: event.status === "error" ? "error" : "info",
-      payload: {
-        job_name: JOB_NAME,
-        ...event.payload,
-        duration_ms: event.duration_ms,
-        timestamp: new Date().toISOString(),
-      },
-    });
-  } catch (e) {
-    console.warn("[cron] DB log failed:", e);
-  }
+    const { data, error } = await client
+      .from("job_runs")
+      .insert({ job_name: JOB_NAME, run_type: "scheduled", status: "running" })
+      .select("id")
+      .single();
+    return error ? null : data?.id;
+  } catch { return null; }
+}
+
+async function finishJobRun(
+  client: SupabaseClient | null, 
+  runId: string | null, 
+  status: "ok" | "error", 
+  duration_ms: number, 
+  counts: Record<string, unknown> | null, 
+  error: string | null
+) {
+  if (!client || !runId) return;
+  try {
+    await client.from("job_runs").update({
+      status,
+      finished_at: new Date().toISOString(),
+      duration_ms,
+      counts,
+      error,
+    }).eq("id", runId);
+  } catch {}
 }
 
 export default async (request: Request, context: Context) => {
   const startedAt = new Date().toISOString();
   const startTime = Date.now();
+  const client = getClient();
+  const runId = await startJobRun(client);
   
   console.log("========================================");
   console.log(`[CRON:${JOB_NAME}] STARTED at ${startedAt}`);
   console.log("========================================");
-  
-  await logToDb({ type: "CRON_JOB_START", status: "info", payload: { startedAt } });
 
   if (!INTERNAL_CRON_SECRET) {
+    const duration_ms = Date.now() - startTime;
     console.error(`[CRON:${JOB_NAME}] ERROR: INTERNAL_CRON_SECRET not set`);
-    await logToDb({ type: "CRON_JOB_ERROR", status: "error", payload: { error: "INTERNAL_CRON_SECRET not set" } });
+    await finishJobRun(client, runId, "error", duration_ms, null, "INTERNAL_CRON_SECRET not set");
     return new Response(JSON.stringify({ 
       ok: false, jobName: JOB_NAME, startedAt, error: "INTERNAL_CRON_SECRET not configured" 
     }), { status: 500, headers: { "Content-Type": "application/json" } });
@@ -81,7 +94,6 @@ export default async (request: Request, context: Context) => {
     
     console.log(`[CRON:${JOB_NAME}] Sync response: ok=${response.ok} games=${totalGames} updated=${totalUpdated}`);
 
-    // Also call lifecycle sync job for status normalization
     if (JOB_SECRET) {
       try {
         console.log(`[CRON:${JOB_NAME}] Calling /api/jobs/lifecycle sync...`);
@@ -99,18 +111,14 @@ export default async (request: Request, context: Context) => {
 
     const duration_ms = Date.now() - startTime;
     const finishedAt = new Date().toISOString();
+    const counts = { games: totalGames, updated: totalUpdated, lifecycleOk };
     
     console.log("========================================");
     console.log(`[CRON:${JOB_NAME}] COMPLETED in ${duration_ms}ms`);
     console.log(`[CRON:${JOB_NAME}] games=${totalGames} updated=${totalUpdated}`);
     console.log("========================================");
 
-    await logToDb({ 
-      type: "CRON_JOB_COMPLETE", 
-      status: data.success ? "success" : "error", 
-      duration_ms,
-      payload: { games: totalGames, updated: totalUpdated, lifecycleOk }
-    });
+    await finishJobRun(client, runId, "ok", duration_ms, counts, null);
 
     return new Response(JSON.stringify({ 
       ok: data.success, 
@@ -118,8 +126,7 @@ export default async (request: Request, context: Context) => {
       startedAt, 
       finishedAt,
       duration_ms,
-      counts: { games: totalGames, updated: totalUpdated },
-      lifecycleOk,
+      counts,
     }), { 
       status: response.ok ? 200 : 500,
       headers: { "Content-Type": "application/json" }
@@ -133,12 +140,7 @@ export default async (request: Request, context: Context) => {
     console.error(`[CRON:${JOB_NAME}] FAILED after ${duration_ms}ms: ${errorMsg}`);
     console.error("========================================");
 
-    await logToDb({ 
-      type: "CRON_JOB_ERROR", 
-      status: "error", 
-      duration_ms,
-      payload: { error: errorMsg }
-    });
+    await finishJobRun(client, runId, "error", duration_ms, null, errorMsg);
 
     return new Response(JSON.stringify({ 
       ok: false, 

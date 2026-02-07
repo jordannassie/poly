@@ -5,20 +5,72 @@
  * Will skip if backfill is already complete for the season.
  * 
  * Schedule: 0 4 * * * (4 AM UTC daily)
+ * Env: INTERNAL_CRON_SECRET, NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
  */
 
 import type { Config, Context } from "@netlify/functions";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 const SITE_URL = process.env.URL || process.env.DEPLOY_URL || "https://provepicks.com";
 const INTERNAL_CRON_SECRET = process.env.INTERNAL_CRON_SECRET;
+const JOB_NAME = "sync-games-backfill";
+
+function getClient(): SupabaseClient | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, { auth: { persistSession: false } });
+}
+
+async function startJobRun(client: SupabaseClient | null): Promise<string | null> {
+  if (!client) return null;
+  try {
+    const { data, error } = await client
+      .from("job_runs")
+      .insert({ job_name: JOB_NAME, run_type: "scheduled", status: "running" })
+      .select("id")
+      .single();
+    return error ? null : data?.id;
+  } catch { return null; }
+}
+
+async function finishJobRun(
+  client: SupabaseClient | null, 
+  runId: string | null, 
+  status: "ok" | "error", 
+  duration_ms: number, 
+  counts: Record<string, unknown> | null, 
+  error: string | null
+) {
+  if (!client || !runId) return;
+  try {
+    await client.from("job_runs").update({
+      status,
+      finished_at: new Date().toISOString(),
+      duration_ms,
+      counts,
+      error,
+    }).eq("id", runId);
+  } catch {}
+}
 
 export default async (request: Request, context: Context) => {
+  const startedAt = new Date().toISOString();
   const startTime = Date.now();
-  console.log("[cron] mode=backfill status=started");
+  const client = getClient();
+  const runId = await startJobRun(client);
+  
+  console.log("========================================");
+  console.log(`[CRON:${JOB_NAME}] STARTED at ${startedAt}`);
+  console.log("========================================");
   
   if (!INTERNAL_CRON_SECRET) {
-    console.error("[cron] mode=backfill status=error reason=INTERNAL_CRON_SECRET_NOT_SET");
-    return new Response("INTERNAL_CRON_SECRET not configured", { status: 500 });
+    const duration_ms = Date.now() - startTime;
+    console.error(`[CRON:${JOB_NAME}] ERROR: INTERNAL_CRON_SECRET not set`);
+    await finishJobRun(client, runId, "error", duration_ms, null, "INTERNAL_CRON_SECRET not set");
+    return new Response(JSON.stringify({ 
+      ok: false, jobName: JOB_NAME, startedAt, error: "INTERNAL_CRON_SECRET not configured" 
+    }), { status: 500, headers: { "Content-Type": "application/json" } });
   }
 
   try {
@@ -36,17 +88,45 @@ export default async (request: Request, context: Context) => {
 
     const data = await response.json();
     const duration_ms = Date.now() - startTime;
+    const finishedAt = new Date().toISOString();
+    const counts = { games: data.totalGames || 0, inserted: data.totalInserted || 0, updated: data.totalUpdated || 0 };
     
-    console.log(`[cron] mode=backfill status=${data.success ? 'ok' : 'error'} duration_ms=${duration_ms} games=${data.totalGames || 0} inserted=${data.totalInserted || 0} updated=${data.totalUpdated || 0}`);
+    console.log("========================================");
+    console.log(`[CRON:${JOB_NAME}] COMPLETED in ${duration_ms}ms`);
+    console.log(`[CRON:${JOB_NAME}] games=${counts.games} inserted=${counts.inserted} updated=${counts.updated}`);
+    console.log("========================================");
 
-    return new Response(JSON.stringify(data), { 
+    await finishJobRun(client, runId, "ok", duration_ms, counts, null);
+
+    return new Response(JSON.stringify({ 
+      ok: data.success, 
+      jobName: JOB_NAME, 
+      startedAt, 
+      finishedAt,
+      duration_ms,
+      counts,
+    }), { 
       status: response.ok ? 200 : 500,
       headers: { "Content-Type": "application/json" }
     });
   } catch (error) {
     const duration_ms = Date.now() - startTime;
-    console.error(`[cron] mode=backfill status=error duration_ms=${duration_ms} error=${error instanceof Error ? error.message : 'Unknown'}`);
-    return new Response("Error", { status: 500 });
+    const errorMsg = error instanceof Error ? error.message : "Unknown error";
+    
+    console.error("========================================");
+    console.error(`[CRON:${JOB_NAME}] FAILED after ${duration_ms}ms: ${errorMsg}`);
+    console.error("========================================");
+
+    await finishJobRun(client, runId, "error", duration_ms, null, errorMsg);
+
+    return new Response(JSON.stringify({ 
+      ok: false, 
+      jobName: JOB_NAME, 
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      duration_ms,
+      error: errorMsg,
+    }), { status: 500, headers: { "Content-Type": "application/json" } });
   }
 };
 

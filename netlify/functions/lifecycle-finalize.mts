@@ -10,52 +10,65 @@
  */
 
 import type { Config, Context } from "@netlify/functions";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 const SITE_URL = process.env.URL || process.env.DEPLOY_URL || "https://provepicks.com";
 const JOB_SECRET = process.env.SPORTS_JOB_SECRET || process.env.INTERNAL_CRON_SECRET;
 const JOB_NAME = "lifecycle-finalize";
 
-async function logToDb(event: {
-  type: string;
-  status: string;
-  duration_ms?: number;
-  payload?: Record<string, unknown>;
-}) {
+function getClient(): SupabaseClient | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, { auth: { persistSession: false } });
+}
+
+async function startJobRun(client: SupabaseClient | null): Promise<string | null> {
+  if (!client) return null;
   try {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !key) return;
-    
-    const client = createClient(url, key, { auth: { persistSession: false } });
-    await client.from("system_events").insert({
-      event_type: event.type,
-      severity: event.status === "error" ? "error" : "info",
-      payload: {
-        job_name: JOB_NAME,
-        ...event.payload,
-        duration_ms: event.duration_ms,
-        timestamp: new Date().toISOString(),
-      },
-    });
-  } catch (e) {
-    console.warn("[cron] DB log failed:", e);
-  }
+    const { data, error } = await client
+      .from("job_runs")
+      .insert({ job_name: JOB_NAME, run_type: "scheduled", status: "running" })
+      .select("id")
+      .single();
+    return error ? null : data?.id;
+  } catch { return null; }
+}
+
+async function finishJobRun(
+  client: SupabaseClient | null, 
+  runId: string | null, 
+  status: "ok" | "error", 
+  duration_ms: number, 
+  counts: Record<string, unknown> | null, 
+  error: string | null
+) {
+  if (!client || !runId) return;
+  try {
+    await client.from("job_runs").update({
+      status,
+      finished_at: new Date().toISOString(),
+      duration_ms,
+      counts,
+      error,
+    }).eq("id", runId);
+  } catch {}
 }
 
 export default async (request: Request, context: Context) => {
   const startedAt = new Date().toISOString();
   const startTime = Date.now();
+  const client = getClient();
+  const runId = await startJobRun(client);
   
   console.log("========================================");
   console.log(`[CRON:${JOB_NAME}] STARTED at ${startedAt}`);
   console.log("========================================");
-  
-  await logToDb({ type: "CRON_JOB_START", status: "info", payload: { startedAt } });
 
   if (!JOB_SECRET) {
+    const duration_ms = Date.now() - startTime;
     console.error(`[CRON:${JOB_NAME}] ERROR: JOB_SECRET not set`);
-    await logToDb({ type: "CRON_JOB_ERROR", status: "error", payload: { error: "JOB_SECRET not set" } });
+    await finishJobRun(client, runId, "error", duration_ms, null, "JOB_SECRET not set");
     return new Response(JSON.stringify({ 
       ok: false, jobName: JOB_NAME, startedAt, error: "JOB_SECRET not configured" 
     }), { status: 500, headers: { "Content-Type": "application/json" } });
@@ -64,7 +77,6 @@ export default async (request: Request, context: Context) => {
   let finalized = 0, enqueued = 0, settled = 0, settleFailed = 0;
 
   try {
-    // Call the finalize job
     console.log(`[CRON:${JOB_NAME}] Calling /api/jobs/lifecycle finalize...`);
     const finalizeResponse = await fetch(`${SITE_URL}/api/jobs/lifecycle`, {
       method: "POST",
@@ -79,7 +91,6 @@ export default async (request: Request, context: Context) => {
     
     console.log(`[CRON:${JOB_NAME}] Finalize: ok=${finalizeResponse.ok} finalized=${finalized} enqueued=${enqueued}`);
     
-    // Call the settle job
     console.log(`[CRON:${JOB_NAME}] Calling /api/jobs/lifecycle settle...`);
     const settleResponse = await fetch(`${SITE_URL}/api/jobs/lifecycle`, {
       method: "POST",
@@ -96,18 +107,14 @@ export default async (request: Request, context: Context) => {
 
     const duration_ms = Date.now() - startTime;
     const finishedAt = new Date().toISOString();
+    const counts = { finalized, enqueued, settled, settleFailed };
     
     console.log("========================================");
     console.log(`[CRON:${JOB_NAME}] COMPLETED in ${duration_ms}ms`);
     console.log(`[CRON:${JOB_NAME}] finalized=${finalized} enqueued=${enqueued} settled=${settled}`);
     console.log("========================================");
 
-    await logToDb({ 
-      type: "CRON_JOB_COMPLETE", 
-      status: "success", 
-      duration_ms,
-      payload: { finalized, enqueued, settled, settleFailed }
-    });
+    await finishJobRun(client, runId, "ok", duration_ms, counts, null);
 
     return new Response(JSON.stringify({ 
       ok: true, 
@@ -115,7 +122,7 @@ export default async (request: Request, context: Context) => {
       startedAt, 
       finishedAt,
       duration_ms,
-      counts: { finalized, enqueued, settled, settleFailed },
+      counts,
     }), { 
       status: 200,
       headers: { "Content-Type": "application/json" }
@@ -129,12 +136,7 @@ export default async (request: Request, context: Context) => {
     console.error(`[CRON:${JOB_NAME}] FAILED after ${duration_ms}ms: ${errorMsg}`);
     console.error("========================================");
 
-    await logToDb({ 
-      type: "CRON_JOB_ERROR", 
-      status: "error", 
-      duration_ms,
-      payload: { error: errorMsg, finalized, enqueued, settled }
-    });
+    await finishJobRun(client, runId, "error", duration_ms, { finalized, enqueued, settled }, errorMsg);
 
     return new Response(JSON.stringify({ 
       ok: false, 
