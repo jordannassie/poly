@@ -28,6 +28,23 @@ const formatCurrency = (value: number): string => {
   });
 };
 
+// Darken a hex color by a percentage (0-100)
+function darkenColor(hex: string, percent: number): string {
+  const num = parseInt(hex.replace("#", ""), 16);
+  const amt = Math.round(2.55 * percent);
+  const R = Math.max(0, (num >> 16) - amt);
+  const G = Math.max(0, ((num >> 8) & 0x00ff) - amt);
+  const B = Math.max(0, (num & 0x0000ff) - amt);
+  return `#${(0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1)}`;
+}
+
+// Create gradient style for team color
+function getTeamGradient(color: string): string {
+  const baseColor = color.startsWith("#") ? color : `#${color}`;
+  const darkColor = darkenColor(baseColor, 40);
+  return `linear-gradient(135deg, ${darkColor} 0%, ${baseColor} 100%)`;
+}
+
 export function MobileBetBar({ team1, team2, onBet }: MobileBetBarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<"team1" | "team2" | null>(null);
@@ -171,7 +188,7 @@ export function MobileBetBar({ team1, team2, onBet }: MobileBetBarProps) {
                 }}
                 disabled={amount === 0}
                 style={{
-                  backgroundColor: selectedTeamData.color || (selectedTeam === "team1" ? "#16a34a" : "#dc2626"),
+                  backgroundImage: getTeamGradient(selectedTeamData.color || (selectedTeam === "team1" ? "#16a34a" : "#dc2626")),
                 }}
                 className="w-full h-14 text-lg font-bold text-white disabled:opacity-50 hover:brightness-110"
               >

@@ -21,6 +21,18 @@ export interface TeamOutcomeProps {
  * TeamOutcomeButton - A team-based outcome button with logo, name, and price
  * Replaces Yes/No buttons with team-specific styling
  */
+/**
+ * Darken a hex color by a percentage (0-100)
+ */
+function darkenColor(hex: string, percent: number): string {
+  const num = parseInt(hex.replace("#", ""), 16);
+  const amt = Math.round(2.55 * percent);
+  const R = Math.max(0, (num >> 16) - amt);
+  const G = Math.max(0, ((num >> 8) & 0x00ff) - amt);
+  const B = Math.max(0, (num & 0x0000ff) - amt);
+  return `#${(0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1)}`;
+}
+
 export function TeamOutcomeButton({
   team,
   priceCents,
@@ -35,6 +47,12 @@ export function TeamOutcomeButton({
   // Parse the color - ensure it starts with #
   const baseColor = teamColor.startsWith("#") ? teamColor : `#${teamColor}`;
   
+  // Create dark-to-bright gradient for better logo visibility
+  const darkColor = darkenColor(baseColor, 40); // 40% darker
+  const gradientStyle = selected
+    ? `linear-gradient(135deg, ${darkColor} 0%, ${baseColor} 100%)`
+    : `linear-gradient(135deg, ${darkColor}cc 0%, ${baseColor}cc 100%)`; // cc = 80% opacity
+  
   return (
     <Button
       onClick={onClick}
@@ -48,7 +66,7 @@ export function TeamOutcomeButton({
         ${className}
       `}
       style={{
-        backgroundColor: selected ? baseColor : `${baseColor}cc`, // cc = 80% opacity
+        backgroundImage: gradientStyle,
         borderColor: baseColor,
         '--tw-ring-color': baseColor,
       } as React.CSSProperties}
