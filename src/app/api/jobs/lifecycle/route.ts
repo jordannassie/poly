@@ -1,5 +1,5 @@
 /**
- * Internal Lifecycle Jobs Endpoint
+ * Internal Lifecycle Jobs Endpoint (BATCHED)
  * 
  * Protected by SPORTS_JOB_SECRET
  * Called by Netlify scheduled functions
@@ -7,6 +7,7 @@
  * Features:
  * - Job locking to prevent concurrent execution
  * - Automatic lock cleanup
+ * - Batch limits to prevent timeouts (each job limited to ~25-50 items)
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -25,6 +26,14 @@ import type { JobName } from "@/lib/lifecycle";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const JOB_SECRET = process.env.SPORTS_JOB_SECRET || process.env.INTERNAL_CRON_SECRET;
+
+// Batch limits for scheduled functions (must complete in ~10s)
+const SCHEDULED_BATCH_LIMITS = {
+  maxGamesPerLeague: 50,
+  maxSyncGames: 25,
+  maxFinalizeGames: 25,
+  maxSettleItems: 25,
+};
 
 export async function POST(request: NextRequest) {
   // Verify secret
@@ -80,23 +89,34 @@ export async function POST(request: NextRequest) {
     try {
       switch (job) {
         case "discover":
-          result = await discoverGamesRollingWindow(adminClient);
+          // Limited to prevent timeout
+          result = await discoverGamesRollingWindow(adminClient, {
+            maxGamesPerLeague: SCHEDULED_BATCH_LIMITS.maxGamesPerLeague,
+          });
           break;
 
         case "sync":
-          result = await syncLiveAndWindowGames(adminClient);
+          // Limited to prevent timeout
+          result = await syncLiveAndWindowGames(adminClient, {
+            maxGames: SCHEDULED_BATCH_LIMITS.maxSyncGames,
+          });
           break;
 
         case "finalize":
-          result = await finalizeAndEnqueueSettlements(adminClient);
+          // Limited to prevent timeout
+          result = await finalizeAndEnqueueSettlements(adminClient, {
+            maxGames: SCHEDULED_BATCH_LIMITS.maxFinalizeGames,
+          });
           break;
 
         case "settle":
-          result = await processAllSettlements(adminClient, { maxItems: 25 });
+          result = await processAllSettlements(adminClient, { 
+            maxItems: SCHEDULED_BATCH_LIMITS.maxSettleItems 
+          });
           break;
 
         case "full":
-          // Run full lifecycle with individual locks
+          // Run full lifecycle with individual locks (batched)
           result = await runFullLifecycle(adminClient, skipLock);
           break;
 
@@ -164,12 +184,20 @@ async function runFullLifecycle(adminClient: any, skipLock: boolean) {
     },
   };
 
-  // Run each job with its own lock
+  // Run each job with its own lock (using batch limits)
   const jobs: { name: JobName; fn: () => Promise<any> }[] = [
-    { name: 'discover', fn: () => discoverGamesRollingWindow(adminClient) },
-    { name: 'sync', fn: () => syncLiveAndWindowGames(adminClient) },
-    { name: 'finalize', fn: () => finalizeAndEnqueueSettlements(adminClient) },
-    { name: 'settle', fn: () => processAllSettlements(adminClient, { maxItems: 25 }) },
+    { name: 'discover', fn: () => discoverGamesRollingWindow(adminClient, { 
+      maxGamesPerLeague: SCHEDULED_BATCH_LIMITS.maxGamesPerLeague 
+    }) },
+    { name: 'sync', fn: () => syncLiveAndWindowGames(adminClient, { 
+      maxGames: SCHEDULED_BATCH_LIMITS.maxSyncGames 
+    }) },
+    { name: 'finalize', fn: () => finalizeAndEnqueueSettlements(adminClient, { 
+      maxGames: SCHEDULED_BATCH_LIMITS.maxFinalizeGames 
+    }) },
+    { name: 'settle', fn: () => processAllSettlements(adminClient, { 
+      maxItems: SCHEDULED_BATCH_LIMITS.maxSettleItems 
+    }) },
   ];
 
   for (const job of jobs) {

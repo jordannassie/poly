@@ -55,6 +55,15 @@ interface JobResult {
   error?: string;
   firstError?: FirstError;
   errors?: string[];
+  // Batch info
+  hasMore?: boolean;
+  nextCursor?: { step?: string; leagueIndex?: number };
+  batchInfo?: {
+    currentStep: string;
+    leagueIndex: number;
+    totalLeagues: number;
+    currentLeague: string;
+  };
 }
 
 interface SettlementStats {
@@ -169,6 +178,7 @@ export default function AdminLifecyclePage() {
   const [finalizeDebug, setFinalizeDebug] = useState<FinalizeDebugResult | null>(null);
   const [scheduledJobs, setScheduledJobs] = useState<ScheduledJobsStatus | null>(null);
   const [copiedError, setCopiedError] = useState<string | null>(null);
+  const [batchProgress, setBatchProgress] = useState<string | null>(null);
 
   // Fetch scheduled jobs status
   const fetchScheduledJobsStatus = useCallback(async () => {
@@ -198,21 +208,66 @@ export default function AdminLifecyclePage() {
     return () => clearInterval(interval);
   }, [backfill?.status]);
 
-  const runJob = async (job: string) => {
+  // Run job with auto-batching (up to 3 batches per click)
+  const runJob = async (job: string, cursor?: any, batchCount = 0) => {
+    const MAX_BATCHES_PER_CLICK = 3;
+    
     setLoading(job);
-    setResult(null);
+    if (batchCount === 0) {
+      setResult(null);
+      setBatchProgress(null);
+    }
 
     const { data, error } = await safeFetchJson<JobResult>("/api/admin/lifecycle/jobs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ job }),
+      body: JSON.stringify({ job, cursor }),
     });
 
     if (error) {
       setResult({ success: false, error });
-    } else if (data) {
-      setResult(data);
+      setBatchProgress(null);
+      setLoading(null);
+      return;
     }
+    
+    if (data) {
+      // Update result with cumulative counts
+      setResult(prev => {
+        if (!prev) return data;
+        return {
+          ...data,
+          summary: {
+            ...data.summary,
+            fetched: (prev.summary?.fetched || 0) + (data.summary?.fetched || 0),
+            upserted: (prev.summary?.upserted || 0) + (data.summary?.upserted || 0),
+            finalized: (prev.summary?.finalized || 0) + (data.summary?.finalized || 0),
+            enqueued: (prev.summary?.enqueued || 0) + (data.summary?.enqueued || 0),
+            duration: (prev.summary?.duration || 0) + (data.summary?.duration || 0),
+          },
+        };
+      });
+      
+      // Show batch progress
+      if (data.batchInfo) {
+        const { currentStep, leagueIndex, totalLeagues, currentLeague } = data.batchInfo;
+        setBatchProgress(`${currentStep}: ${currentLeague} (${leagueIndex + 1}/${totalLeagues})`);
+      }
+      
+      // Auto-continue if there's more and we haven't hit the limit
+      if (data.hasMore && data.nextCursor && batchCount + 1 < MAX_BATCHES_PER_CLICK) {
+        await runJob(job, data.nextCursor, batchCount + 1);
+        return;
+      }
+      
+      // Show "click again to continue" message if more batches needed
+      if (data.hasMore) {
+        setBatchProgress(`Processed ${batchCount + 1} batches. Click again to continue.`);
+      } else {
+        setBatchProgress("Complete!");
+      }
+    }
+    
     setLoading(null);
   };
 
@@ -649,10 +704,18 @@ export default function AdminLifecyclePage() {
           </Button>
         </div>
 
+        {/* Batch progress indicator */}
+        {batchProgress && (
+          <div className="text-sm text-blue-400 bg-blue-900/20 rounded p-2">
+            {loading ? "Processing: " : ""}{batchProgress}
+          </div>
+        )}
+
         <div className="text-xs text-gray-500 space-y-1">
           <p><strong>Discover:</strong> Ingest games for rolling 72h window (36h back, 36h forward)</p>
           <p><strong>Sync:</strong> Update scores/status for live games, detect finalized games</p>
           <p><strong>Finalize:</strong> Mark stuck/completed games as FINAL, enqueue for settlement</p>
+          <p className="text-gray-600 italic">Jobs run in small batches to prevent timeouts. Click multiple times for large datasets.</p>
         </div>
       </div>
 

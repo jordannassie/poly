@@ -1,13 +1,15 @@
 /**
- * Admin Lifecycle Jobs API
+ * Admin Lifecycle Jobs API (BATCHED)
  * 
  * POST /api/admin/lifecycle/jobs
  * 
- * Trigger lifecycle jobs manually:
- * - discover: Ingest games for rolling window
- * - sync: Update live games
- * - finalize: Mark games FINAL and enqueue settlements
- * - all: Run all three in sequence
+ * Trigger lifecycle jobs manually with batch limits to prevent 504 timeouts.
+ * - discover: Ingest games for rolling window (1 league per call)
+ * - sync: Update live games (max 25 games per call)
+ * - finalize: Mark games FINAL (max 25 games per call)
+ * - all: Run one batch of each step
+ * 
+ * Returns immediately with progress info. Call again to continue processing.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -22,6 +24,16 @@ import {
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
+// Batch limits to prevent timeouts (each request should complete in ~2-5s)
+const BATCH_LIMITS = {
+  discoverLeaguesPerBatch: 1,   // Process 1 league at a time
+  syncGamesPerBatch: 25,        // Max games per sync batch
+  finalizeGamesPerBatch: 25,    // Max games per finalize batch
+};
+
+// League order for cursor-based processing
+const ENABLED_LEAGUES = ['NFL', 'NBA', 'NHL', 'MLB', 'SOCCER'] as const;
+
 export async function POST(request: NextRequest) {
   // Require admin auth
   const authResult = requireAdmin(request);
@@ -32,7 +44,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const job = body.job as string;
-    const leagues = body.leagues as string[] | undefined;
+    const cursor = body.cursor as { leagueIndex?: number; step?: string } | undefined;
 
     if (!job) {
       return NextResponse.json(
@@ -44,34 +56,127 @@ export async function POST(request: NextRequest) {
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
     const results: any = {};
     const startTime = Date.now();
+    let nextCursor: any = null;
+    let hasMore = false;
 
-    // Run requested job(s)
-    if (job === "discover" || job === "all") {
-      console.log("[admin:lifecycle] Running discover job...");
-      results.discover = await discoverGamesRollingWindow(adminClient, { 
-        leagues: leagues as any 
-      });
-    }
-
-    if (job === "sync" || job === "all") {
-      console.log("[admin:lifecycle] Running sync job...");
-      results.sync = await syncLiveAndWindowGames(adminClient, { 
-        leagues: leagues as any 
-      });
-    }
-
-    if (job === "finalize" || job === "all") {
-      console.log("[admin:lifecycle] Running finalize job...");
-      results.finalize = await finalizeAndEnqueueSettlements(adminClient, { 
-        leagues: leagues as any 
-      });
-    }
-
-    if (!results.discover && !results.sync && !results.finalize) {
-      return NextResponse.json(
-        { error: `Unknown job: ${job}. Options: discover, sync, finalize, all` },
-        { status: 400 }
-      );
+    if (job === "all") {
+      // Run one batch of each step in sequence
+      // Step 1: Discover (one league at a time)
+      const currentStep = cursor?.step || 'discover';
+      const leagueIndex = cursor?.leagueIndex || 0;
+      
+      if (currentStep === 'discover') {
+        if (leagueIndex < ENABLED_LEAGUES.length) {
+          const league = ENABLED_LEAGUES[leagueIndex];
+          console.log(`[admin:lifecycle] BATCH discover league=${league} index=${leagueIndex}/${ENABLED_LEAGUES.length}`);
+          
+          results.discover = await discoverGamesRollingWindow(adminClient, { 
+            leagues: [league] as any,
+            maxGamesPerLeague: 100, // Limit games per league
+          });
+          
+          if (leagueIndex + 1 < ENABLED_LEAGUES.length) {
+            nextCursor = { step: 'discover', leagueIndex: leagueIndex + 1 };
+            hasMore = true;
+          } else {
+            nextCursor = { step: 'sync', leagueIndex: 0 };
+            hasMore = true;
+          }
+        } else {
+          nextCursor = { step: 'sync', leagueIndex: 0 };
+          hasMore = true;
+        }
+      }
+      
+      if (currentStep === 'sync') {
+        if (leagueIndex < ENABLED_LEAGUES.length) {
+          const league = ENABLED_LEAGUES[leagueIndex];
+          console.log(`[admin:lifecycle] BATCH sync league=${league} index=${leagueIndex}/${ENABLED_LEAGUES.length}`);
+          
+          results.sync = await syncLiveAndWindowGames(adminClient, { 
+            leagues: [league] as any,
+            maxGames: BATCH_LIMITS.syncGamesPerBatch,
+          });
+          
+          if (leagueIndex + 1 < ENABLED_LEAGUES.length) {
+            nextCursor = { step: 'sync', leagueIndex: leagueIndex + 1 };
+            hasMore = true;
+          } else {
+            nextCursor = { step: 'finalize', leagueIndex: 0 };
+            hasMore = true;
+          }
+        } else {
+          nextCursor = { step: 'finalize', leagueIndex: 0 };
+          hasMore = true;
+        }
+      }
+      
+      if (currentStep === 'finalize') {
+        if (leagueIndex < ENABLED_LEAGUES.length) {
+          const league = ENABLED_LEAGUES[leagueIndex];
+          console.log(`[admin:lifecycle] BATCH finalize league=${league} index=${leagueIndex}/${ENABLED_LEAGUES.length}`);
+          
+          results.finalize = await finalizeAndEnqueueSettlements(adminClient, { 
+            leagues: [league] as any,
+            maxGames: BATCH_LIMITS.finalizeGamesPerBatch,
+          });
+          
+          if (leagueIndex + 1 < ENABLED_LEAGUES.length) {
+            nextCursor = { step: 'finalize', leagueIndex: leagueIndex + 1 };
+            hasMore = true;
+          } else {
+            // All done
+            nextCursor = null;
+            hasMore = false;
+          }
+        } else {
+          nextCursor = null;
+          hasMore = false;
+        }
+      }
+    } else {
+      // Single job - process one league at a time
+      const leagueIndex = cursor?.leagueIndex || 0;
+      
+      if (leagueIndex >= ENABLED_LEAGUES.length) {
+        return NextResponse.json({
+          success: true,
+          complete: true,
+          message: "All leagues processed",
+        });
+      }
+      
+      const league = ENABLED_LEAGUES[leagueIndex];
+      
+      if (job === "discover") {
+        console.log(`[admin:lifecycle] BATCH discover league=${league}`);
+        results.discover = await discoverGamesRollingWindow(adminClient, { 
+          leagues: [league] as any,
+          maxGamesPerLeague: 100,
+        });
+      } else if (job === "sync") {
+        console.log(`[admin:lifecycle] BATCH sync league=${league}`);
+        results.sync = await syncLiveAndWindowGames(adminClient, { 
+          leagues: [league] as any,
+          maxGames: BATCH_LIMITS.syncGamesPerBatch,
+        });
+      } else if (job === "finalize") {
+        console.log(`[admin:lifecycle] BATCH finalize league=${league}`);
+        results.finalize = await finalizeAndEnqueueSettlements(adminClient, { 
+          leagues: [league] as any,
+          maxGames: BATCH_LIMITS.finalizeGamesPerBatch,
+        });
+      } else {
+        return NextResponse.json(
+          { error: `Unknown job: ${job}. Options: discover, sync, finalize, all` },
+          { status: 400 }
+        );
+      }
+      
+      if (leagueIndex + 1 < ENABLED_LEAGUES.length) {
+        nextCursor = { leagueIndex: leagueIndex + 1 };
+        hasMore = true;
+      }
     }
 
     const duration = Date.now() - startTime;
@@ -88,7 +193,7 @@ export async function POST(request: NextRequest) {
       if (jobResult?.results) {
         for (const leagueResult of jobResult.results) {
           if (leagueResult.errors?.length > 0) {
-            allErrors.push(...leagueResult.errors.slice(0, 3)); // Cap at 3 per league
+            allErrors.push(...leagueResult.errors.slice(0, 3));
           }
         }
       }
@@ -97,7 +202,6 @@ export async function POST(request: NextRequest) {
     // Summary
     const summary = {
       job,
-      leagues: leagues || "all",
       duration,
       fetched: (results.discover?.totalFetched || 0) + (results.sync?.totalFetched || 0),
       upserted: (results.discover?.totalUpserted || 0) + (results.sync?.totalUpserted || 0),
@@ -105,7 +209,7 @@ export async function POST(request: NextRequest) {
       enqueued: (results.sync?.totalEnqueued || 0) + (results.finalize?.totalEnqueued || 0),
     };
 
-    console.log(`[admin:lifecycle] Job complete:`, summary);
+    console.log(`[admin:lifecycle] BATCH complete:`, { ...summary, hasMore, nextCursor });
 
     // Determine overall success
     const overallSuccess = 
@@ -118,7 +222,16 @@ export async function POST(request: NextRequest) {
       summary,
       results,
       firstError,
-      errors: allErrors.slice(0, 10), // Return up to 10 errors
+      errors: allErrors.slice(0, 10),
+      // Batch info for UI
+      hasMore,
+      nextCursor,
+      batchInfo: {
+        currentStep: cursor?.step || job,
+        leagueIndex: cursor?.leagueIndex || 0,
+        totalLeagues: ENABLED_LEAGUES.length,
+        currentLeague: ENABLED_LEAGUES[cursor?.leagueIndex || 0],
+      },
     });
 
   } catch (err) {

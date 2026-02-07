@@ -220,12 +220,14 @@ export async function discoverGamesRollingWindow(
     leagues?: SupportedLeague[];
     hoursBack?: number;
     hoursForward?: number;
+    maxGamesPerLeague?: number; // Batch limit
   }
 ): Promise<MultiLeagueJobResult> {
   const startTime = Date.now();
   const leagues = options?.leagues || ENABLED_LEAGUES;
   const hoursBack = options?.hoursBack ?? 36;
   const hoursForward = options?.hoursForward ?? 36;
+  const maxGamesPerLeague = options?.maxGamesPerLeague ?? 500; // Default high limit
   
   const now = new Date();
   const fromDate = new Date(now.getTime() - hoursBack * 60 * 60 * 1000);
@@ -621,10 +623,12 @@ export async function syncLiveAndWindowGames(
   adminClient: SupabaseClient,
   options?: {
     leagues?: SupportedLeague[];
+    maxGames?: number; // Batch limit
   }
 ): Promise<MultiLeagueJobResult> {
   const startTime = Date.now();
   const leagues = options?.leagues || ENABLED_LEAGUES;
+  const maxGames = options?.maxGames ?? 200; // Default limit
   
   console.log(`[lifecycle:sync] START leagues=${leagues.join(',')}`);
   
@@ -1001,11 +1005,13 @@ export async function finalizeAndEnqueueSettlements(
   options?: {
     leagues?: SupportedLeague[];
     stuckThresholdHours?: number;
+    maxGames?: number; // Batch limit
   }
 ): Promise<MultiLeagueJobResult> {
   const startTime = Date.now();
   const leagues = options?.leagues || ENABLED_LEAGUES;
-  const stuckThreshold = options?.stuckThresholdHours ?? 4; // Changed to 4 hours
+  const stuckThreshold = options?.stuckThresholdHours ?? 4;
+  const maxGames = options?.maxGames ?? 100; // Default limit
   
   console.log(`[lifecycle:finalize] START leagues=${leagues.join(',')}`);
   
@@ -1042,7 +1048,7 @@ export async function finalizeAndEnqueueSettlements(
         .eq('league', league.toLowerCase())
         .lt('starts_at', cutoffTime)
         .is('finalized_at', null)
-        .limit(100);
+        .limit(maxGames);
       
       if (queryError) {
         const errMsg = `Query error: ${queryError.message}`;
