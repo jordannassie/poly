@@ -80,6 +80,10 @@ export async function fetchNFLTeams(apiKey: string): Promise<ApiSportsTeam[]> {
 
 /**
  * Sync a single team to the database and storage
+ * 
+ * Schema (v3): sports_teams has columns: id, league, name, slug, country, logo
+ * - id: API-Sports team ID (PRIMARY KEY with league)
+ * - logo: stores either storage path OR original URL
  */
 async function syncTeam(
   adminClient: SupabaseClient,
@@ -93,81 +97,74 @@ async function syncTeam(
   };
 
   try {
-    // Check if team already exists
+    // Check if team already exists (by league + id which is the primary key)
     const { data: existingTeam } = await adminClient
       .from("sports_teams")
-      .select("id, logo_path")
-      .eq("league", league)
-      .eq("api_team_id", team.id)
+      .select("id, logo")
+      .eq("league", league.toLowerCase())
+      .eq("id", team.id)
       .single();
 
-    let logoPath = existingTeam?.logo_path || null;
+    // Determine logo value: prefer storage path, fallback to original URL
+    let logoValue = existingTeam?.logo || team.logo || null;
     let logoUploaded = false;
 
-    // Download and upload logo if available
-    if (team.logo) {
+    // Download and upload logo if available and not already cached as storage path
+    const isStoragePath = logoValue && !logoValue.startsWith("http");
+    if (team.logo && !isStoragePath) {
       const imageData = await downloadImage(team.logo);
       
       if (imageData) {
         const uploadResult = await uploadTeamLogo(
           adminClient,
-          league,
+          league.toLowerCase(),
           team.id,
           imageData.buffer,
           imageData.contentType
         );
 
         if (uploadResult.success && uploadResult.path) {
-          logoPath = uploadResult.path;
+          logoValue = uploadResult.path; // Store the storage path
           logoUploaded = true;
           result.logoSynced = true;
           result.logoPath = uploadResult.path;
         } else {
-          // Upload failed - don't delete existing logo_path
+          // Upload failed - use original URL as fallback
+          logoValue = team.logo;
           result.error = uploadResult.error;
         }
       } else {
+        // Download failed - use original URL as fallback
+        logoValue = team.logo;
         result.error = "Failed to download logo image";
       }
+    } else if (isStoragePath) {
+      // Already have storage path cached
+      result.logoSynced = true;
+      result.logoPath = logoValue;
     }
 
-    // Upsert team record
+    // Generate slug from team name
+    const slug = `${league.toLowerCase()}-${team.id}-${team.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+
+    // Upsert team record (v3 schema)
     const teamRecord = {
-      league,
-      api_team_id: team.id,
+      id: team.id,
+      league: league.toLowerCase(),
       name: team.name,
-      logo_url_original: team.logo || null,
-      // Only update logo_path if we successfully uploaded a new one
-      // This preserves existing logo_path if upload fails
-      ...(logoUploaded ? { logo_path: logoPath } : {}),
+      slug,
+      logo: logoValue,
+      updated_at: new Date().toISOString(),
     };
 
-    if (existingTeam?.id) {
-      // Update existing team
-      const { error: updateError } = await adminClient
-        .from("sports_teams")
-        .update({
-          name: team.name,
-          logo_url_original: team.logo || null,
-          ...(logoUploaded ? { logo_path: logoPath } : {}),
-        })
-        .eq("id", existingTeam.id);
+    const { error: upsertError } = await adminClient
+      .from("sports_teams")
+      .upsert(teamRecord, {
+        onConflict: "league,id",
+      });
 
-      if (updateError) {
-        result.error = `DB update error: ${updateError.message}`;
-      }
-    } else {
-      // Insert new team
-      const { error: insertError } = await adminClient
-        .from("sports_teams")
-        .insert({
-          ...teamRecord,
-          logo_path: logoPath, // Include logo_path for new records
-        });
-
-      if (insertError) {
-        result.error = `DB insert error: ${insertError.message}`;
-      }
+    if (upsertError) {
+      result.error = `DB upsert error: ${upsertError.message}`;
     }
 
     return result;

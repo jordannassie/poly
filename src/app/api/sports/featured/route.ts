@@ -26,6 +26,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getFromCache, setInCache, getCacheKey } from "@/lib/sportsdataio/cache";
 import { isValidFrontendLeague, ALL_FRONTEND_LEAGUES } from "@/lib/sports/providers";
 import { getUpcomingGamesWithTeamsFromCache } from "@/lib/sports/games-cache";
+import { getLogoUrl } from "@/lib/images/getLogoUrl";
 
 // Cache TTL
 const CACHE_TTL_LIVE = 5 * 60 * 1000;       // 5 minutes for live/upcoming
@@ -105,7 +106,7 @@ export async function GET(request: NextRequest) {
             city: "",
             abbreviation: firstGame.HomeTeam,
             fullName: firstGame.HomeTeamData?.FullName || firstGame.HomeTeam,
-            logoUrl: firstGame.HomeTeamData?.WikipediaLogoUrl || null,
+            logoUrl: getLogoUrl(firstGame.HomeTeamData?.WikipediaLogoUrl),
             primaryColor: null,
           },
           awayTeam: {
@@ -114,7 +115,7 @@ export async function GET(request: NextRequest) {
             city: "",
             abbreviation: firstGame.AwayTeam,
             fullName: firstGame.AwayTeamData?.FullName || firstGame.AwayTeam,
-            logoUrl: firstGame.AwayTeamData?.WikipediaLogoUrl || null,
+            logoUrl: getLogoUrl(firstGame.AwayTeamData?.WikipediaLogoUrl),
             primaryColor: null,
           },
           homeScore: firstGame.HomeScore,

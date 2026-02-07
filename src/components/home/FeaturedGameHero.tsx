@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Calendar, Tv, Trophy, ChevronRight, Clock, Flame } from "lucide-react";
 import { LightningLoader } from "@/components/ui/LightningLoader";
 import { Button } from "@/components/ui/button";
+import { getLogoUrl } from "@/lib/images/getLogoUrl";
 
 // Countdown timer hook
 function useCountdown(targetDate: string) {
@@ -124,6 +126,8 @@ export function FeaturedGameHero({ league = "nfl" }: FeaturedGameHeroProps) {
   const [data, setData] = useState<FeaturedResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const isDebug = searchParams.get("debug") === "1";
 
   useEffect(() => {
     async function fetchFeatured() {
@@ -266,7 +270,7 @@ export function FeaturedGameHero({ league = "nfl" }: FeaturedGameHeroProps) {
             <Link href={featured.gameId ? `/${league}/game/${featured.gameId}` : `/sports?league=${league}`}>
               <Button 
                 size="lg"
-                className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold px-8 py-6 text-lg rounded-xl shadow-lg shadow-orange-500/25 group"
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold px-8 py-6 text-lg rounded-xl shadow-lg shadow-blue-500/25 group"
               >
                 <span>View Matchup</span>
                 <ChevronRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -285,6 +289,32 @@ export function FeaturedGameHero({ league = "nfl" }: FeaturedGameHeroProps) {
                 <span>Follow Live</span>
               </Button>
             </Link>
+          </div>
+        )}
+
+        {/* Debug output - only shows when ?debug=1 is in URL */}
+        {isDebug && (
+          <div className="mt-6 p-4 bg-black/80 rounded-lg text-left font-mono text-xs text-green-400 overflow-x-auto">
+            <div className="font-bold mb-2 text-yellow-400">🔍 DEBUG: Logo URLs</div>
+            <div className="mb-1">
+              <span className="text-gray-400">Away Team Raw: </span>
+              <span className="text-white break-all">{featured.awayTeam.logoUrl || "NULL"}</span>
+            </div>
+            <div className="mb-1">
+              <span className="text-gray-400">Away Team Resolved: </span>
+              <span className="text-green-400 break-all">{getLogoUrl(featured.awayTeam.logoUrl) || "NULL"}</span>
+            </div>
+            <div className="mb-1">
+              <span className="text-gray-400">Home Team Raw: </span>
+              <span className="text-white break-all">{featured.homeTeam.logoUrl || "NULL"}</span>
+            </div>
+            <div className="mb-1">
+              <span className="text-gray-400">Home Team Resolved: </span>
+              <span className="text-green-400 break-all">{getLogoUrl(featured.homeTeam.logoUrl) || "NULL"}</span>
+            </div>
+            <div className="mt-2 text-gray-500">
+              NEXT_PUBLIC_SUPABASE_URL: {process.env.NEXT_PUBLIC_SUPABASE_URL || "NOT SET"}
+            </div>
           </div>
         )}
       </div>
@@ -312,35 +342,48 @@ function TeamDisplay({
   league: string;
 }) {
   const [imgError, setImgError] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
   const slug = getTeamSlug(team, league);
   const teamUrl = `/teams/${league.toLowerCase()}/${slug}`;
+
+  // Use helper to resolve logo URL
+  const resolvedUrl = getLogoUrl(team.logoUrl);
+  const showFallback = !resolvedUrl || imgError;
 
   return (
     <div className="flex flex-col items-center">
       {/* Team Logo - Clickable */}
       <Link 
         href={teamUrl}
-        className="w-20 h-20 md:w-32 md:h-32 rounded-2xl flex items-center justify-center mb-3 shadow-xl overflow-hidden hover:ring-4 hover:ring-white/30 transition"
+        className="w-20 h-20 md:w-32 md:h-32 rounded-2xl flex items-center justify-center mb-3 shadow-xl overflow-hidden hover:ring-4 hover:ring-white/30 transition relative"
         style={{ 
           backgroundColor: team.primaryColor || "#374151",
           boxShadow: team.primaryColor ? `0 10px 40px ${team.primaryColor}40` : undefined
         }}
       >
-        {team.logoUrl && !imgError ? (
+        {/* Fallback initials */}
+        <span className={`text-white font-bold text-2xl md:text-4xl ${!showFallback && isLoaded ? 'opacity-0' : 'opacity-100'} transition-opacity`}>
+          {team.abbreviation}
+        </span>
+        
+        {/* Image overlay - using native img to bypass Next.js Image optimization */}
+        {resolvedUrl && !imgError && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={team.logoUrl}
+            src={resolvedUrl}
             alt={team.fullName}
             width={80}
             height={80}
-            className="object-contain w-16 h-16 md:w-24 md:h-24"
+            data-img-src={resolvedUrl}
+            data-original-logo={team.logoUrl || "null"}
+            className={`object-contain w-16 h-16 md:w-24 md:h-24 absolute transition-opacity duration-200 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            onLoad={() => setIsLoaded(true)}
             onError={() => setImgError(true)}
             loading="lazy"
+            decoding="async"
+            referrerPolicy="no-referrer"
+            crossOrigin="anonymous"
           />
-        ) : (
-          <span className="text-white font-bold text-2xl md:text-4xl">
-            {team.abbreviation}
-          </span>
         )}
       </Link>
 

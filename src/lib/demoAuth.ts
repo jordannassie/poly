@@ -1,3 +1,12 @@
+/**
+ * Demo Mode - DISABLED FOR PRODUCTION
+ * 
+ * All demo functionality has been disabled.
+ * Users must authenticate via real auth providers.
+ * 
+ * These functions are kept as no-ops to avoid breaking imports.
+ */
+
 export type DemoUser = {
   name: string;
   handle: string;
@@ -16,55 +25,43 @@ export type DemoBet = {
   placedAt: string;
 };
 
-const USER_KEY = "poly-demo-user";
-const BETS_KEY = "poly-demo-bets";
-
+// DEMO MODE DISABLED - Always returns null
 export const getDemoUser = (): DemoUser | null => {
-  if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(USER_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as DemoUser;
-  } catch {
-    return null;
-  }
+  return null;
 };
 
+// DEMO MODE DISABLED - No-op, returns empty user
 export const setDemoUser = (email?: string): DemoUser => {
-  const normalizedEmail = email?.trim() || "demo@provepicks.com";
-  const handleBase = normalizedEmail.split("@")[0] || "demo";
-  const user: DemoUser = {
-    name: "Demo Trader",
-    handle: handleBase,
-    email: normalizedEmail,
+  console.warn("[DISABLED] Demo mode is disabled in production");
+  return {
+    name: "",
+    handle: "",
+    email: "",
   };
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem(USER_KEY, JSON.stringify(user));
-  }
-  return user;
 };
 
+// DEMO MODE DISABLED - No-op
 export const clearDemoUser = () => {
-  if (typeof window !== "undefined") {
-    window.localStorage.removeItem(USER_KEY);
-  }
+  // No-op
 };
 
+// DEMO MODE DISABLED - Always returns empty array
 export const getDemoBets = (): DemoBet[] => {
-  if (typeof window === "undefined") return [];
-  const raw = window.localStorage.getItem(BETS_KEY);
-  if (!raw) return [];
-  try {
-    return JSON.parse(raw) as DemoBet[];
-  } catch {
-    return [];
-  }
+  return [];
 };
 
+// DEMO MODE DISABLED - No-op, returns empty array
 export const addDemoBet = (bet: DemoBet): DemoBet[] => {
-  if (typeof window === "undefined") return [];
-  const existing = getDemoBets();
-  const updated = [bet, ...existing].slice(0, 10);
-  window.localStorage.setItem(BETS_KEY, JSON.stringify(updated));
-  return updated;
+  console.warn("[DISABLED] Demo bets are disabled in production");
+  return [];
 };
+
+// Clear any existing demo data on load
+if (typeof window !== "undefined") {
+  try {
+    window.localStorage.removeItem("poly-demo-user");
+    window.localStorage.removeItem("poly-demo-bets");
+  } catch {
+    // Ignore errors
+  }
+}

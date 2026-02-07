@@ -16,7 +16,8 @@ import {
   Mail,
   Globe,
   Trophy,
-  Layers
+  Layers,
+  RefreshCw
 } from "lucide-react";
 
 const navItems = [
@@ -27,8 +28,10 @@ const navItems = [
   { href: "/admin/markets", label: "Markets", icon: TrendingUp },
   { href: "/admin/settlements", label: "Settlements", icon: Scale },
   { href: "/admin/payouts", label: "Payouts", icon: CreditCard },
+  { href: "/admin/lifecycle", label: "Game Lifecycle", icon: RefreshCw },
   { href: "/admin/logs", label: "System Logs", icon: FileText },
   { href: "/admin/sports", label: "SportsDataIO", icon: Database },
+  { href: "/admin/soccer-leagues", label: "Soccer Leagues", icon: Globe },
   { href: "/admin/api-sports/leagues", label: "League Sync", icon: Layers },
   { href: "/admin/api-sports", label: "API Sports Sandbox", icon: Globe },
   { href: "/admin/api-sports-nfl", label: "API Sports (NFL)", icon: Trophy },

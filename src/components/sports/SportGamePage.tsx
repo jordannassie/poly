@@ -36,6 +36,9 @@ interface GameDetails {
   timeRemaining: string | null;
   possession: string | null;
   isPlayoffs: boolean;
+  // Market lock status from database
+  isLocked?: boolean;
+  lockReason?: string;
 }
 
 interface GameResponse {
@@ -182,6 +185,9 @@ export function SportGamePage({ league, gameId }: SportGamePageProps) {
       timeRemaining: game.timeRemaining,
       possession: game.possession,
       isPlayoffs: game.isPlayoffs,
+      // Pass market lock status from API
+      isLocked: game.isLocked,
+      lockReason: game.lockReason,
     },
   });
 

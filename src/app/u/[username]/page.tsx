@@ -6,6 +6,7 @@ import { CategoryTabs } from "@/components/CategoryTabs";
 import { MainFooter } from "@/components/MainFooter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Avatar } from "@/components/ui/Avatar";
 import { getDemoUser } from "@/lib/demoAuth";
 import { 
   Globe, 
@@ -467,19 +468,12 @@ export default function PublicProfilePage({ params }: Props) {
             <div className="flex flex-col sm:flex-row gap-4">
               {/* Avatar with Edit Button */}
               <div className="relative group">
-                {profile.avatarUrl ? (
-                  <img 
-                    src={profile.avatarUrl} 
-                    alt={profile.displayName}
-                    className="h-32 w-32 rounded-full border-4 border-[color:var(--surface)] object-cover shadow-xl"
-                  />
-                ) : (
-                  <div className="h-32 w-32 rounded-full border-4 border-[color:var(--surface)] bg-gradient-to-br from-purple-500 via-pink-500 to-yellow-500 flex items-center justify-center shadow-xl">
-                    <span className="text-4xl font-bold text-white">
-                      {(profile.displayName || profile.username || "U").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
-                    </span>
-                  </div>
-                )}
+                <Avatar 
+                  src={profile.avatarUrl}
+                  name={profile.displayName || profile.username || undefined}
+                  size="xl"
+                  className="border-4 border-[color:var(--surface)] shadow-xl"
+                />
                 {/* Online indicator */}
                 <div className="absolute bottom-2 right-2 h-5 w-5 rounded-full bg-green-500 border-4 border-[color:var(--surface)]" />
                 {/* Edit Photo Button */}
@@ -806,19 +800,11 @@ export default function PublicProfilePage({ params }: Props) {
                         {/* Header */}
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-3">
-                            {profile.avatarUrl ? (
-                              <img 
-                                src={profile.avatarUrl}
-                                alt={profile.displayName}
-                                className="h-10 w-10 rounded-full object-cover"
-                              />
-                            ) : (
-                              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-yellow-500 flex items-center justify-center">
-                                <span className="text-sm font-bold text-white">
-                                  {(profile.displayName || profile.username || "U").charAt(0).toUpperCase()}
-                                </span>
-                              </div>
-                            )}
+                            <Avatar 
+                              src={profile.avatarUrl}
+                              name={profile.displayName || profile.username || undefined}
+                              size="md"
+                            />
                             <div>
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold">{profile.displayName || profile.username}</span>

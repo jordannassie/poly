@@ -3,15 +3,32 @@
  * 
  * Public endpoint to check game counts by league.
  * Helps diagnose sync issues.
+ * 
+ * Note: This route must NOT be evaluated at build time.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+// Force dynamic rendering - this route queries the database
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+// Ensure Next.js treats this as a runtime-only route
+export const fetchCache = 'force-no-store';
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
 export async function GET(request: NextRequest) {
+  // Early return for build-time - don't query DB
+  if (process.env.NODE_ENV === 'production' && !supabaseUrl) {
+    return NextResponse.json({ 
+      message: "Status endpoint - use at runtime",
+      timestamp: new Date().toISOString()
+    });
+  }
+
   if (!supabaseUrl || !supabaseAnonKey) {
     return NextResponse.json({ error: "Database not configured" }, { status: 500 });
   }
@@ -20,83 +37,54 @@ export async function GET(request: NextRequest) {
   const now = new Date().toISOString();
   const leagues = ["nfl", "nba", "nhl", "mlb", "soccer"];
 
-  // First, get all distinct league values to debug
-  const { data: distinctLeagues } = await client
-    .from("sports_games")
-    .select("league")
-    .limit(1000);
-  
-  const uniqueLeagueValues = [...new Set((distinctLeagues || []).map(g => g.league))];
-  
-  // Get total count in table
-  const { count: totalCount } = await client
-    .from("sports_games")
-    .select("id", { count: "exact", head: true });
+  // Run all queries in parallel for speed
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+
+  // Get total count and league queries in parallel
+  const [
+    { count: totalTableCount },
+    ...leagueResults
+  ] = await Promise.all([
+    // Total count
+    client.from("sports_games").select("id", { count: "exact", head: true }),
+    // Per-league queries (5 leagues, 4 queries each = 20 queries in parallel)
+    ...leagues.flatMap(league => [
+      client.from("sports_games").select("id", { count: "exact", head: true }).eq("league", league),
+      client.from("sports_games").select("id", { count: "exact", head: true }).eq("league", league).gte("starts_at", now),
+      client.from("sports_games").select("id", { count: "exact", head: true }).eq("league", league).gte("starts_at", todayStart.toISOString()).lte("starts_at", todayEnd.toISOString()),
+      client.from("sports_games").select("id, external_game_id, home_team, away_team, status, starts_at").eq("league", league).gte("starts_at", now).order("starts_at", { ascending: true }).limit(3),
+    ])
+  ]);
 
   const results: Record<string, any> = {
     timestamp: now,
     leagues: {},
   };
 
-  for (const league of leagues) {
-    // Count total games
-    const { count: totalCount } = await client
-      .from("sports_games")
-      .select("id", { count: "exact", head: true })
-      .eq("league", league);
-
-    // Count upcoming games
-    const { count: upcomingCount } = await client
-      .from("sports_games")
-      .select("id", { count: "exact", head: true })
-      .eq("league", league)
-      .gte("starts_at", now);
-
-    // Count today's games
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-
-    const { count: todayCount } = await client
-      .from("sports_games")
-      .select("id", { count: "exact", head: true })
-      .eq("league", league)
-      .gte("starts_at", todayStart.toISOString())
-      .lte("starts_at", todayEnd.toISOString());
-
-    // Count live games (status contains 'live' or 'in_progress')
-    const { data: liveGames } = await client
-      .from("sports_games")
-      .select("id, external_game_id, home_team, away_team, status, starts_at")
-      .eq("league", league)
-      .or("status.ilike.%live%,status.ilike.%in_progress%,status.ilike.%1H%,status.ilike.%2H%,status.ilike.%Q%")
-      .limit(5);
-
-    // Get next 3 upcoming games
-    const { data: nextGames } = await client
-      .from("sports_games")
-      .select("id, external_game_id, home_team, away_team, status, starts_at")
-      .eq("league", league)
-      .gte("starts_at", now)
-      .order("starts_at", { ascending: true })
-      .limit(3);
+  // Process parallel results (4 results per league)
+  for (let i = 0; i < leagues.length; i++) {
+    const league = leagues[i];
+    const baseIdx = i * 4;
+    
+    const totalCount = leagueResults[baseIdx]?.count || 0;
+    const upcomingCount = leagueResults[baseIdx + 1]?.count || 0;
+    const todayCount = leagueResults[baseIdx + 2]?.count || 0;
+    const nextGames = leagueResults[baseIdx + 3]?.data || [];
 
     results.leagues[league.toUpperCase()] = {
-      total: totalCount || 0,
-      upcoming: upcomingCount || 0,
-      today: todayCount || 0,
-      liveCount: liveGames?.length || 0,
-      liveGames: liveGames || [],
-      nextGames: nextGames || [],
+      total: totalCount,
+      upcoming: upcomingCount,
+      today: todayCount,
+      nextGames,
     };
   }
 
-  // Add debug info
   results.debug = {
-    totalGamesInTable: totalCount || 0,
-    uniqueLeagueValues,
-    supabaseUrl: supabaseUrl.split('.')[0] + "..." // Partial URL for verification
+    totalGamesInTable: totalTableCount || 0,
+    supabaseUrl: supabaseUrl.split('.')[0] + "..."
   };
 
   return NextResponse.json(results);

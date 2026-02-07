@@ -30,6 +30,10 @@ export interface MarketViewModel {
   status?: "scheduled" | "in_progress" | "final" | "postponed" | "canceled";
   locksInLabel?: string;
   
+  // Market locking (authoritative source from database)
+  isLocked?: boolean;
+  lockReason?: string;
+  
   // Stats for right rail
   stats: {
     tradedToday: string;
@@ -67,11 +71,11 @@ export interface MarketViewModel {
   };
 }
 
-// Default demo values for stats
+// Default placeholder stats (not backed by real data yet)
 export const DEFAULT_STATS = {
-  tradedToday: "$4.02M",
-  activeBettors: 342,
-  last10Min: "$45.0K",
+  tradedToday: "—",
+  activeBettors: 0,
+  last10Min: "—",
 };
 
 // Default demo lines

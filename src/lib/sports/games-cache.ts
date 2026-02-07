@@ -18,7 +18,47 @@ function getClient() {
   return createClient(supabaseUrl, supabaseAnonKey);
 }
 
-// Type matching sports_games v2 table
+// Cache for enabled soccer league IDs (refresh every 5 minutes)
+let enabledSoccerLeagueIds: number[] | null = null;
+let enabledSoccerLeaguesCacheTime = 0;
+const SOCCER_LEAGUES_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Get enabled soccer league IDs from sports_leagues table
+ */
+async function getEnabledSoccerLeagueIds(): Promise<number[]> {
+  // Check cache
+  const now = Date.now();
+  if (enabledSoccerLeagueIds !== null && now - enabledSoccerLeaguesCacheTime < SOCCER_LEAGUES_CACHE_TTL) {
+    return enabledSoccerLeagueIds;
+  }
+
+  const client = getClient();
+  if (!client) {
+    console.warn("[games-cache] No client for fetching enabled leagues");
+    return [];
+  }
+
+  const { data, error } = await client
+    .from("sports_leagues")
+    .select("league_id")
+    .eq("sport", "soccer")
+    .eq("enabled", true);
+
+  if (error) {
+    console.error("[games-cache] Error fetching enabled soccer leagues:", error.message);
+    // Return cached value if available, otherwise empty
+    return enabledSoccerLeagueIds || [];
+  }
+
+  enabledSoccerLeagueIds = (data || []).map(l => l.league_id);
+  enabledSoccerLeaguesCacheTime = now;
+  
+  console.log(`[games-cache] Enabled soccer leagues: ${enabledSoccerLeagueIds.length} (${enabledSoccerLeagueIds.join(", ")})`);
+  return enabledSoccerLeagueIds;
+}
+
+// Type matching sports_games v2 table with lifecycle extensions
 export interface CachedGame {
   id: number;
   league: string;
@@ -26,12 +66,20 @@ export interface CachedGame {
   provider: string;
   season: number;
   starts_at: string;
-  status: string;
-  home_team: string;  // Team name (no FK)
-  away_team: string;  // Team name (no FK)
+  status: string;           // Raw status from provider
+  status_norm?: string;     // Normalized: SCHEDULED, LIVE, FINAL, CANCELED, POSTPONED
+  status_raw?: string;      // Original raw status
+  winner_side?: string;     // HOME, AWAY, DRAW (for FINAL games)
+  home_team: string;        // Team name (no FK)
+  away_team: string;        // Team name (no FK)
   home_score: number | null;
   away_score: number | null;
+  league_id?: number | null; // API-Sports league ID (for filtering)
+  finalized_at?: string;
+  settled_at?: string;
+  last_synced_at?: string;
   created_at: string;
+  updated_at?: string;
 }
 
 // Simplified game format for frontend
@@ -80,22 +128,40 @@ export async function getGamesFromCache(
   // Create date range for the day (start of day to end of day in UTC)
   const startOfDay = `${date}T00:00:00Z`;
   const endOfDay = `${date}T23:59:59Z`;
+  const leagueNormalized = league.toLowerCase();
 
-  const { data, error } = await client
+  let query = client
     .from("sports_games")
     .select("*")
-    .eq("league", league.toLowerCase())
+    .eq("league", leagueNormalized)
     .gte("starts_at", startOfDay)
     .lte("starts_at", endOfDay)
     .order("starts_at", { ascending: true });
+
+  const { data, error } = await query;
 
   if (error) {
     console.error(`[games-cache] Error fetching ${league} games:`, error.message);
     return [];
   }
 
+  let games = data || [];
+
+  // For soccer, filter by enabled leagues
+  if (leagueNormalized === "soccer") {
+    const enabledLeagueIds = await getEnabledSoccerLeagueIds();
+    if (enabledLeagueIds.length > 0) {
+      const beforeFilter = games.length;
+      games = games.filter(g => g.league_id && enabledLeagueIds.includes(g.league_id));
+      console.log(`[games-cache] Soccer filter: ${beforeFilter} -> ${games.length} games (enabled leagues: ${enabledLeagueIds.length})`);
+    } else {
+      console.warn("[games-cache] No enabled soccer leagues - returning empty");
+      return [];
+    }
+  }
+
   // Filter out placeholder games (NFC vs AFC, etc.)
-  return filterRealGames(data || []);
+  return filterRealGames(games);
 }
 
 /**
@@ -141,8 +207,23 @@ export async function getUpcomingGamesFromCache(
     return [];
   }
 
+  let games = data || [];
+
+  // For soccer, filter by enabled leagues
+  if (leagueNormalized === "soccer") {
+    const enabledLeagueIds = await getEnabledSoccerLeagueIds();
+    if (enabledLeagueIds.length > 0) {
+      const beforeFilter = games.length;
+      games = games.filter(g => g.league_id && enabledLeagueIds.includes(g.league_id));
+      console.log(`[games-cache] Soccer filter (upcoming): ${beforeFilter} -> ${games.length} games (enabled leagues: ${enabledLeagueIds.length})`);
+    } else {
+      console.warn("[games-cache] No enabled soccer leagues - returning empty");
+      return [];
+    }
+  }
+
   // Filter out placeholder games (NFC vs AFC, etc.)
-  const filtered = filterRealGames(data || []);
+  const filtered = filterRealGames(games);
   console.log(`[games-cache] RESULT league=${leagueNormalized} totalInDb=${count} returned=${data?.length || 0} afterFilter=${filtered.length}`);
 
   return filtered;
@@ -210,6 +291,7 @@ export async function getTeamMapFromCache(
 
 /**
  * Transform cached game to frontend format
+ * Uses status_norm from database (source of truth) instead of inferring from time/raw status
  */
 export function transformCachedGame(
   game: CachedGame,
@@ -219,14 +301,29 @@ export function transformCachedGame(
   const homeTeam = teamMap.get(game.home_team.toLowerCase());
   const awayTeam = teamMap.get(game.away_team.toLowerCase());
 
-  // Parse status
-  const statusLower = (game.status || "").toLowerCase();
-  const isOver = statusLower.includes("final") || statusLower.includes("finished") || statusLower === "ft";
-  const isInProgress = statusLower.includes("progress") || statusLower.includes("live") || 
-                       statusLower.includes("1h") || statusLower.includes("2h") ||
-                       statusLower.includes("q1") || statusLower.includes("q2") ||
-                       statusLower.includes("q3") || statusLower.includes("q4");
-  const isCanceled = statusLower.includes("cancel") || statusLower.includes("postpone");
+  // Use status_norm from database (source of truth)
+  // Fallback to parsing raw status for backwards compatibility
+  const statusNorm = game.status_norm?.toUpperCase() || '';
+  let isOver = false;
+  let isInProgress = false;
+  let isCanceled = false;
+  
+  if (statusNorm) {
+    // Use normalized status from database
+    isOver = statusNorm === 'FINAL';
+    isInProgress = statusNorm === 'LIVE';
+    isCanceled = statusNorm === 'CANCELED' || statusNorm === 'POSTPONED';
+  } else {
+    // Fallback: Parse from raw status (legacy support)
+    const statusLower = (game.status || "").toLowerCase();
+    isOver = statusLower.includes("final") || statusLower.includes("finished") || statusLower === "ft";
+    isInProgress = statusLower.includes("progress") || statusLower.includes("live") || 
+                   statusLower.includes("1h") || statusLower.includes("2h") ||
+                   statusLower.includes("q1") || statusLower.includes("q2") ||
+                   statusLower.includes("q3") || statusLower.includes("q4");
+    isCanceled = statusLower.includes("cancel") || statusLower.includes("postpone");
+  }
+  
   const hasStarted = isOver || isInProgress || game.home_score !== null || game.away_score !== null;
 
   // Generate abbreviation from team name
@@ -358,8 +455,24 @@ export async function getHotGamesFromCache(): Promise<CachedGame[]> {
     return [];
   }
 
+  let games = data || [];
+
+  // Filter soccer games by enabled leagues
+  const enabledLeagueIds = await getEnabledSoccerLeagueIds();
+  if (enabledLeagueIds.length > 0) {
+    games = games.filter(g => {
+      if (g.league === "soccer") {
+        return g.league_id && enabledLeagueIds.includes(g.league_id);
+      }
+      return true; // Keep non-soccer games
+    });
+  } else {
+    // No enabled soccer leagues, filter them all out
+    games = games.filter(g => g.league !== "soccer");
+  }
+
   // Filter out placeholder games (NFC vs AFC, etc.)
-  const filtered = filterRealGames(data || []);
+  const filtered = filterRealGames(games);
   console.log(`[games-cache] Hot games (next 24h): returned=${data?.length || 0} filtered=${filtered.length} totalInWindow=${count}`);
   return filtered;
 }
@@ -393,8 +506,24 @@ export async function getStartingSoonGamesFromCache(): Promise<CachedGame[]> {
     return [];
   }
 
+  let games = data || [];
+
+  // Filter soccer games by enabled leagues
+  const enabledLeagueIds = await getEnabledSoccerLeagueIds();
+  if (enabledLeagueIds.length > 0) {
+    games = games.filter(g => {
+      if (g.league === "soccer") {
+        return g.league_id && enabledLeagueIds.includes(g.league_id);
+      }
+      return true; // Keep non-soccer games
+    });
+  } else {
+    // No enabled soccer leagues, filter them all out
+    games = games.filter(g => g.league !== "soccer");
+  }
+
   // Filter out placeholder games (NFC vs AFC, etc.)
-  const filtered = filterRealGames(data || []);
+  const filtered = filterRealGames(games);
   console.log(`[games-cache] Starting soon games (next 7d): returned=${data?.length || 0} filtered=${filtered.length} totalInWindow=${count}`);
   return filtered;
 }
@@ -437,8 +566,24 @@ export async function getLiveGamesFromCache(): Promise<CachedGame[]> {
     return [];
   }
 
+  let games = data || [];
+
+  // Filter soccer games by enabled leagues
+  const enabledLeagueIds = await getEnabledSoccerLeagueIds();
+  if (enabledLeagueIds.length > 0) {
+    games = games.filter(g => {
+      if (g.league === "soccer") {
+        return g.league_id && enabledLeagueIds.includes(g.league_id);
+      }
+      return true; // Keep non-soccer games
+    });
+  } else {
+    // No enabled soccer leagues, filter them all out
+    games = games.filter(g => g.league !== "soccer");
+  }
+
   // Filter for live status and filter out placeholders
-  const liveGames = filterRealGames(data || []).filter(game => {
+  const liveGames = filterRealGames(games).filter(game => {
     const statusLower = (game.status || "").toLowerCase();
     // Not finished/final
     if (statusLower.includes("final") || statusLower.includes("finished") || statusLower === "ft") {

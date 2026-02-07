@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Calendar, ChevronRight } from "lucide-react";
 import { LightningLoader } from "@/components/ui/LightningLoader";
 import { Button } from "@/components/ui/button";
+import { getLogoUrl } from "@/lib/images/getLogoUrl";
 
 interface Team {
   teamId: number;
@@ -27,6 +28,34 @@ interface Game {
   venue: string | null;
   channel: string | null;
   week: number;
+}
+
+// Placeholder team names to filter out
+const PLACEHOLDER_NAMES = new Set([
+  "tbd", "tba", "unknown", "team", "team 1", "team 2",
+  "home", "away", "nfc", "afc", "east", "west", "north", "south"
+]);
+
+/**
+ * Check if a team name is valid (not empty, not a placeholder)
+ */
+function isValidTeamName(name: string | undefined | null): boolean {
+  if (!name || typeof name !== "string") return false;
+  const trimmed = name.trim().toLowerCase();
+  if (trimmed.length < 2) return false;
+  if (PLACEHOLDER_NAMES.has(trimmed)) return false;
+  // Check for "Team X" pattern
+  if (/^team\s+\d+$/i.test(trimmed) || /^team\s+unknown$/i.test(trimmed)) return false;
+  return true;
+}
+
+/**
+ * Check if a game has valid teams (filters out placeholder games)
+ */
+function isValidGame(game: Game): boolean {
+  const homeName = game.homeTeam?.name || game.homeTeam?.fullName;
+  const awayName = game.awayTeam?.name || game.awayTeam?.fullName;
+  return isValidTeamName(homeName) && isValidTeamName(awayName);
 }
 
 interface UpcomingResponse {
@@ -137,9 +166,12 @@ export function UpcomingGames({ league = "nfl", days: initialDays }: UpcomingGam
     );
   }
 
-  // Group games by date
+  // Filter out games with invalid/placeholder teams
+  const validGames = data.games.filter(isValidGame);
+  
+  // Group valid games by date
   const gamesByDate = new Map<string, Game[]>();
-  for (const game of data.games) {
+  for (const game of validGames) {
     const dateKey = new Date(game.startTime).toISOString().split("T")[0];
     if (!gamesByDate.has(dateKey)) {
       gamesByDate.set(dateKey, []);
@@ -149,6 +181,38 @@ export function UpcomingGames({ league = "nfl", days: initialDays }: UpcomingGam
 
   // Sort dates
   const sortedDates = Array.from(gamesByDate.keys()).sort();
+  
+  // If no valid games remain after filtering, show empty state
+  if (validGames.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-[color:var(--text-muted)]">Show:</span>
+          {DATE_FILTERS.map((filter) => (
+            <Button
+              key={filter.days}
+              variant={selectedDays === filter.days ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedDays(filter.days)}
+              className={selectedDays === filter.days ? "bg-orange-500 hover:bg-orange-600" : ""}
+            >
+              {filter.label}
+            </Button>
+          ))}
+        </div>
+        
+        <div className="text-center py-12 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl">
+          <Calendar className="h-12 w-12 mx-auto mb-4 text-[color:var(--text-muted)]" />
+          <p className="text-[color:var(--text-muted)]">
+            No {league.toUpperCase()} games in the next {selectedDays} days
+          </p>
+          <p className="text-sm text-[color:var(--text-subtle)] mt-2 max-w-md mx-auto">
+            {syncMessage || "Games will appear once synced from Admin."}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -169,7 +233,7 @@ export function UpcomingGames({ league = "nfl", days: initialDays }: UpcomingGam
           ))}
         </div>
         <span className="text-sm text-[color:var(--text-muted)]">
-          {data.count} matchup{data.count !== 1 ? "s" : ""} found
+          {validGames.length} matchup{validGames.length !== 1 ? "s" : ""} found
         </span>
       </div>
 
@@ -316,8 +380,7 @@ function GameCard({ game, league }: { game: Game; league: string }) {
         <div className="mt-4">
           <Link href={getGameRoute(league, game.gameId)}>
             <Button 
-              variant="outline" 
-              className="w-full border-[color:var(--border-soft)] hover:bg-[color:var(--surface-2)] group"
+              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium group"
             >
               <span>Make Your Pick</span>
               <ChevronRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -346,28 +409,43 @@ function TeamLogo({
   hasError: boolean; 
   onError: () => void;
 }) {
+  const [isLoaded, setIsLoaded] = useState(false);
   const slug = getTeamSlug(team, league);
   const teamUrl = `/teams/${league.toLowerCase()}/${slug}`;
+
+  // Use helper to resolve logo URL (converts storage paths to full URLs)
+  const resolvedUrl = getLogoUrl(team.logoUrl);
+  const showFallback = !resolvedUrl || hasError;
 
   return (
     <Link 
       href={teamUrl}
-      className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden hover:ring-2 hover:ring-[color:var(--accent)] transition"
+      className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden hover:ring-2 hover:ring-[color:var(--accent)] transition relative"
       style={{ backgroundColor: team.primaryColor || "var(--surface-2)" }}
     >
-      {team.logoUrl && !hasError ? (
+      {/* Fallback initials - always rendered, hidden when image loads */}
+      <span className={`text-white font-bold text-sm ${!showFallback && isLoaded ? 'opacity-0' : 'opacity-100'} transition-opacity`}>
+        {team.abbreviation}
+      </span>
+      
+      {/* Image overlay - using native img to bypass Next.js Image optimization */}
+      {resolvedUrl && !hasError && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={team.logoUrl}
+          src={resolvedUrl}
           alt={team.fullName}
           width={40}
           height={40}
-          className="object-contain w-10 h-10"
+          data-img-src={resolvedUrl}
+          data-original-logo={team.logoUrl || "null"}
+          className={`object-contain w-10 h-10 absolute transition-opacity duration-200 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          onLoad={() => setIsLoaded(true)}
           onError={onError}
           loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          crossOrigin="anonymous"
         />
-      ) : (
-        <span className="text-white font-bold text-sm">{team.abbreviation}</span>
       )}
     </Link>
   );

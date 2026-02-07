@@ -138,6 +138,19 @@ export async function POST(request: NextRequest) {
       }, { status: 404 });
     }
 
+    // Look up sports_games to get sports_game_id for each game
+    const gameIds = games.map(g => getGameId(g));
+    const { data: sportsGames } = await client
+      .from('sports_games')
+      .select('id, external_game_id, status_norm')
+      .eq('league', league.toLowerCase())
+      .in('external_game_id', gameIds);
+    
+    // Create a map for fast lookup
+    const sportsGameMap = new Map(
+      (sportsGames || []).map(sg => [sg.external_game_id, sg])
+    );
+    
     // Prepare market records for upsert
     const markets = games.map((game) => {
       const gameIdRaw = getGameId(game);
@@ -147,9 +160,17 @@ export async function POST(request: NextRequest) {
       
       const gameDate = getGameDate(game);
       
+      // Get the sports_game binding
+      const sportsGame = sportsGameMap.get(gameIdRaw);
+      const isLocked = sportsGame?.status_norm === 'FINAL' || 
+                       sportsGame?.status_norm === 'CANCELED' || 
+                       sportsGame?.status_norm === 'POSTPONED';
+      
       return {
         league: league.toUpperCase(),
         sportsdata_game_id: sportsdataGameId,
+        sports_game_id: sportsGame?.id || null,  // FK to sports_games
+        external_game_id: gameIdRaw,              // Reference ID
         slug: generateSlug(league, game.AwayTeam, game.HomeTeam, gameDate),
         home_team: game.HomeTeam,
         away_team: game.AwayTeam,
@@ -157,6 +178,9 @@ export async function POST(request: NextRequest) {
         game_status: mapGameStatus(game),
         market_status: mapMarketStatus(game),
         final_outcome: getFinalOutcome(game),
+        is_locked: isLocked,
+        lock_reason: isLocked ? 'GAME_FINAL' : null,
+        locked_at: isLocked ? new Date().toISOString() : null,
       };
     });
 

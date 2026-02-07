@@ -74,6 +74,7 @@ export interface GameRecord {
   away_team: string;         // Team name (no FK)
   home_score: number | null;
   away_score: number | null;
+  league_id?: number | null; // API-Sports league ID (for filtering by enabled leagues)
 }
 
 export interface GameSyncResult {
@@ -176,6 +177,9 @@ function normalizeAmericanSportsGame(game: any, league: SupportedLeague, dateSea
   // Use season from API or fallback to date-based calculation
   const season = game.league?.season ?? game.season ?? dateSeason;
   
+  // Extract league ID from API response
+  const leagueId = game.league?.id ?? null;
+  
   return {
     league: league.toLowerCase(),
     external_game_id: String(gameId),
@@ -187,6 +191,7 @@ function normalizeAmericanSportsGame(game: any, league: SupportedLeague, dateSea
     away_team: awayTeamName,
     home_score: parseScore(game.scores?.home?.total ?? game.scores?.home),
     away_score: parseScore(game.scores?.away?.total ?? game.scores?.away),
+    league_id: leagueId,
   };
 }
 
@@ -210,6 +215,9 @@ function normalizeSoccerGame(game: any, dateSeason: number): GameRecord | null {
   // Use season from API or fallback to date-based calculation
   const season = game.league?.season ?? dateSeason;
   
+  // Extract league ID from API response (for filtering by enabled leagues)
+  const leagueId = game.league?.id ?? null;
+  
   return {
     league: "soccer",
     external_game_id: String(gameId),
@@ -221,6 +229,7 @@ function normalizeSoccerGame(game: any, dateSeason: number): GameRecord | null {
     away_team: awayTeamName,
     home_score: parseScore(game.goals?.home ?? game.score?.fulltime?.home),
     away_score: parseScore(game.goals?.away ?? game.score?.fulltime?.away),
+    league_id: leagueId,
   };
 }
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Bell, BellOff, Share2, MoreHorizontal, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
+import { getLogoUrl } from "@/lib/images/getLogoUrl";
 
 interface TeamBannerProps {
   teamId: string;
@@ -20,6 +21,7 @@ interface TeamBannerProps {
  */
 export function TeamBanner({ teamId, teamName, league, logoUrl, primaryColor }: TeamBannerProps) {
   const [imgError, setImgError] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
@@ -27,6 +29,10 @@ export function TeamBanner({ teamId, teamName, league, logoUrl, primaryColor }: 
 
   // Unique team identifier
   const teamKey = `${league.toLowerCase()}:${teamName.toLowerCase().replace(/\s+/g, "-")}`;
+
+  // Resolve logo URL using helper
+  const resolvedLogoUrl = getLogoUrl(logoUrl);
+  const showFallback = !resolvedLogoUrl || imgError;
 
   // Generate initials for fallback
   const initials = teamName
@@ -134,24 +140,33 @@ export function TeamBanner({ teamId, teamName, league, logoUrl, primaryColor }: 
         <div className="flex items-start gap-4">
           {/* Logo - positioned at the top */}
           <div 
-            className="w-20 h-20 md:w-24 md:h-24 rounded-full border-4 border-[color:var(--surface)] overflow-hidden flex items-center justify-center shadow-lg flex-shrink-0 -mt-12 md:-mt-14 bg-[color:var(--surface)]"
+            className="w-20 h-20 md:w-24 md:h-24 rounded-full border-4 border-[color:var(--surface)] overflow-hidden flex items-center justify-center shadow-lg flex-shrink-0 -mt-12 md:-mt-14 bg-[color:var(--surface)] relative"
             style={{ backgroundColor: primaryColor }}
           >
-            {logoUrl && !imgError ? (
+            {/* Fallback initials - always rendered, hidden when image loads */}
+            <span 
+              className={`text-white font-bold text-xl md:text-2xl ${!showFallback && isLoaded ? 'opacity-0' : 'opacity-100'} transition-opacity`}
+              style={{ textShadow: "0 2px 4px rgba(0,0,0,0.3)" }}
+            >
+              {initials}
+            </span>
+            
+            {/* Image overlay - using native img to bypass Next.js Image optimization */}
+            {resolvedLogoUrl && !imgError && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={logoUrl}
+                src={resolvedLogoUrl}
                 alt={teamName}
-                className="w-16 h-16 md:w-20 md:h-20 object-contain"
+                data-img-src={resolvedLogoUrl}
+                data-original-logo={logoUrl || "null"}
+                className={`w-16 h-16 md:w-20 md:h-20 object-contain absolute transition-opacity duration-200 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                onLoad={() => setIsLoaded(true)}
                 onError={() => setImgError(true)}
+                loading="lazy"
+                decoding="async"
+                referrerPolicy="no-referrer"
+                crossOrigin="anonymous"
               />
-            ) : (
-              <span 
-                className="text-white font-bold text-xl md:text-2xl"
-                style={{ textShadow: "0 2px 4px rgba(0,0,0,0.3)" }}
-              >
-                {initials}
-              </span>
             )}
           </div>
 
@@ -178,9 +193,8 @@ export function TeamBanner({ teamId, teamName, league, logoUrl, primaryColor }: 
                 className={`gap-2 ${
                   isFollowing 
                     ? "border-[color:var(--border-strong)] text-[color:var(--text-strong)]" 
-                    : ""
+                    : "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
                 }`}
-                style={!isFollowing ? { backgroundColor: primaryColor } : undefined}
               >
                 {followLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

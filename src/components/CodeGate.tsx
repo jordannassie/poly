@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Lock, ArrowRight, Trophy, Users, TrendingUp, ChevronDown, Check, Flame, Clock, DollarSign, Activity, X, Minus } from "lucide-react";
 import { LOGO_URL } from "./ui/ProvePicksLogo";
+import { getLogoUrl } from "@/lib/images/getLogoUrl";
 
 // Competitor logos
 const competitors = [
@@ -265,7 +266,7 @@ export function CodeGate({ children }: CodeGateProps) {
         {/* Background image */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img 
-          src="https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/public/SPORTS/images/alluring_swan_07128_Seahawks_vs_patriots_football_head_to_hea_5a48b8f5-1da9-4ce1-9a32-fc9be9199a22_2%20(1).png"
+          src={getLogoUrl("images/alluring_swan_07128_Seahawks_vs_patriots_football_head_to_hea_5a48b8f5-1da9-4ce1-9a32-fc9be9199a22_2%20(1).png") || ""}
           alt="Football matchup"
           className="absolute inset-0 w-full h-full object-cover opacity-40"
         />

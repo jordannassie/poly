@@ -25,6 +25,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getFromCache, setInCache, getCacheKey } from "@/lib/sportsdataio/cache";
 import { isValidFrontendLeague, ALL_FRONTEND_LEAGUES } from "@/lib/sports/providers";
 import { getUpcomingGamesWithTeamsFromCache } from "@/lib/sports/games-cache";
+import { getLogoUrl } from "@/lib/images/getLogoUrl";
 
 // Cache TTL
 const CACHE_TTL_WITH_GAMES = 30 * 60 * 1000; // 30 minutes
@@ -110,10 +111,10 @@ export async function GET(request: NextRequest) {
     // All leagues use unified sports_games cache
     const cachedGames = await getUpcomingGamesWithTeamsFromCache(league, days);
 
-    // Transform to normalized format
+    // Transform to normalized format - use status from games-cache (already derived from status_norm)
     const allGames: NormalizedGame[] = cachedGames.map((game) => ({
       gameId: game.GameKey,
-      status: game.IsOver ? "final" : game.IsInProgress ? "in_progress" : "scheduled",
+      status: game.Canceled ? "canceled" : game.IsOver ? "final" : game.IsInProgress ? "in_progress" : "scheduled",
       startTime: game.DateTime,
       homeTeam: {
         teamId: game.HomeTeamData?.TeamID || 0,
@@ -121,7 +122,7 @@ export async function GET(request: NextRequest) {
         name: game.HomeTeamData?.Name || game.HomeTeam,
         city: "",
         fullName: game.HomeTeamData?.FullName || game.HomeTeam,
-        logoUrl: game.HomeTeamData?.WikipediaLogoUrl || null,
+        logoUrl: getLogoUrl(game.HomeTeamData?.WikipediaLogoUrl),
         primaryColor: null,
       },
       awayTeam: {
@@ -130,7 +131,7 @@ export async function GET(request: NextRequest) {
         name: game.AwayTeamData?.Name || game.AwayTeam,
         city: "",
         fullName: game.AwayTeamData?.FullName || game.AwayTeam,
-        logoUrl: game.AwayTeamData?.WikipediaLogoUrl || null,
+        logoUrl: getLogoUrl(game.AwayTeamData?.WikipediaLogoUrl),
         primaryColor: null,
       },
       homeScore: game.HomeScore,

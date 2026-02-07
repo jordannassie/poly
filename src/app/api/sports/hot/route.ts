@@ -19,6 +19,7 @@ import {
   getAllTeamMapsFromCache,
   CachedGame
 } from "@/lib/sports/games-cache";
+import { getLogoUrl } from "@/lib/images/getLogoUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -101,9 +102,9 @@ function transformGame(
   const [team1Odds, team2Odds] = generateOdds();
   const activity = generateMockActivity();
 
-  // Get logo URLs - prioritize team map, fallback to game data
-  const homeLogoUrl = homeTeam?.logo || null;
-  const awayLogoUrl = awayTeam?.logo || null;
+  // Get logo URLs - use getLogoUrl to convert storage paths to full URLs
+  const homeLogoUrl = getLogoUrl(homeTeam?.logo);
+  const awayLogoUrl = getLogoUrl(awayTeam?.logo);
 
   return {
     game: {

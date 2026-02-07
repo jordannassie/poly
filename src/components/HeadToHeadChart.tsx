@@ -17,6 +17,10 @@ type HeadToHeadChartProps = {
   gameTime: string;
   volume?: string;
   source?: string;
+  // Scores for live/final games
+  team1Score?: number | null;
+  team2Score?: number | null;
+  showScores?: boolean;
 };
 
 // Team Badge component with logo support
@@ -69,21 +73,54 @@ export function HeadToHeadChart({
   team1,
   team2,
   gameTime,
-  volume = "$4.02m Vol.",
+  volume = "—",
   source = "ProvePicks",
+  team1Score,
+  team2Score,
+  showScores = false,
 }: HeadToHeadChartProps) {
   const total = team1.odds + team2.odds;
   const team1Percent = Math.round((team1.odds / total) * 100);
   const team2Percent = 100 - team1Percent;
+  
+  // Determine if we should show scores (when explicitly enabled and scores exist)
+  const displayScores = showScores && (team1Score !== null && team1Score !== undefined || team2Score !== null && team2Score !== undefined);
+  
+  // Determine winner for highlighting (only for final games)
+  const isFinal = gameTime === "Final";
+  const team1Wins = isFinal && (team1Score ?? 0) > (team2Score ?? 0);
+  const team2Wins = isFinal && (team2Score ?? 0) > (team1Score ?? 0);
 
   return (
     <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4 md:p-6">
       {/* Game Time Badge */}
       <div className="flex justify-center mb-4 md:mb-6">
-        <span className="px-3 md:px-4 py-1 md:py-1.5 rounded-full bg-[color:var(--surface-2)] border border-[color:var(--border-soft)] text-xs md:text-sm font-medium text-[color:var(--text-muted)]">
+        <span className={`px-3 md:px-4 py-1 md:py-1.5 rounded-full border text-xs md:text-sm font-medium ${
+          gameTime === "Live" 
+            ? "bg-green-500/10 border-green-500/30 text-green-500" 
+            : gameTime === "Final"
+            ? "bg-gray-500/10 border-gray-500/30 text-gray-500"
+            : gameTime === "Canceled" || gameTime === "Postponed"
+            ? "bg-red-500/10 border-red-500/30 text-red-500"
+            : "bg-[color:var(--surface-2)] border-[color:var(--border-soft)] text-[color:var(--text-muted)]"
+        }`}>
+          {gameTime === "Live" && <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse" />}
           {gameTime}
         </span>
       </div>
+      
+      {/* Score Display for Live/Final games */}
+      {displayScores && (
+        <div className="flex items-center justify-center gap-4 mb-4 md:mb-6">
+          <span className={`text-3xl md:text-4xl font-bold ${team1Wins ? "text-green-500" : "text-[color:var(--text-strong)]"}`}>
+            {team1Score ?? 0}
+          </span>
+          <span className="text-xl text-[color:var(--text-muted)]">–</span>
+          <span className={`text-3xl md:text-4xl font-bold ${team2Wins ? "text-green-500" : "text-[color:var(--text-strong)]"}`}>
+            {team2Score ?? 0}
+          </span>
+        </div>
+      )}
 
       {/* Teams and Progress - Horizontal on desktop, vertical on mobile */}
       <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Heart, MessageSquare, MoreHorizontal, Send, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Heart, MessageSquare, MoreHorizontal, Send, Loader2, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -13,6 +13,8 @@ interface Post {
   comments_count: number;
   created_at: string;
   has_liked: boolean;
+  is_owner?: boolean;
+  user_id?: string;
   user: {
     username: string;
     display_name: string | null;
@@ -51,9 +53,42 @@ export function MarketComments({ marketSlug, league }: MarketCommentsProps) {
   const [replies, setReplies] = useState<Record<string, Reply[]>>({});
   const [loadingReplies, setLoadingReplies] = useState<Record<string, boolean>>({});
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
+  
+  // Menu state for post options
+  const [menuOpenFor, setMenuOpenFor] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // Use market slug as team_id for posts
   const teamId = `market:${marketSlug}`;
+  
+  // Fetch current user
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch("/api/me");
+        if (res.ok) {
+          const data = await res.json();
+          setCurrentUserId(data.user?.id || null);
+        }
+      } catch {
+        // Not logged in
+      }
+    };
+    fetchUser();
+  }, []);
+  
+  // Close menu on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpenFor(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Fetch posts for this market
   useEffect(() => {
@@ -128,6 +163,38 @@ export function MarketComments({ marketSlug, league }: MarketCommentsProps) {
       }
     } catch (error) {
       console.error("Like error:", error);
+    }
+  };
+
+  const handleDelete = async (postId: string) => {
+    if (!confirm("Are you sure you want to delete this comment?")) return;
+    
+    setDeleting(postId);
+    setMenuOpenFor(null);
+    
+    try {
+      const res = await fetch(`/api/posts/${postId}`, {
+        method: "DELETE",
+      });
+      
+      if (res.ok) {
+        // Remove from local state
+        setPosts(posts.filter(p => p.id !== postId));
+      } else {
+        const data = await res.json();
+        if (data.error === "AUTH_REQUIRED") {
+          alert("Please sign in to delete comments");
+        } else if (data.error) {
+          alert(data.error);
+        } else {
+          alert("Failed to delete. Please try again.");
+        }
+      }
+    } catch (error) {
+      console.error("Delete error:", error);
+      alert("Failed to delete. Please try again.");
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -239,7 +306,7 @@ export function MarketComments({ marketSlug, league }: MarketCommentsProps) {
         <Button 
           onClick={handlePost}
           disabled={!postContent.trim() || posting}
-          className="bg-[color:var(--accent)] hover:bg-[color:var(--accent-strong)] text-white"
+          className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium"
         >
           {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Post"}
         </Button>
@@ -280,9 +347,33 @@ export function MarketComments({ marketSlug, league }: MarketCommentsProps) {
                     <span className="text-xs text-[color:var(--text-subtle)]">
                       {formatTimeAgo(post.created_at)}
                     </span>
-                    <button className="ml-auto">
-                      <MoreHorizontal className="h-4 w-4 text-[color:var(--text-muted)]" />
-                    </button>
+                    {/* Post menu - show delete for owner */}
+                    {(post.is_owner || post.user_id === currentUserId) && (
+                      <div className="relative ml-auto" ref={menuOpenFor === post.id ? menuRef : undefined}>
+                        <button 
+                          onClick={() => setMenuOpenFor(menuOpenFor === post.id ? null : post.id)}
+                          className="p-1 rounded hover:bg-[color:var(--surface-2)] transition"
+                          disabled={deleting === post.id}
+                        >
+                          {deleting === post.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-[color:var(--text-muted)]" />
+                          ) : (
+                            <MoreHorizontal className="h-4 w-4 text-[color:var(--text-muted)]" />
+                          )}
+                        </button>
+                        {menuOpenFor === post.id && (
+                          <div className="absolute right-0 top-8 z-50 w-36 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-lg shadow-lg overflow-hidden">
+                            <button
+                              onClick={() => handleDelete(post.id)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-500/10 transition"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <p className="text-sm text-[color:var(--text-muted)] whitespace-pre-wrap">{post.content}</p>
                   <div className="flex items-center gap-4 mt-2 text-sm text-[color:var(--text-muted)]">

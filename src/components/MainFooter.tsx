@@ -81,8 +81,20 @@ export function MainFooter() {
           <span className="hover:text-white cursor-pointer">Terms of Use</span>
           <span className="hover:text-white cursor-pointer">Privacy</span>
         </div>
-        <div className="text-xs text-white/70">
-          © 2026 ProvePicks. All rights reserved.
+        {/* Risk Disclosure */}
+        <div className="pt-4 border-t border-white/20">
+          <div className="max-w-5xl text-xs text-white/60 space-y-3">
+            <p className="font-medium text-white/70">© 2026 ProvePicks, Inc.</p>
+            <p>
+              Trading on ProvePicks involves risk and may not be suitable for all users. Participants may lose the full amount paid to enter a market, including fees. You should carefully consider whether participating on ProvePicks is appropriate for you based on your experience and financial circumstances.
+            </p>
+            <p>
+              All trading decisions are made at your own discretion and risk. Information provided on ProvePicks is for convenience only and is offered on an "AS IS" basis. Past performance is not indicative of future results.
+            </p>
+            <p>
+              ProvePicks operates as a prediction market platform. ProvePicks does not provide investment advice, financial recommendations, or guarantees of outcomes.
+            </p>
+          </div>
         </div>
       </div>
     </footer>

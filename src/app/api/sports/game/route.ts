@@ -20,9 +20,19 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { getFromCache, setInCache, getCacheKey } from "@/lib/sportsdataio/cache";
 import { isValidFrontendLeague, ALL_FRONTEND_LEAGUES } from "@/lib/sports/providers";
 import { getGameFromCache, getTeamMapFromCache } from "@/lib/sports/games-cache";
+import { getLogoUrl } from "@/lib/images/getLogoUrl";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+
+function getSupabaseClient() {
+  if (!supabaseUrl || !supabaseAnonKey) return null;
+  return createClient(supabaseUrl, supabaseAnonKey);
+}
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
@@ -48,6 +58,9 @@ interface GameDetails {
   venue: string | null;
   week: number;
   channel: string | null;
+  // Market lock status (from database)
+  isLocked?: boolean;
+  lockReason?: string;
 }
 
 export async function GET(request: NextRequest) {
@@ -97,10 +110,47 @@ export async function GET(request: NextRequest) {
     const homeTeam = teamMap.get(cachedGame.home_team.toLowerCase());
     const awayTeam = teamMap.get(cachedGame.away_team.toLowerCase());
 
-    const statusLower = (cachedGame.status || "").toLowerCase();
-    const isOver = statusLower.includes("final") || statusLower.includes("finished");
-    const isInProgress = statusLower.includes("progress") || statusLower.includes("live");
-    const isCanceled = statusLower.includes("cancel") || statusLower.includes("postpone");
+    // Use status_norm from database as single source of truth
+    // Fallback to parsing raw status only if status_norm is not set
+    let gameStatus: GameDetails["status"] = "scheduled";
+    const statusNorm = (cachedGame.status_norm || "").toUpperCase();
+    
+    if (statusNorm) {
+      // Use normalized status from database
+      switch (statusNorm) {
+        case "FINAL":
+          gameStatus = "final";
+          break;
+        case "LIVE":
+          gameStatus = "in_progress";
+          break;
+        case "CANCELED":
+          gameStatus = "canceled";
+          break;
+        case "POSTPONED":
+          gameStatus = "postponed";
+          break;
+        case "SCHEDULED":
+        default:
+          gameStatus = "scheduled";
+          break;
+      }
+    } else {
+      // Fallback: parse from raw status for legacy data
+      const statusLower = (cachedGame.status || "").toLowerCase();
+      const isOver = statusLower.includes("final") || statusLower.includes("finished") || statusLower === "ft";
+      const isInProgress = statusLower.includes("progress") || statusLower.includes("live") ||
+                          statusLower.includes("1h") || statusLower.includes("2h");
+      const isCanceled = statusLower.includes("cancel") || statusLower.includes("postpone");
+      
+      if (isCanceled) {
+        gameStatus = "canceled";
+      } else if (isOver) {
+        gameStatus = "final";
+      } else if (isInProgress) {
+        gameStatus = "in_progress";
+      }
+    }
 
     const getAbbr = (name: string) => {
       if (!name) return "";
@@ -111,18 +161,49 @@ export async function GET(request: NextRequest) {
       return name.slice(0, 3).toUpperCase();
     };
 
+    // Fetch market lock status from database
+    let isLocked = false;
+    let lockReason: string | undefined = undefined;
+    
+    const supabase = getSupabaseClient();
+    if (supabase && cachedGame.id) {
+      // Try to find market by sports_game_id first (new binding)
+      const { data: market } = await supabase
+        .from('markets')
+        .select('is_locked, lock_reason')
+        .eq('sports_game_id', cachedGame.id)
+        .maybeSingle();
+      
+      if (market) {
+        isLocked = market.is_locked || false;
+        lockReason = market.lock_reason || undefined;
+      } else {
+        // Fallback: Check if game status implies locked (no market record yet)
+        if (statusNorm === 'FINAL' || statusNorm === 'CANCELED' || statusNorm === 'POSTPONED') {
+          isLocked = true;
+          lockReason = 'GAME_FINAL';
+        }
+      }
+    } else {
+      // No database access - derive from game status
+      if (statusNorm === 'FINAL' || statusNorm === 'CANCELED' || statusNorm === 'POSTPONED' || statusNorm === 'LIVE') {
+        isLocked = true;
+        lockReason = statusNorm === 'LIVE' ? 'GAME_LIVE' : 'GAME_FINAL';
+      }
+    }
+
     const gameDetails: GameDetails = {
       gameId: cachedGame.external_game_id,
       name: `${cachedGame.away_team} @ ${cachedGame.home_team}`,
       startTime: cachedGame.starts_at,
-      status: isCanceled ? "canceled" : isOver ? "final" : isInProgress ? "in_progress" : "scheduled",
+      status: gameStatus,
       homeTeam: {
         teamId: homeTeam?.id || 0,
         name: cachedGame.home_team,
         city: "",
         abbreviation: getAbbr(cachedGame.home_team),
         fullName: cachedGame.home_team,
-        logoUrl: homeTeam?.logo || null,
+        logoUrl: getLogoUrl(homeTeam?.logo),
         primaryColor: null,
       },
       awayTeam: {
@@ -131,7 +212,7 @@ export async function GET(request: NextRequest) {
         city: "",
         abbreviation: getAbbr(cachedGame.away_team),
         fullName: cachedGame.away_team,
-        logoUrl: awayTeam?.logo || null,
+        logoUrl: getLogoUrl(awayTeam?.logo),
         primaryColor: null,
       },
       homeScore: cachedGame.home_score,
@@ -139,6 +220,8 @@ export async function GET(request: NextRequest) {
       venue: null,
       week: 0,
       channel: null,
+      isLocked,
+      lockReason,
     };
 
     const response = { game: gameDetails };

@@ -12,9 +12,16 @@ const nextConfig = {
         hostname: "*.wikipedia.org",
         pathname: "/**",
       },
+      // Supabase Storage - allow all supabase.co subdomains
       {
         protocol: "https",
-        hostname: "phhczohqidgrvcmszets.supabase.co",
+        hostname: "*.supabase.co",
+        pathname: "/**",
+      },
+      // Specific Supabase project (current production)
+      {
+        protocol: "https",
+        hostname: "qiodxdkcvewvappuzuud.supabase.co",
         pathname: "/**",
       },
       // API-Sports media domain for team/league logos

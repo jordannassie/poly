@@ -1,6 +1,93 @@
 "use client";
 
-import { forwardRef } from "react";
+import { forwardRef, useState } from "react";
+import { getLogoUrl } from "@/lib/images/getLogoUrl";
+
+// Compact team logo component with error handling
+function TeamLogoCompact({ 
+  logoUrl, 
+  name, 
+  abbr, 
+  color 
+}: { 
+  logoUrl: string | null;
+  name: string;
+  abbr: string;
+  color: string;
+}) {
+  const [hasError, setHasError] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const showFallback = !logoUrl || hasError;
+
+  return (
+    <div 
+      className="w-10 h-10 rounded-lg flex items-center justify-center mb-1 overflow-hidden relative"
+      style={{ backgroundColor: color }}
+    >
+      <span className={`text-white font-bold text-xs ${!showFallback && isLoaded ? 'opacity-0' : 'opacity-100'} transition-opacity`}>
+        {abbr}
+      </span>
+      {logoUrl && !hasError && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={logoUrl}
+          alt={name}
+          data-img-src={logoUrl}
+          className={`w-7 h-7 object-contain absolute transition-opacity duration-200 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          onLoad={() => setIsLoaded(true)}
+          onError={() => setHasError(true)}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          crossOrigin="anonymous"
+        />
+      )}
+    </div>
+  );
+}
+
+// Full-size team logo component with error handling
+function TeamLogoFull({ 
+  logoUrl, 
+  name, 
+  abbr, 
+  color 
+}: { 
+  logoUrl: string | null;
+  name: string;
+  abbr: string;
+  color: string;
+}) {
+  const [hasError, setHasError] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const showFallback = !logoUrl || hasError;
+
+  return (
+    <div 
+      className="w-16 h-16 rounded-xl flex items-center justify-center mb-2 overflow-hidden relative"
+      style={{ backgroundColor: color }}
+    >
+      <span className={`text-white font-bold text-lg ${!showFallback && isLoaded ? 'opacity-0' : 'opacity-100'} transition-opacity`}>
+        {abbr}
+      </span>
+      {logoUrl && !hasError && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={logoUrl}
+          alt={name}
+          data-img-src={logoUrl}
+          className={`w-12 h-12 object-contain absolute transition-opacity duration-200 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          onLoad={() => setIsLoaded(true)}
+          onError={() => setHasError(true)}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          crossOrigin="anonymous"
+        />
+      )}
+    </div>
+  );
+}
 
 export interface PicksCardData {
   league: string;
@@ -60,6 +147,10 @@ export const PicksCard = forwardRef<HTMLDivElement, PicksCardProps>(
     // Defensive defaults
     const safeTeamA = teamA || { name: "Team A", abbr: "A", logoUrl: null, odds: 50, color: "#333" };
     const safeTeamB = teamB || { name: "Team B", abbr: "B", logoUrl: null, odds: 50, color: "#333" };
+    
+    // Resolve logo URLs using helper
+    const teamALogoUrl = getLogoUrl(safeTeamA.logoUrl);
+    const teamBLogoUrl = getLogoUrl(safeTeamB.logoUrl);
 
     // Format user handle for display
     const displayHandle = userHandle === "Guest" ? "Guest" : (userHandle.startsWith("@") ? userHandle : `@${userHandle}`);
@@ -95,21 +186,12 @@ export const PicksCard = forwardRef<HTMLDivElement, PicksCardProps>(
                   ? "bg-gradient-to-b from-orange-500/20 to-transparent border border-orange-500/50" 
                   : "opacity-60"
               }`}>
-                <div 
-                  className="w-10 h-10 rounded-lg flex items-center justify-center mb-1 overflow-hidden"
-                  style={{ backgroundColor: safeTeamA.color }}
-                >
-                  {safeTeamA.logoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={safeTeamA.logoUrl}
-                      alt={safeTeamA.name}
-                      className="w-7 h-7 object-contain"
-                    />
-                  ) : (
-                    <span className="text-white font-bold text-xs">{safeTeamA.abbr}</span>
-                  )}
-                </div>
+                <TeamLogoCompact 
+                  logoUrl={teamALogoUrl}
+                  name={safeTeamA.name}
+                  abbr={safeTeamA.abbr}
+                  color={safeTeamA.color}
+                />
                 <span className="text-[10px] font-semibold text-white">{safeTeamA.abbr}</span>
                 <span className="text-sm font-bold text-white">{safeTeamA.odds}%</span>
               </div>
@@ -125,21 +207,12 @@ export const PicksCard = forwardRef<HTMLDivElement, PicksCardProps>(
                   ? "bg-gradient-to-b from-orange-500/20 to-transparent border border-orange-500/50" 
                   : "opacity-60"
               }`}>
-                <div 
-                  className="w-10 h-10 rounded-lg flex items-center justify-center mb-1 overflow-hidden"
-                  style={{ backgroundColor: safeTeamB.color }}
-                >
-                  {safeTeamB.logoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={safeTeamB.logoUrl}
-                      alt={safeTeamB.name}
-                      className="w-7 h-7 object-contain"
-                    />
-                  ) : (
-                    <span className="text-white font-bold text-xs">{safeTeamB.abbr}</span>
-                  )}
-                </div>
+                <TeamLogoCompact 
+                  logoUrl={teamBLogoUrl}
+                  name={safeTeamB.name}
+                  abbr={safeTeamB.abbr}
+                  color={safeTeamB.color}
+                />
                 <span className="text-[10px] font-semibold text-white">{safeTeamB.abbr}</span>
                 <span className="text-sm font-bold text-white">{safeTeamB.odds}%</span>
               </div>
@@ -209,21 +282,12 @@ export const PicksCard = forwardRef<HTMLDivElement, PicksCardProps>(
                 ? "bg-gradient-to-b from-orange-500/20 to-transparent border-2 border-orange-500/50" 
                 : "opacity-60"
             }`}>
-              <div 
-                className="w-16 h-16 rounded-xl flex items-center justify-center mb-2 overflow-hidden"
-                style={{ backgroundColor: safeTeamA.color }}
-              >
-                {safeTeamA.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={safeTeamA.logoUrl}
-                    alt={safeTeamA.name}
-                    className="w-12 h-12 object-contain"
-                  />
-                ) : (
-                  <span className="text-white font-bold text-lg">{safeTeamA.abbr}</span>
-                )}
-              </div>
+              <TeamLogoFull 
+                logoUrl={teamALogoUrl}
+                name={safeTeamA.name}
+                abbr={safeTeamA.abbr}
+                color={safeTeamA.color}
+              />
               <span className="text-sm font-semibold text-white">{safeTeamA.name}</span>
               <span className="text-2xl font-bold text-white mt-1">{safeTeamA.odds}%</span>
               {selectedTeam === "teamA" && (
@@ -242,21 +306,12 @@ export const PicksCard = forwardRef<HTMLDivElement, PicksCardProps>(
                 ? "bg-gradient-to-b from-orange-500/20 to-transparent border-2 border-orange-500/50" 
                 : "opacity-60"
             }`}>
-              <div 
-                className="w-16 h-16 rounded-xl flex items-center justify-center mb-2 overflow-hidden"
-                style={{ backgroundColor: safeTeamB.color }}
-              >
-                {safeTeamB.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={safeTeamB.logoUrl}
-                    alt={safeTeamB.name}
-                    className="w-12 h-12 object-contain"
-                  />
-                ) : (
-                  <span className="text-white font-bold text-lg">{safeTeamB.abbr}</span>
-                )}
-              </div>
+              <TeamLogoFull 
+                logoUrl={teamBLogoUrl}
+                name={safeTeamB.name}
+                abbr={safeTeamB.abbr}
+                color={safeTeamB.color}
+              />
               <span className="text-sm font-semibold text-white">{safeTeamB.name}</span>
               <span className="text-2xl font-bold text-white mt-1">{safeTeamB.odds}%</span>
               {selectedTeam === "teamB" && (

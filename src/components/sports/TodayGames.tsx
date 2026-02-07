@@ -33,6 +33,35 @@ interface Game {
   HomeTeamData?: Team;
 }
 
+// Placeholder team names to filter out
+const PLACEHOLDER_NAMES = new Set([
+  "tbd", "tba", "unknown", "team", "team 1", "team 2",
+  "home", "away", "nfc", "afc", "east", "west", "north", "south"
+]);
+
+/**
+ * Check if a team name is valid (not empty, not a placeholder)
+ */
+function isValidTeamName(name: string | undefined | null): boolean {
+  if (!name || typeof name !== "string") return false;
+  const trimmed = name.trim().toLowerCase();
+  if (trimmed.length < 2) return false;
+  if (PLACEHOLDER_NAMES.has(trimmed)) return false;
+  // Check for "Team X" pattern
+  if (/^team\s+\d+$/i.test(trimmed) || /^team\s+unknown$/i.test(trimmed)) return false;
+  return true;
+}
+
+/**
+ * Check if a game has valid teams (filters out placeholder games)
+ */
+function isValidGame(game: Game): boolean {
+  // Must have valid home and away team names
+  const homeName = game.HomeTeamData?.Name || game.HomeTeam;
+  const awayName = game.AwayTeamData?.Name || game.AwayTeam;
+  return isValidTeamName(homeName) && isValidTeamName(awayName);
+}
+
 interface GamesResponse {
   league: string;
   date: string;
@@ -110,23 +139,32 @@ export function TodayGames({ league = "nfl", date }: TodayGamesProps) {
         <span className="text-sm">{formattedDate}</span>
       </div>
 
-      {games.length === 0 ? (
-        <div className="text-center py-12 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl">
-          <Calendar className="h-12 w-12 mx-auto mb-4 text-[color:var(--text-muted)]" />
-          <p className="text-[color:var(--text-muted)]">
-            No {league.toUpperCase()} games today
-          </p>
-          <p className="text-sm text-[color:var(--text-subtle)] mt-1">
-            {syncMessage || "Check back on game days for live updates"}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {games.map((game) => (
-            <GameCard key={game.GameKey} game={game} league={league} />
-          ))}
-        </div>
-      )}
+      {(() => {
+        // Filter out games with invalid/placeholder teams
+        const validGames = games.filter(isValidGame);
+        
+        if (validGames.length === 0) {
+          return (
+            <div className="text-center py-12 bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl">
+              <Calendar className="h-12 w-12 mx-auto mb-4 text-[color:var(--text-muted)]" />
+              <p className="text-[color:var(--text-muted)]">
+                No {league.toUpperCase()} games today
+              </p>
+              <p className="text-sm text-[color:var(--text-subtle)] mt-1">
+                {syncMessage || "Check back on game days for live updates"}
+              </p>
+            </div>
+          );
+        }
+        
+        return (
+          <div className="space-y-3">
+            {validGames.map((game) => (
+              <GameCard key={game.GameKey} game={game} league={league} />
+            ))}
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -203,7 +241,7 @@ function GameCard({ game, league }: { game: Game; league: string }) {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={awayTeam.WikipediaLogoUrl}
-                  alt={game.AwayTeam}
+                  alt={awayTeam?.Name || game.AwayTeam || "Away"}
                   width={32}
                   height={32}
                   className="object-contain w-8 h-8"
@@ -211,15 +249,15 @@ function GameCard({ game, league }: { game: Game; league: string }) {
                   loading="lazy"
                 />
               ) : (
-                <span className="text-white font-bold text-xs">{game.AwayTeam}</span>
+                <span className="text-white font-bold text-xs">{game.AwayTeam || "AWY"}</span>
               )}
             </div>
             <div>
               <div className="font-semibold text-[color:var(--text-strong)]">
-                {awayTeam?.City || game.AwayTeam}
+                {awayTeam?.City || awayTeam?.Name || game.AwayTeam || "Away Team"}
               </div>
               <div className="text-sm text-[color:var(--text-muted)]">
-                {awayTeam?.Name || ""}
+                {awayTeam?.Name && awayTeam?.City ? awayTeam.Name : ""}
               </div>
             </div>
           </div>
@@ -239,10 +277,10 @@ function GameCard({ game, league }: { game: Game; league: string }) {
           <div className="flex items-center gap-3 flex-1 justify-end">
             <div className="text-right">
               <div className="font-semibold text-[color:var(--text-strong)]">
-                {homeTeam?.City || game.HomeTeam}
+                {homeTeam?.City || homeTeam?.Name || game.HomeTeam || "Home Team"}
               </div>
               <div className="text-sm text-[color:var(--text-muted)]">
-                {homeTeam?.Name || ""}
+                {homeTeam?.Name && homeTeam?.City ? homeTeam.Name : ""}
               </div>
             </div>
             <div 
@@ -253,7 +291,7 @@ function GameCard({ game, league }: { game: Game; league: string }) {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={homeTeam.WikipediaLogoUrl}
-                  alt={game.HomeTeam}
+                  alt={homeTeam?.Name || game.HomeTeam || "Home"}
                   width={32}
                   height={32}
                   className="object-contain w-8 h-8"
@@ -261,7 +299,7 @@ function GameCard({ game, league }: { game: Game; league: string }) {
                   loading="lazy"
                 />
               ) : (
-                <span className="text-white font-bold text-xs">{game.HomeTeam}</span>
+                <span className="text-white font-bold text-xs">{game.HomeTeam || "HOM"}</span>
               )}
             </div>
           </div>
@@ -271,14 +309,14 @@ function GameCard({ game, league }: { game: Game; league: string }) {
         <div className="mt-4">
           <TeamOutcomeButtonPair
             teamA={{
-              name: awayTeam?.Name || game.AwayTeam,
-              abbr: game.AwayTeam,
+              name: awayTeam?.Name || game.AwayTeam || "Away",
+              abbr: game.AwayTeam || "AWY",
               logoUrl: awayTeam?.WikipediaLogoUrl,
               color: awayTeam?.PrimaryColor ? `#${awayTeam.PrimaryColor}` : "#6366f1",
             }}
             teamB={{
-              name: homeTeam?.Name || game.HomeTeam,
-              abbr: game.HomeTeam,
+              name: homeTeam?.Name || game.HomeTeam || "Home",
+              abbr: game.HomeTeam || "HOM",
               logoUrl: homeTeam?.WikipediaLogoUrl,
               color: homeTeam?.PrimaryColor ? `#${homeTeam.PrimaryColor}` : "#6366f1",
             }}

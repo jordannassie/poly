@@ -31,6 +31,9 @@ interface GameInput {
   timeRemaining?: string | null;
   possession?: string | null;
   isPlayoffs?: boolean;
+  // Market lock status from database
+  isLocked?: boolean;
+  lockReason?: string;
 }
 
 interface ConversionInput {
@@ -66,6 +69,14 @@ export function gameToMarketViewModel(input: ConversionInput): MarketViewModel {
   // Format locks in label
   const locks = locksInLabel(startTime);
   
+  // Derive isLocked from game data or status
+  const isLocked = game.isLocked ?? 
+    (game.status === 'final' || game.status === 'canceled' || game.status === 'postponed' || game.status === 'in_progress');
+  const lockReason = game.lockReason ?? 
+    (game.status === 'in_progress' ? 'GAME_LIVE' : 
+     (game.status === 'final' || game.status === 'canceled' || game.status === 'postponed') ? 'GAME_FINAL' : 
+     undefined);
+  
   return {
     league,
     slug: game.gameId,
@@ -97,6 +108,10 @@ export function gameToMarketViewModel(input: ConversionInput): MarketViewModel {
     status: game.status,
     locksInLabel: locks,
     
+    // Market lock status (authoritative from database)
+    isLocked,
+    lockReason,
+    
     // Use demo stats for now (can be replaced with real data later)
     stats: { ...DEFAULT_STATS },
     
@@ -105,7 +120,7 @@ export function gameToMarketViewModel(input: ConversionInput): MarketViewModel {
       no: team2Odds,
     },
     
-    volume: formatVolume(4020000), // Demo volume
+    volume: "—", // Real volume not yet tracked
     
     lines: { ...DEFAULT_LINES },
     

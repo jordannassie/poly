@@ -187,62 +187,73 @@ async function syncTeamToDb(
   };
   
   try {
-    // Check if team already exists (by sport + api_team_id)
+    // Check if team already exists (by league + id which is the primary key in v3 schema)
     const { data: existingTeam } = await adminClient
       .from("sports_teams")
-      .select("id, logo_path")
-      .eq("league", sport.toUpperCase())
-      .eq("api_team_id", team.id)
+      .select("id, logo")
+      .eq("league", sport.toLowerCase())
+      .eq("id", team.id)
       .single();
     
-    let logoPath = existingTeam?.logo_path || null;
+    // Determine logo value: prefer storage path, fallback to original URL
+    let logoValue = existingTeam?.logo || team.logo || null;
     let logoUploaded = false;
     
-    // Download and upload logo if available and not already cached
-    if (team.logo && !existingTeam?.logo_path) {
+    // Download and upload logo if available and not already cached as storage path
+    const isStoragePath = logoValue && !logoValue.startsWith("http");
+    if (team.logo && !isStoragePath) {
       try {
         const imageData = await downloadImage(team.logo);
         
         if (imageData) {
           const uploadResult = await uploadTeamLogo(
             adminClient,
-            sport.toUpperCase(),
+            sport.toLowerCase(),
             team.id,
             imageData.buffer,
             imageData.contentType
           );
           
           if (uploadResult.success && uploadResult.path) {
-            logoPath = uploadResult.path;
+            logoValue = uploadResult.path; // Store storage path
             logoUploaded = true;
             result.logoSynced = true;
             result.logoPath = uploadResult.path;
+          } else {
+            // Upload failed - use original URL
+            logoValue = team.logo;
           }
+        } else {
+          // Download failed - use original URL
+          logoValue = team.logo;
         }
       } catch (logoErr) {
         console.warn(`[syncTeamToDb] Logo download failed for ${team.name}:`, logoErr);
+        logoValue = team.logo; // Fallback to original URL
       }
-    } else if (existingTeam?.logo_path) {
-      // Already have logo cached
+    } else if (isStoragePath) {
+      // Already have storage path cached
       result.logoSynced = true;
-      result.logoPath = existingTeam.logo_path;
+      result.logoPath = logoValue;
     }
     
-    // Upsert team record
+    // Generate slug from team name
+    const slug = `${sport.toLowerCase()}-${team.id}-${team.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+    
+    // Upsert team record (v3 schema: id, league, name, slug, country, logo)
     const teamRecord = {
-      league: sport.toUpperCase(),
-      league_id: leagueId,
-      api_team_id: team.id,
+      id: team.id,
+      league: sport.toLowerCase(),
       name: team.name,
-      logo_path: logoPath,
-      logo_url_original: team.logo || null,
+      slug,
+      logo: logoValue,
       updated_at: new Date().toISOString(),
     };
     
     const { error: upsertError } = await adminClient
       .from("sports_teams")
       .upsert(teamRecord, {
-        onConflict: "league,api_team_id",
+        onConflict: "league,id",
       });
     
     if (upsertError) {
