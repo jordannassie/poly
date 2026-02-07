@@ -182,6 +182,9 @@ export default function AdminLifecyclePage() {
   const [batchProgress, setBatchProgress] = useState<string | null>(null);
   const [backfillLockWarning, setBackfillLockWarning] = useState<string | null>(null);
   const [backfillCooldown, setBackfillCooldown] = useState(0);
+  const [showClearLockConfirm, setShowClearLockConfirm] = useState(false);
+  const [clearingLock, setClearingLock] = useState(false);
+  const [lockCleared, setLockCleared] = useState(false);
 
   // Fetch scheduled jobs status
   const fetchScheduledJobsStatus = useCallback(async () => {
@@ -407,6 +410,32 @@ export default function AdminLifecyclePage() {
       setBackfill({ status: 'idle', gamesProcessed: 0, gamesUpserted: 0, gamesFinalized: 0, errors: [] });
     }
     setLoading(null);
+  };
+
+  const forceClearBackfillLock = async () => {
+    setClearingLock(true);
+    setLockCleared(false);
+
+    const { data, error } = await safeFetchJson<{ success: boolean; released: boolean }>("/api/admin/lifecycle/health", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "force-release-job-lock", jobName: "backfill" }),
+    });
+
+    if (error) {
+      console.error("Failed to clear backfill lock:", error);
+      setResult({ success: false, error });
+    } else if (data) {
+      // Clear the warning and cooldown
+      setBackfillLockWarning(null);
+      setBackfillCooldown(0);
+      setLockCleared(true);
+      // Auto-hide after 3s
+      setTimeout(() => setLockCleared(false), 3000);
+    }
+
+    setClearingLock(false);
+    setShowClearLockConfirm(false);
   };
 
   const fetchFinalizeDebug = async () => {
@@ -1003,12 +1032,48 @@ export default function AdminLifecyclePage() {
         {backfillLockWarning && (
           <div className="bg-amber-900/30 border border-amber-700 rounded-lg p-3 flex items-start gap-2">
             <span className="text-amber-400 text-lg">⚠</span>
-            <div>
+            <div className="flex-1">
               <p className="text-sm text-amber-300 font-medium">{backfillLockWarning}</p>
               {backfillCooldown > 0 && (
                 <p className="text-xs text-amber-400/70 mt-1">Button will re-enable in {backfillCooldown}s</p>
               )}
+              <div className="mt-2">
+                {!showClearLockConfirm ? (
+                  <button
+                    onClick={() => setShowClearLockConfirm(true)}
+                    className="text-xs text-amber-400 hover:text-amber-300 underline"
+                  >
+                    Force Clear Backfill Lock
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-amber-400">Clear stuck lock? (safe in dev/testing)</span>
+                    <Button
+                      onClick={forceClearBackfillLock}
+                      disabled={clearingLock}
+                      size="sm"
+                      className="bg-amber-600 hover:bg-amber-700 text-white text-xs px-2 py-1 h-auto"
+                    >
+                      {clearingLock ? "Clearing..." : "Confirm"}
+                    </Button>
+                    <button
+                      onClick={() => setShowClearLockConfirm(false)}
+                      className="text-xs text-slate-400 hover:text-slate-300"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
+          </div>
+        )}
+
+        {/* Lock cleared success message */}
+        {lockCleared && (
+          <div className="bg-green-900/30 border border-green-700 rounded-lg p-3 flex items-center gap-2">
+            <span className="text-green-400">✓</span>
+            <p className="text-sm text-green-300">Backfill lock cleared. You can try again now.</p>
           </div>
         )}
 

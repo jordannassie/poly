@@ -400,13 +400,16 @@ function formatQueueItems(data: any[] | null): HealthCheck['items'] {
 /**
  * Release stale processing locks
  * Items that have been PROCESSING for > 10 minutes are reset to QUEUED
+ * Also clears stale job_locks (expired or older than 10 minutes)
  */
 export async function releaseStaleProcessingLocks(
   adminClient: SupabaseClient
 ): Promise<number> {
   const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  let totalReleased = 0;
 
-  const { data, error } = await adminClient
+  // 1. Release stale settlement_queue processing locks
+  const { data: queueData, error: queueError } = await adminClient
     .from('settlement_queue')
     .update({
       status: 'QUEUED',
@@ -417,17 +420,64 @@ export async function releaseStaleProcessingLocks(
     .lt('locked_at', tenMinutesAgo)
     .select('id');
 
+  if (queueError) {
+    console.error('[health] releaseStaleProcessingLocks (queue) failed:', queueError.message);
+  } else {
+    const queueCount = queueData?.length || 0;
+    if (queueCount > 0) {
+      console.log(`[health] Released ${queueCount} stale settlement_queue locks`);
+      totalReleased += queueCount;
+    }
+  }
+
+  // 2. Release stale/expired job_locks (including backfill)
+  const now = new Date().toISOString();
+  const { data: jobData, error: jobError } = await adminClient
+    .from('job_locks')
+    .delete()
+    .or(`expires_at.lt.${now},locked_at.lt.${tenMinutesAgo}`)
+    .select('job_name');
+
+  if (jobError) {
+    console.error('[health] releaseStaleProcessingLocks (job_locks) failed:', jobError.message);
+  } else {
+    const jobCount = jobData?.length || 0;
+    if (jobCount > 0) {
+      const jobNames = jobData.map((j: any) => j.job_name).join(', ');
+      console.log(`[health] Released ${jobCount} stale job locks: ${jobNames}`);
+      totalReleased += jobCount;
+    }
+  }
+
+  return totalReleased;
+}
+
+/**
+ * Force release a specific job lock (admin action)
+ */
+export async function forceReleaseJobLock(
+  adminClient: SupabaseClient,
+  jobName: string
+): Promise<boolean> {
+  const { data, error } = await adminClient
+    .from('job_locks')
+    .delete()
+    .eq('job_name', jobName)
+    .select('job_name');
+
   if (error) {
-    console.error('[health] releaseStaleProcessingLocks failed:', error.message);
-    return 0;
+    console.error(`[health] forceReleaseJobLock(${jobName}) failed:`, error.message);
+    return false;
   }
 
-  const count = data?.length || 0;
-  if (count > 0) {
-    console.log(`[health] Released ${count} stale processing locks`);
+  const released = (data?.length || 0) > 0;
+  if (released) {
+    console.log(`[health] Force released job lock: ${jobName}`);
+  } else {
+    console.log(`[health] No job lock found for: ${jobName}`);
   }
 
-  return count;
+  return released;
 }
 
 /**

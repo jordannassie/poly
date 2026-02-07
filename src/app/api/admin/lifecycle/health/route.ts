@@ -11,7 +11,8 @@ import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { 
   runHealthChecks, 
   releaseStaleProcessingLocks,
-  enqueueOrphanedFinalGames 
+  enqueueOrphanedFinalGames,
+  forceReleaseJobLock,
 } from "@/lib/lifecycle/health";
 
 function getAdminClient() {
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { action } = body;
+    const { action, jobName } = body;
 
     const adminClient = getAdminClient();
     let result: any = { success: false };
@@ -79,6 +80,17 @@ export async function POST(request: NextRequest) {
         const released = await releaseStaleProcessingLocks(adminClient);
         const enqueued = await enqueueOrphanedFinalGames(adminClient);
         result = { success: true, action, released, enqueued };
+        break;
+
+      case 'force-release-job-lock':
+        if (!jobName) {
+          return NextResponse.json(
+            { error: 'Missing jobName parameter' },
+            { status: 400 }
+          );
+        }
+        const wasReleased = await forceReleaseJobLock(adminClient, jobName);
+        result = { success: true, action, jobName, released: wasReleased };
         break;
 
       default:
