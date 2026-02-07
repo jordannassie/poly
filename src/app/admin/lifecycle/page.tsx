@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 
 /**
  * Safe JSON fetch helper - prevents "Unexpected token <" errors
- * by checking content-type before parsing
+ * by checking content-type before parsing. Also returns status for special handling.
  */
-async function safeFetchJson<T>(url: string, options?: RequestInit): Promise<{ data: T | null; error: string | null }> {
+async function safeFetchJson<T>(url: string, options?: RequestInit): Promise<{ data: T | null; error: string | null; status?: number }> {
   try {
     const res = await fetch(url, options);
     const contentType = res.headers.get("content-type") || "";
@@ -17,17 +17,18 @@ async function safeFetchJson<T>(url: string, options?: RequestInit): Promise<{ d
       const preview = text.slice(0, 200);
       return { 
         data: null, 
-        error: `HTTP ${res.status}: Expected JSON but got ${contentType || "unknown"}. Response: ${preview}${text.length > 200 ? '...' : ''}` 
+        error: `HTTP ${res.status}: Expected JSON but got ${contentType || "unknown"}. Response: ${preview}${text.length > 200 ? '...' : ''}`,
+        status: res.status,
       };
     }
     
     if (!res.ok) {
       const data = await res.json();
-      return { data: null, error: `HTTP ${res.status}: ${data.error || JSON.stringify(data)}` };
+      return { data: null, error: `HTTP ${res.status}: ${data.error || JSON.stringify(data)}`, status: res.status };
     }
     
     const data = await res.json();
-    return { data, error: null };
+    return { data, error: null, status: res.status };
   } catch (err) {
     return { data: null, error: err instanceof Error ? err.message : "Unknown fetch error" };
   }
@@ -179,6 +180,8 @@ export default function AdminLifecyclePage() {
   const [scheduledJobs, setScheduledJobs] = useState<ScheduledJobsStatus | null>(null);
   const [copiedError, setCopiedError] = useState<string | null>(null);
   const [batchProgress, setBatchProgress] = useState<string | null>(null);
+  const [backfillLockWarning, setBackfillLockWarning] = useState<string | null>(null);
+  const [backfillCooldown, setBackfillCooldown] = useState(0);
 
   // Fetch scheduled jobs status
   const fetchScheduledJobsStatus = useCallback(async () => {
@@ -355,18 +358,36 @@ export default function AdminLifecyclePage() {
 
   const startBackfill = async () => {
     setLoading("backfill-start");
+    setBackfillLockWarning(null);
 
-    const { data, error } = await safeFetchJson<{ progress: BackfillProgress }>("/api/admin/lifecycle/backfill", {
+    const { data, error, status } = await safeFetchJson<{ progress: BackfillProgress }>("/api/admin/lifecycle/backfill", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "start", days: backfillDays }),
     });
 
     if (error) {
-      console.error("Failed to start backfill:", error);
-      setResult({ success: false, error });
+      // Handle 409 Conflict (lock active) as a warning, not an error
+      if (status === 409) {
+        setBackfillLockWarning("Backfill already running or lock active. Please wait 1–2 minutes and try again.");
+        // Disable button for 60 seconds
+        setBackfillCooldown(60);
+        const countdown = setInterval(() => {
+          setBackfillCooldown(prev => {
+            if (prev <= 1) {
+              clearInterval(countdown);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      } else {
+        console.error("Failed to start backfill:", error);
+        setResult({ success: false, error });
+      }
     } else if (data) {
       setBackfill(data.progress);
+      setBackfillLockWarning(null);
     }
     setLoading(null);
   };
@@ -411,7 +432,7 @@ export default function AdminLifecyclePage() {
       case 'critical':
         return 'text-red-400';
       default:
-        return 'text-gray-400';
+        return 'text-slate-400';
     }
   };
 
@@ -425,7 +446,7 @@ export default function AdminLifecyclePage() {
       case 'critical':
         return 'bg-red-900/30 border-red-700';
       default:
-        return 'bg-gray-700/30 border-gray-600';
+        return 'bg-slate-700/30 border-slate-600';
     }
   };
 
@@ -451,9 +472,9 @@ export default function AdminLifecyclePage() {
       case 'error':
         return 'bg-red-600 text-white';
       case 'never':
-        return 'bg-gray-600 text-gray-300';
+        return 'bg-slate-600 text-slate-300';
       default:
-        return 'bg-gray-600 text-gray-300';
+        return 'bg-slate-600 text-slate-300';
     }
   };
 
@@ -481,21 +502,21 @@ export default function AdminLifecyclePage() {
   return (
     <div className="p-6 space-y-6 max-w-5xl">
       <div>
-        <h1 className="text-2xl font-bold text-white">Game Lifecycle Manager</h1>
-        <p className="text-gray-400 mt-1">
+        <h1 className="text-2xl font-bold text-slate-100">Game Lifecycle Manager</h1>
+        <p className="text-slate-400 mt-1">
           Production-grade game state machine and settlement system
         </p>
       </div>
 
       {/* Scheduled Jobs Status Card */}
-      <div className="bg-gray-800/50 rounded-lg p-4 space-y-4">
+      <div className="bg-slate-800/50 rounded-lg p-4 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-white">Scheduled Jobs Status</h2>
-            <p className="text-sm text-gray-400">
+            <h2 className="text-lg font-semibold text-slate-100">Scheduled Jobs Status</h2>
+            <p className="text-sm text-slate-400">
               Netlify cron jobs running in production
               {scheduledJobs?.fetched_at && (
-                <span className="ml-2 text-xs text-gray-500">
+                <span className="ml-2 text-xs text-slate-500">
                   (updated {formatTimeAgo(scheduledJobs.fetched_at)})
                 </span>
               )}
@@ -506,14 +527,14 @@ export default function AdminLifecyclePage() {
             disabled={loading !== null}
             variant="outline"
             size="sm"
-            className="text-white border-gray-600"
+            className="text-slate-100 border-slate-700 hover:bg-slate-700"
           >
             Refresh
           </Button>
         </div>
 
         {scheduledJobs?.error && (
-          <div className="text-sm text-yellow-400 bg-yellow-900/20 rounded p-2">
+          <div className="text-sm text-yellow-400 bg-yellow-900/20 border border-yellow-800/50 rounded p-2">
             {scheduledJobs.error}
           </div>
         )}
@@ -522,10 +543,10 @@ export default function AdminLifecyclePage() {
           {(scheduledJobs?.jobs || []).map((job) => (
             <div
               key={job.job_name}
-              className="bg-gray-700/50 rounded-lg p-3 border border-gray-600"
+              className="bg-slate-700/50 rounded-lg p-3 border border-slate-600"
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="font-medium text-white text-sm">
+                <span className="font-medium text-slate-100 text-sm">
                   {job.job_name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                 </span>
                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${getJobStatusBadge(job.status)}`}>
@@ -535,17 +556,17 @@ export default function AdminLifecyclePage() {
               
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <span className="text-gray-400">Last run:</span>
-                  <span className="text-white ml-1">{formatTimeAgo(job.finished_at || job.started_at)}</span>
+                  <span className="text-slate-400">Last run:</span>
+                  <span className="text-slate-100 ml-1">{formatTimeAgo(job.finished_at || job.started_at)}</span>
                 </div>
                 <div>
-                  <span className="text-gray-400">Duration:</span>
-                  <span className="text-white ml-1">{formatDuration(job.duration_ms)}</span>
+                  <span className="text-slate-400">Duration:</span>
+                  <span className="text-slate-100 ml-1">{formatDuration(job.duration_ms)}</span>
                 </div>
               </div>
               
               {job.counts && (
-                <div className="mt-1 text-xs text-gray-400 truncate">
+                <div className="mt-1 text-xs text-slate-400 truncate">
                   {formatCounts(job.counts)}
                 </div>
               )}
@@ -558,7 +579,7 @@ export default function AdminLifecyclePage() {
                   </p>
                   <button
                     onClick={() => copyError(job.job_name, job.error!)}
-                    className="text-xs px-2 py-0.5 bg-gray-600 hover:bg-gray-500 rounded text-gray-300 flex-shrink-0"
+                    className="text-xs px-2 py-0.5 bg-slate-600 hover:bg-slate-500 rounded text-slate-300 flex-shrink-0"
                   >
                     {copiedError === job.job_name ? 'Copied!' : 'Copy'}
                   </button>
@@ -569,24 +590,31 @@ export default function AdminLifecyclePage() {
         </div>
 
         {(!scheduledJobs || scheduledJobs.jobs.length === 0) && !scheduledJobs?.error && (
-          <div className="text-sm text-gray-400 text-center py-4">
-            Loading scheduled jobs status...
+          <div className="text-sm text-slate-400 text-center py-4">
+            <div className="flex items-center justify-center gap-2">
+              <div className="animate-pulse flex gap-2">
+                <div className="h-2 w-2 bg-slate-600 rounded-full"></div>
+                <div className="h-2 w-2 bg-slate-600 rounded-full"></div>
+                <div className="h-2 w-2 bg-slate-600 rounded-full"></div>
+              </div>
+              <span>Loading scheduled jobs status...</span>
+            </div>
           </div>
         )}
       </div>
 
       {/* Health Checks Section */}
-      <div className="bg-gray-800/50 rounded-lg p-4 space-y-4">
+      <div className="bg-slate-800/50 rounded-lg p-4 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-white">Health Checks</h2>
-            <p className="text-sm text-gray-400">Monitor for stuck games and processing issues</p>
+            <h2 className="text-lg font-semibold text-slate-100">Health Checks</h2>
+            <p className="text-sm text-slate-400">Monitor for stuck games and processing issues</p>
           </div>
           <Button
             onClick={fetchHealthChecks}
             disabled={loading !== null}
             variant="outline"
-            className="text-white border-gray-600"
+            className="text-slate-100 border-slate-700 hover:bg-slate-700"
           >
             {loading === "health" ? "Loading..." : "Run Health Checks"}
           </Button>
@@ -600,7 +628,7 @@ export default function AdminLifecyclePage() {
                 <span className={`text-lg font-bold ${getStatusColor(health.status)}`}>
                   {health.status.toUpperCase()}
                 </span>
-                <span className="text-sm text-gray-400">
+                <span className="text-sm text-slate-400">
                   {health.summary.total_issues} issues | Checked: {new Date(health.checked_at).toLocaleTimeString()}
                 </span>
               </div>
@@ -614,14 +642,14 @@ export default function AdminLifecyclePage() {
                   className={`rounded-lg p-3 border ${getStatusBg(check.status)}`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-semibold text-white">{key.replace(/_/g, ' ')}</span>
+                    <span className="text-sm font-semibold text-slate-100">{key.replace(/_/g, ' ')}</span>
                     <span className={`text-sm font-bold ${getStatusColor(check.status)}`}>
                       {check.count}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-400">{check.description}</p>
+                  <p className="text-xs text-slate-400">{check.description}</p>
                   {check.items && check.items.length > 0 && (
-                    <div className="mt-2 text-xs text-gray-500 max-h-20 overflow-y-auto">
+                    <div className="mt-2 text-xs text-slate-500 max-h-20 overflow-y-auto">
                       {check.items.slice(0, 3).map((item, i) => (
                         <div key={i}>{item.league.toUpperCase()} - {item.home_team} vs {item.away_team}</div>
                       ))}
@@ -664,9 +692,9 @@ export default function AdminLifecyclePage() {
       </div>
 
       {/* Jobs Section */}
-      <div className="bg-gray-800/50 rounded-lg p-4 space-y-4">
-        <h2 className="text-lg font-semibold text-white">Lifecycle Jobs</h2>
-        <p className="text-sm text-gray-400">
+      <div className="bg-slate-800/50 rounded-lg p-4 space-y-4">
+        <h2 className="text-lg font-semibold text-slate-100">Lifecycle Jobs</h2>
+        <p className="text-sm text-slate-400">
           Run jobs manually to test the lifecycle flow. Jobs are locked to prevent concurrent execution.
         </p>
 
@@ -706,45 +734,45 @@ export default function AdminLifecyclePage() {
 
         {/* Batch progress indicator */}
         {batchProgress && (
-          <div className="text-sm text-blue-400 bg-blue-900/20 rounded p-2">
+          <div className="text-sm text-blue-400 bg-blue-900/20 border border-blue-800/50 rounded p-2">
             {loading ? "Processing: " : ""}{batchProgress}
           </div>
         )}
 
-        <div className="text-xs text-gray-500 space-y-1">
-          <p><strong>Discover:</strong> Ingest games for rolling 72h window (36h back, 36h forward)</p>
-          <p><strong>Sync:</strong> Update scores/status for live games, detect finalized games</p>
-          <p><strong>Finalize:</strong> Mark stuck/completed games as FINAL, enqueue for settlement</p>
-          <p className="text-gray-600 italic">Jobs run in small batches to prevent timeouts. Click multiple times for large datasets.</p>
+        <div className="text-xs text-slate-500 space-y-1">
+          <p><strong className="text-slate-400">Discover:</strong> Ingest games for rolling 72h window (36h back, 36h forward)</p>
+          <p><strong className="text-slate-400">Sync:</strong> Update scores/status for live games, detect finalized games</p>
+          <p><strong className="text-slate-400">Finalize:</strong> Mark stuck/completed games as FINAL, enqueue for settlement</p>
+          <p className="text-slate-600 italic">Jobs run in small batches to prevent timeouts. Click multiple times for large datasets.</p>
         </div>
       </div>
 
       {/* Result Display */}
       {result && (
         <div className={`rounded-lg p-4 ${result.success ? 'bg-green-900/30 border border-green-700' : 'bg-red-900/30 border border-red-700'}`}>
-          <h3 className="font-semibold text-white mb-2">
+          <h3 className="font-semibold text-slate-100 mb-2">
             {result.success ? "✓ Job Completed" : "✗ Job Failed"}
             {result.skipped && " (Skipped - already running)"}
           </h3>
           {result.summary && (
             <div className="grid grid-cols-4 gap-4 text-sm">
               <div>
-                <span className="text-gray-400">Fetched:</span>
-                <span className="text-white ml-2">{result.summary.fetched}</span>
+                <span className="text-slate-400">Fetched:</span>
+                <span className="text-slate-100 ml-2">{result.summary.fetched}</span>
               </div>
               <div>
-                <span className="text-gray-400">Upserted:</span>
-                <span className={`ml-2 ${result.summary.upserted === 0 && result.summary.fetched > 0 ? 'text-red-400 font-bold' : 'text-white'}`}>
+                <span className="text-slate-400">Upserted:</span>
+                <span className={`ml-2 ${result.summary.upserted === 0 && result.summary.fetched > 0 ? 'text-red-400 font-bold' : 'text-slate-100'}`}>
                   {result.summary.upserted}
                 </span>
               </div>
               <div>
-                <span className="text-gray-400">Finalized:</span>
-                <span className="text-white ml-2">{result.summary.finalized}</span>
+                <span className="text-slate-400">Finalized:</span>
+                <span className="text-slate-100 ml-2">{result.summary.finalized}</span>
               </div>
               <div>
-                <span className="text-gray-400">Enqueued:</span>
-                <span className="text-white ml-2">{result.summary.enqueued}</span>
+                <span className="text-slate-400">Enqueued:</span>
+                <span className="text-slate-100 ml-2">{result.summary.enqueued}</span>
               </div>
             </div>
           )}
@@ -761,7 +789,7 @@ export default function AdminLifecyclePage() {
                     const errorText = `${result.firstError?.message}\nCode: ${result.firstError?.code || 'N/A'}\nDetails: ${result.firstError?.details || 'N/A'}`;
                     navigator.clipboard.writeText(errorText);
                   }}
-                  className="text-xs text-gray-400 hover:text-white px-2 py-1 bg-gray-700 rounded"
+                  className="text-xs text-slate-400 hover:text-slate-100 px-2 py-1 bg-slate-700 rounded"
                 >
                   Copy Error
                 </button>
@@ -777,7 +805,7 @@ export default function AdminLifecyclePage() {
               {result.firstError.message?.toLowerCase().includes('schema cache') && (
                 <div className="mt-2 p-2 bg-yellow-900/30 rounded border border-yellow-700">
                   <p className="text-xs text-yellow-400">
-                    <strong>Hint:</strong> Run in Supabase SQL editor: <code className="bg-gray-800 px-1 rounded">NOTIFY pgrst, &apos;reload schema&apos;;</code>
+                    <strong>Hint:</strong> Run in Supabase SQL editor: <code className="bg-slate-800 px-1 rounded">NOTIFY pgrst, &apos;reload schema&apos;;</code>
                   </p>
                 </div>
               )}
@@ -788,12 +816,12 @@ export default function AdminLifecyclePage() {
           {result.errors && result.errors.length > 0 && (
             <div className="mt-3">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-sm text-gray-400">All Errors ({result.errors.length})</span>
+                <span className="text-sm text-slate-400">All Errors ({result.errors.length})</span>
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(result.errors?.join('\n') || '');
                   }}
-                  className="text-xs text-gray-400 hover:text-white px-2 py-1 bg-gray-700 rounded"
+                  className="text-xs text-slate-400 hover:text-slate-100 px-2 py-1 bg-slate-700 rounded"
                 >
                   Copy All
                 </button>
@@ -803,7 +831,7 @@ export default function AdminLifecyclePage() {
                   <div key={i} className="truncate">{err}</div>
                 ))}
                 {result.errors.length > 5 && (
-                  <div className="text-gray-500">...and {result.errors.length - 5} more</div>
+                  <div className="text-slate-500">...and {result.errors.length - 5} more</div>
                 )}
               </div>
             </div>
@@ -816,17 +844,17 @@ export default function AdminLifecyclePage() {
       )}
 
       {/* Settlement Queue Section */}
-      <div className="bg-gray-800/50 rounded-lg p-4 space-y-4">
+      <div className="bg-slate-800/50 rounded-lg p-4 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-white">Settlement Queue</h2>
-            <p className="text-sm text-gray-400">Games waiting for settlement</p>
+            <h2 className="text-lg font-semibold text-slate-100">Settlement Queue</h2>
+            <p className="text-sm text-slate-400">Games waiting for settlement</p>
           </div>
           <Button
             onClick={fetchSettlementQueue}
             disabled={loading !== null}
             variant="outline"
-            className="text-white border-gray-600"
+            className="text-slate-100 border-slate-700 hover:bg-slate-700"
           >
             {loading === "queue" ? "Loading..." : "Refresh"}
           </Button>
@@ -834,25 +862,25 @@ export default function AdminLifecyclePage() {
 
         {stats && (
           <div className="grid grid-cols-5 gap-4 text-center">
-            <div className="bg-yellow-900/30 rounded p-2">
+            <div className="bg-yellow-900/30 border border-yellow-800/50 rounded p-2">
               <div className="text-2xl font-bold text-yellow-400">{stats.queued}</div>
-              <div className="text-xs text-gray-400">Queued</div>
+              <div className="text-xs text-slate-400">Queued</div>
             </div>
-            <div className="bg-blue-900/30 rounded p-2">
+            <div className="bg-blue-900/30 border border-blue-800/50 rounded p-2">
               <div className="text-2xl font-bold text-blue-400">{stats.processing}</div>
-              <div className="text-xs text-gray-400">Processing</div>
+              <div className="text-xs text-slate-400">Processing</div>
             </div>
-            <div className="bg-green-900/30 rounded p-2">
+            <div className="bg-green-900/30 border border-green-800/50 rounded p-2">
               <div className="text-2xl font-bold text-green-400">{stats.done}</div>
-              <div className="text-xs text-gray-400">Done</div>
+              <div className="text-xs text-slate-400">Done</div>
             </div>
-            <div className="bg-red-900/30 rounded p-2">
+            <div className="bg-red-900/30 border border-red-800/50 rounded p-2">
               <div className="text-2xl font-bold text-red-400">{stats.failed}</div>
-              <div className="text-xs text-gray-400">Failed</div>
+              <div className="text-xs text-slate-400">Failed</div>
             </div>
-            <div className="bg-gray-700/50 rounded p-2">
-              <div className="text-2xl font-bold text-gray-300">{stats.skipped}</div>
-              <div className="text-xs text-gray-400">Skipped</div>
+            <div className="bg-slate-700/50 border border-slate-600/50 rounded p-2">
+              <div className="text-2xl font-bold text-slate-300">{stats.skipped}</div>
+              <div className="text-xs text-slate-400">Skipped</div>
             </div>
           </div>
         )}
@@ -883,30 +911,30 @@ export default function AdminLifecyclePage() {
 
         {queueItems.length > 0 && (
           <div className="mt-4 space-y-2">
-            <h3 className="text-sm font-semibold text-gray-300">Recent Queue Items</h3>
+            <h3 className="text-sm font-semibold text-slate-300">Recent Queue Items</h3>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {queueItems.slice(0, 10).map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between bg-gray-700/50 rounded p-2 text-sm"
+                  className="flex items-center justify-between bg-slate-700/50 border border-slate-600/50 rounded p-2 text-sm"
                 >
                   <div>
-                    <span className="text-white">{item.league.toUpperCase()}</span>
-                    <span className="text-gray-400 ml-2">
+                    <span className="text-slate-100">{item.league.toUpperCase()}</span>
+                    <span className="text-slate-400 ml-2">
                       {item.game?.home_team} vs {item.game?.away_team}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded text-xs ${
+                    <span className={`px-2 py-0.5 rounded text-xs text-white ${
                       item.status === 'QUEUED' ? 'bg-yellow-600' :
                       item.status === 'PROCESSING' ? 'bg-blue-600' :
                       item.status === 'DONE' ? 'bg-green-600' :
                       item.status === 'FAILED' ? 'bg-red-600' :
-                      'bg-gray-600'
+                      'bg-slate-600'
                     }`}>
                       {item.status}
                     </span>
-                    <span className="text-gray-400 text-xs">
+                    <span className="text-slate-400 text-xs">
                       {item.outcome || '-'}
                     </span>
                   </div>
@@ -918,20 +946,20 @@ export default function AdminLifecyclePage() {
       </div>
 
       {/* Backfill Section */}
-      <div className="bg-gray-800/50 rounded-lg p-4 space-y-4">
-        <h2 className="text-lg font-semibold text-white">Backfill Tool</h2>
-        <p className="text-sm text-gray-400">
+      <div className="bg-slate-800/50 rounded-lg p-4 space-y-4">
+        <h2 className="text-lg font-semibold text-slate-100">Backfill Tool</h2>
+        <p className="text-sm text-slate-400">
           Backfill games from the last N days. Useful for populating historical data.
         </p>
 
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-400">Days to backfill:</label>
+            <label className="text-sm text-slate-400">Days to backfill:</label>
             <input
               type="number"
               value={backfillDays}
               onChange={(e) => setBackfillDays(parseInt(e.target.value) || 30)}
-              className="w-20 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+              className="w-20 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-slate-100 text-sm focus:border-slate-500 focus:outline-none"
               min={1}
               max={90}
             />
@@ -939,10 +967,10 @@ export default function AdminLifecyclePage() {
 
           <Button
             onClick={startBackfill}
-            disabled={loading !== null || backfill?.status === 'running'}
-            className="bg-indigo-600 hover:bg-indigo-700"
+            disabled={loading !== null || backfill?.status === 'running' || backfillCooldown > 0}
+            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
           >
-            Start Backfill
+            {backfillCooldown > 0 ? `Wait ${backfillCooldown}s` : "Start Backfill"}
           </Button>
 
           {backfill?.status === 'running' && (
@@ -960,32 +988,50 @@ export default function AdminLifecyclePage() {
             onClick={fetchBackfillStatus}
             disabled={loading !== null}
             variant="outline"
-            className="text-white border-gray-600"
+            className="text-slate-100 border-slate-700 hover:bg-slate-700"
           >
             Refresh Status
           </Button>
         </div>
+
+        {/* Helper text */}
+        <p className="text-xs text-slate-500 italic">
+          Backfill runs in batches and may temporarily lock. This is normal.
+        </p>
+
+        {/* Backfill lock warning (409 response) - warning style, not error */}
+        {backfillLockWarning && (
+          <div className="bg-amber-900/30 border border-amber-700 rounded-lg p-3 flex items-start gap-2">
+            <span className="text-amber-400 text-lg">⚠</span>
+            <div>
+              <p className="text-sm text-amber-300 font-medium">{backfillLockWarning}</p>
+              {backfillCooldown > 0 && (
+                <p className="text-xs text-amber-400/70 mt-1">Button will re-enable in {backfillCooldown}s</p>
+              )}
+            </div>
+          </div>
+        )}
 
         {backfill && backfill.status !== 'idle' && (
           <div className={`rounded-lg p-3 border ${
             backfill.status === 'running' ? 'bg-blue-900/30 border-blue-700' :
             backfill.status === 'completed' ? 'bg-green-900/30 border-green-700' :
             backfill.status === 'failed' ? 'bg-red-900/30 border-red-700' :
-            'bg-gray-700/30 border-gray-600'
+            'bg-slate-700/30 border-slate-600'
           }`}>
             <div className="flex items-center justify-between mb-2">
-              <span className="font-semibold text-white">
+              <span className="font-semibold text-slate-100">
                 Backfill {backfill.status.toUpperCase()}
               </span>
               {backfill.status === 'running' && (
-                <span className="text-sm text-gray-400">
+                <span className="text-sm text-slate-400">
                   Day {backfill.currentDay}/{backfill.totalDays} ({backfill.currentLeague})
                 </span>
               )}
             </div>
 
             {backfill.status === 'running' && (
-              <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
+              <div className="w-full bg-slate-700 rounded-full h-2 mb-2">
                 <div
                   className="bg-blue-500 h-2 rounded-full transition-all"
                   style={{ width: `${((backfill.currentDay || 0) / (backfill.totalDays || 1)) * 100}%` }}
@@ -995,21 +1041,21 @@ export default function AdminLifecyclePage() {
 
             <div className="grid grid-cols-3 gap-4 text-sm">
               <div>
-                <span className="text-gray-400">Processed:</span>
-                <span className="text-white ml-2">{backfill.gamesProcessed}</span>
+                <span className="text-slate-400">Processed:</span>
+                <span className="text-slate-100 ml-2">{backfill.gamesProcessed}</span>
               </div>
               <div>
-                <span className="text-gray-400">Upserted:</span>
-                <span className="text-white ml-2">{backfill.gamesUpserted}</span>
+                <span className="text-slate-400">Upserted:</span>
+                <span className="text-slate-100 ml-2">{backfill.gamesUpserted}</span>
               </div>
               <div>
-                <span className="text-gray-400">Finalized:</span>
-                <span className="text-white ml-2">{backfill.gamesFinalized}</span>
+                <span className="text-slate-400">Finalized:</span>
+                <span className="text-slate-100 ml-2">{backfill.gamesFinalized}</span>
               </div>
             </div>
 
             {backfill.errors.length > 0 && (
-              <div className="mt-2 text-xs text-red-400 max-h-20 overflow-y-auto">
+              <div className="mt-2 text-xs text-red-400 max-h-20 overflow-y-auto bg-red-950/30 rounded p-2">
                 {backfill.errors.slice(-5).map((err, i) => (
                   <div key={i}>{err}</div>
                 ))}
@@ -1020,17 +1066,17 @@ export default function AdminLifecyclePage() {
       </div>
 
       {/* Finalize Debug Section */}
-      <div className="bg-gray-800/50 rounded-lg p-4 space-y-4">
+      <div className="bg-slate-800/50 rounded-lg p-4 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-white">Finalize Debug</h2>
-            <p className="text-sm text-gray-400">View finalize candidates and diagnose why Finalized=0</p>
+            <h2 className="text-lg font-semibold text-slate-100">Finalize Debug</h2>
+            <p className="text-sm text-slate-400">View finalize candidates and diagnose why Finalized=0</p>
           </div>
           <Button
             onClick={fetchFinalizeDebug}
             disabled={loading !== null}
             variant="outline"
-            className="text-white border-gray-600"
+            className="text-slate-100 border-slate-700 hover:bg-slate-700"
           >
             {loading === "finalize-debug" ? "Loading..." : "Show Finalize Candidates"}
           </Button>
@@ -1040,43 +1086,43 @@ export default function AdminLifecyclePage() {
           <div className="space-y-4">
             {/* Stats Summary */}
             <div className="grid grid-cols-4 gap-3 text-center">
-              <div className="bg-gray-700/50 rounded p-2">
-                <div className="text-xl font-bold text-white">{finalizeDebug.stats.total_candidates}</div>
-                <div className="text-xs text-gray-400">Candidates</div>
+              <div className="bg-slate-700/50 border border-slate-600/50 rounded p-2">
+                <div className="text-xl font-bold text-slate-100">{finalizeDebug.stats.total_candidates}</div>
+                <div className="text-xs text-slate-400">Candidates</div>
               </div>
-              <div className="bg-green-900/30 rounded p-2">
+              <div className="bg-green-900/30 border border-green-800/50 rounded p-2">
                 <div className="text-xl font-bold text-green-400">{finalizeDebug.stats.final_flipped}</div>
-                <div className="text-xs text-gray-400">Final (Provider)</div>
+                <div className="text-xs text-slate-400">Final (Provider)</div>
               </div>
-              <div className="bg-yellow-900/30 rounded p-2">
+              <div className="bg-yellow-900/30 border border-yellow-800/50 rounded p-2">
                 <div className="text-xl font-bold text-yellow-400">{finalizeDebug.stats.still_live}</div>
-                <div className="text-xs text-gray-400">Still Live</div>
+                <div className="text-xs text-slate-400">Still Live</div>
               </div>
-              <div className="bg-blue-900/30 rounded p-2">
+              <div className="bg-blue-900/30 border border-blue-800/50 rounded p-2">
                 <div className="text-xl font-bold text-blue-400">{finalizeDebug.stats.still_scheduled}</div>
-                <div className="text-xs text-gray-400">Still Scheduled</div>
+                <div className="text-xs text-slate-400">Still Scheduled</div>
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="bg-red-900/30 rounded p-2">
+              <div className="bg-red-900/30 border border-red-800/50 rounded p-2">
                 <div className="text-xl font-bold text-red-400">{finalizeDebug.stats.provider_not_found}</div>
-                <div className="text-xs text-gray-400">Not Found (Provider)</div>
+                <div className="text-xs text-slate-400">Not Found (Provider)</div>
               </div>
-              <div className="bg-purple-900/30 rounded p-2">
+              <div className="bg-purple-900/30 border border-purple-800/50 rounded p-2">
                 <div className="text-xl font-bold text-purple-400">{finalizeDebug.stats.final_with_markets}</div>
-                <div className="text-xs text-gray-400">Final + Markets</div>
+                <div className="text-xs text-slate-400">Final + Markets</div>
               </div>
-              <div className="bg-orange-900/30 rounded p-2">
+              <div className="bg-orange-900/30 border border-orange-800/50 rounded p-2">
                 <div className="text-xl font-bold text-orange-400">{finalizeDebug.stats.final_no_markets}</div>
-                <div className="text-xs text-gray-400">Final No Markets</div>
+                <div className="text-xs text-slate-400">Final No Markets</div>
               </div>
             </div>
 
             {/* Interpretation */}
-            <div className="p-3 bg-gray-700/30 rounded border border-gray-600">
-              <h4 className="text-sm font-semibold text-white mb-2">Interpretation</h4>
-              <ul className="text-xs text-gray-400 space-y-1">
+            <div className="p-3 bg-slate-700/30 rounded border border-slate-600">
+              <h4 className="text-sm font-semibold text-slate-100 mb-2">Interpretation</h4>
+              <ul className="text-xs text-slate-400 space-y-1">
                 {finalizeDebug.stats.total_candidates === 0 && (
                   <li className="text-yellow-400">No candidates: No games started &gt; 4 hours ago that need finalization</li>
                 )}
@@ -1100,7 +1146,7 @@ export default function AdminLifecyclePage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="text-left text-gray-400 border-b border-gray-700">
+                    <tr className="text-left text-slate-400 border-b border-slate-700">
                       <th className="p-2">League</th>
                       <th className="p-2">Game ID</th>
                       <th className="p-2">Teams</th>
@@ -1112,31 +1158,31 @@ export default function AdminLifecyclePage() {
                   </thead>
                   <tbody>
                     {finalizeDebug.candidates.slice(0, 20).map((c, i) => (
-                      <tr key={i} className="border-b border-gray-800 text-gray-300">
+                      <tr key={i} className="border-b border-slate-800 text-slate-300">
                         <td className="p-2 uppercase">{c.league}</td>
                         <td className="p-2 font-mono text-xs">{c.external_game_id}</td>
                         <td className="p-2 truncate max-w-32">{c.home_team} vs {c.away_team}</td>
                         <td className="p-2">{c.starts_at ? new Date(c.starts_at).toLocaleString() : '-'}</td>
                         <td className="p-2">
-                          <span className={`px-1 rounded text-xs ${
+                          <span className={`px-1 rounded text-xs text-white ${
                             c.status_norm === 'FINAL' ? 'bg-green-600' :
                             c.status_norm === 'LIVE' ? 'bg-blue-600' :
-                            'bg-gray-600'
+                            'bg-slate-600'
                           }`}>
                             {c.status_norm || c.status_raw || '-'}
                           </span>
                         </td>
                         <td className="p-2">
-                          <span className={`px-1 rounded text-xs ${
+                          <span className={`px-1 rounded text-xs text-white ${
                             c.provider_status_norm === 'FINAL' ? 'bg-green-600' :
                             c.provider_status_norm === 'LIVE' ? 'bg-blue-600' :
-                            c.provider_status_norm ? 'bg-gray-600' : 'bg-red-900'
+                            c.provider_status_norm ? 'bg-slate-600' : 'bg-red-900'
                           }`}>
                             {c.provider_status_norm || 'NOT FOUND'}
                           </span>
                         </td>
                         <td className="p-2">
-                          <span className={c.markets_count && c.markets_count > 0 ? 'text-green-400' : 'text-gray-500'}>
+                          <span className={c.markets_count && c.markets_count > 0 ? 'text-green-400' : 'text-slate-500'}>
                             {c.markets_count || 0}
                           </span>
                         </td>
@@ -1145,7 +1191,7 @@ export default function AdminLifecyclePage() {
                   </tbody>
                 </table>
                 {finalizeDebug.candidates.length > 20 && (
-                  <p className="text-xs text-gray-500 mt-2">...and {finalizeDebug.candidates.length - 20} more</p>
+                  <p className="text-xs text-slate-500 mt-2">...and {finalizeDebug.candidates.length - 20} more</p>
                 )}
               </div>
             )}
@@ -1154,12 +1200,12 @@ export default function AdminLifecyclePage() {
       </div>
 
       {/* Documentation */}
-      <div className="bg-gray-800/30 rounded-lg p-4 text-sm text-gray-400 space-y-2">
-        <h3 className="font-semibold text-white">State Machine</h3>
+      <div className="bg-slate-800/30 rounded-lg p-4 text-sm text-slate-400 space-y-2 border border-slate-700/50">
+        <h3 className="font-semibold text-slate-100">State Machine</h3>
         <p>SCHEDULED → LIVE → FINAL → SETTLED → ARCHIVED</p>
         <p>Terminal states: CANCELED, POSTPONED (full refund, markets voided)</p>
         
-        <h3 className="font-semibold text-white mt-3">DB Protections (Hardened)</h3>
+        <h3 className="font-semibold text-slate-100 mt-3">DB Protections (Hardened)</h3>
         <ul className="list-disc list-inside">
           <li>FINAL status cannot regress to LIVE/SCHEDULED</li>
           <li>Settled games are immutable (scores, winner cannot change)</li>
@@ -1167,11 +1213,11 @@ export default function AdminLifecyclePage() {
           <li>Job locks prevent concurrent cron execution</li>
         </ul>
         
-        <h3 className="font-semibold text-white mt-3">Scheduled Jobs (Netlify)</h3>
+        <h3 className="font-semibold text-slate-100 mt-3">Scheduled Jobs (Netlify)</h3>
         <ul className="list-disc list-inside">
-          <li>sync-games-daily.mts: Every 15 min (discover + sync)</li>
-          <li>sync-games-live.mts: Every 2 min (sync live games)</li>
-          <li>lifecycle-finalize.mts: Every 10 min (finalize + settle)</li>
+          <li>sync-games-daily.ts: Every 15 min (discover + sync)</li>
+          <li>sync-games-live.ts: Every 2 min (sync live games)</li>
+          <li>lifecycle-finalize.ts: Every 10 min (finalize + settle)</li>
         </ul>
       </div>
     </div>
