@@ -1,26 +1,27 @@
 /**
- * Netlify Scheduled Function: Daily Games Sync (Discover) - HARDENED
+ * Netlify Scheduled Function: Finalize and Settle - HARDENED
  * 
- * Runs every 15 minutes to keep upcoming games up-to-date.
- * Also calls the lifecycle discover job for rolling window ingestion.
+ * Runs every 10 minutes to:
+ * 1. Finalize stuck/completed games
+ * 2. Process settlement queue
  * 
- * Schedule: Every 15 minutes
- * Env: INTERNAL_CRON_SECRET, NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+ * Schedule: Every 10 minutes (configured in netlify.toml)
+ * Env: INTERNAL_CRON_SECRET or SPORTS_JOB_SECRET, NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
  * 
  * HARDENED: Always returns JSON, never crashes without logging.
  */
 
-import type { Config, Context } from "@netlify/functions";
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
 
-const JOB_NAME = "sync-games-daily";
+const JOB_NAME = "lifecycle-finalize";
 
 // Helper to create JSON response
-function jsonResponse(body: object, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
+function jsonResponse(body: object, statusCode = 200) {
+  return {
+    statusCode,
     headers: { "Content-Type": "application/json" },
-  });
+    body: JSON.stringify(body),
+  };
 }
 
 // Helper to get short stack trace
@@ -31,12 +32,13 @@ function shortStack(err: unknown): string {
   return String(err);
 }
 
-// Safe Supabase client getter
-function getClient(): SupabaseClient | null {
+// Safe Supabase client getter - imported dynamically to avoid import-time crashes
+async function getClient() {
   try {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!url || !key) return null;
+    const { createClient } = await import("@supabase/supabase-js");
     return createClient(url, key, { auth: { persistSession: false } });
   } catch (err) {
     console.error(`[${JOB_NAME}] Failed to create Supabase client:`, err);
@@ -45,7 +47,7 @@ function getClient(): SupabaseClient | null {
 }
 
 // Safe job run start
-async function startJobRun(client: SupabaseClient | null): Promise<string | null> {
+async function startJobRun(client: any): Promise<string | null> {
   if (!client) return null;
   try {
     const { data, error } = await client
@@ -66,7 +68,7 @@ async function startJobRun(client: SupabaseClient | null): Promise<string | null
 
 // Safe job run finish
 async function finishJobRun(
-  client: SupabaseClient | null, 
+  client: any, 
   runId: string | null, 
   status: "ok" | "error", 
   duration_ms: number, 
@@ -90,13 +92,14 @@ async function finishJobRun(
   }
 }
 
-// Main handler - wrapped entirely in try/catch
-export default async (request: Request, context: Context): Promise<Response> => {
+// Main handler
+export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
   const startedAt = new Date().toISOString();
   const startTime = Date.now();
   
-  let client: SupabaseClient | null = null;
+  let client: any = null;
   let runId: string | null = null;
+  let finalized = 0, enqueued = 0, settled = 0, settleFailed = 0;
 
   try {
     console.log("========================================");
@@ -106,14 +109,12 @@ export default async (request: Request, context: Context): Promise<Response> => 
     // === ENV VAR VALIDATION ===
     const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const INTERNAL_CRON_SECRET = process.env.INTERNAL_CRON_SECRET;
-    const JOB_SECRET = process.env.SPORTS_JOB_SECRET || INTERNAL_CRON_SECRET;
+    const JOB_SECRET = process.env.SPORTS_JOB_SECRET || process.env.INTERNAL_CRON_SECRET;
     const SITE_URL = process.env.URL || process.env.DEPLOY_URL || "https://provepicks.com";
 
     const missingVars: string[] = [];
     if (!SUPABASE_URL) missingVars.push("NEXT_PUBLIC_SUPABASE_URL");
     if (!SUPABASE_KEY) missingVars.push("SUPABASE_SERVICE_ROLE_KEY");
-    if (!INTERNAL_CRON_SECRET) missingVars.push("INTERNAL_CRON_SECRET");
 
     if (missingVars.length > 0) {
       const errorMsg = `Missing env vars: ${missingVars.join(", ")}`;
@@ -122,74 +123,78 @@ export default async (request: Request, context: Context): Promise<Response> => 
     }
 
     // === INITIALIZE CLIENT & START JOB RUN ===
-    client = getClient();
+    client = await getClient();
     runId = await startJobRun(client);
     console.log(`[CRON:${JOB_NAME}] job_run started: runId=${runId || "none"}, SITE_URL=${SITE_URL}`);
 
     // === MAIN JOB LOGIC ===
-    let totalGames = 0, totalInserted = 0, totalUpdated = 0;
-    let lifecycleOk = false;
-    let syncSuccess = false;
-
-    console.log(`[CRON:${JOB_NAME}] Calling ${SITE_URL}/api/internal/sports/sync-games mode=daily...`);
-    const response = await fetch(`${SITE_URL}/api/internal/sports/sync-games`, {
+    
+    // Step 1: Finalize games
+    console.log(`[CRON:${JOB_NAME}] Calling ${SITE_URL}/api/jobs/lifecycle finalize...`);
+    const finalizeResponse = await fetch(`${SITE_URL}/api/jobs/lifecycle`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-internal-cron-secret": INTERNAL_CRON_SECRET,
+      headers: { 
+        "Content-Type": "application/json", 
+        ...(JOB_SECRET ? { "x-job-secret": JOB_SECRET } : {}),
       },
-      body: JSON.stringify({ mode: "daily" }),
+      body: JSON.stringify({ job: "finalize" }),
     });
 
-    let data: any = {};
+    let finalizeData: any = {};
     try {
-      const text = await response.text();
-      data = text ? JSON.parse(text) : {};
+      const text = await finalizeResponse.text();
+      finalizeData = text ? JSON.parse(text) : {};
     } catch (parseErr) {
-      console.warn(`[CRON:${JOB_NAME}] Failed to parse sync response as JSON`);
+      console.warn(`[CRON:${JOB_NAME}] Failed to parse finalize response as JSON`);
     }
-
-    totalGames = data.totalGames || 0;
-    totalInserted = data.totalInserted || 0;
-    totalUpdated = data.totalUpdated || 0;
-    syncSuccess = response.ok && (data.success !== false);
     
-    console.log(`[CRON:${JOB_NAME}] Sync response: status=${response.status} games=${totalGames} inserted=${totalInserted} updated=${totalUpdated}`);
+    finalized = finalizeData.result?.totalFinalized || 0;
+    enqueued = finalizeData.result?.totalEnqueued || 0;
+    console.log(`[CRON:${JOB_NAME}] Finalize: status=${finalizeResponse.status} finalized=${finalized} enqueued=${enqueued}`);
+    
+    // Step 2: Process settlements
+    console.log(`[CRON:${JOB_NAME}] Calling ${SITE_URL}/api/jobs/lifecycle settle...`);
+    const settleResponse = await fetch(`${SITE_URL}/api/jobs/lifecycle`, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json", 
+        ...(JOB_SECRET ? { "x-job-secret": JOB_SECRET } : {}),
+      },
+      body: JSON.stringify({ job: "settle" }),
+    });
 
-    if (JOB_SECRET) {
-      try {
-        console.log(`[CRON:${JOB_NAME}] Calling ${SITE_URL}/api/jobs/lifecycle discover...`);
-        const lcRes = await fetch(`${SITE_URL}/api/jobs/lifecycle`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-job-secret": JOB_SECRET },
-          body: JSON.stringify({ job: "discover" }),
-        });
-        lifecycleOk = lcRes.ok;
-        console.log(`[CRON:${JOB_NAME}] Lifecycle discover: status=${lcRes.status} ok=${lcRes.ok}`);
-      } catch (lcErr) {
-        console.warn(`[CRON:${JOB_NAME}] Lifecycle discover failed:`, lcErr);
-      }
+    let settleData: any = {};
+    try {
+      const text = await settleResponse.text();
+      settleData = text ? JSON.parse(text) : {};
+    } catch (parseErr) {
+      console.warn(`[CRON:${JOB_NAME}] Failed to parse settle response as JSON`);
     }
+    
+    settled = settleData.result?.succeeded || 0;
+    settleFailed = settleData.result?.failed || 0;
+    console.log(`[CRON:${JOB_NAME}] Settle: status=${settleResponse.status} settled=${settled} failed=${settleFailed}`);
 
+    // === FINISH JOB RUN ===
     const duration_ms = Date.now() - startTime;
     const finishedAt = new Date().toISOString();
-    const counts = { games: totalGames, inserted: totalInserted, updated: totalUpdated, lifecycleOk };
+    const counts = { finalized, enqueued, settled, settleFailed };
     
     console.log("========================================");
     console.log(`[CRON:${JOB_NAME}] COMPLETED in ${duration_ms}ms`);
-    console.log(`[CRON:${JOB_NAME}] games=${totalGames} inserted=${totalInserted} updated=${totalUpdated}`);
+    console.log(`[CRON:${JOB_NAME}] finalized=${finalized} enqueued=${enqueued} settled=${settled}`);
     console.log("========================================");
 
     await finishJobRun(client, runId, "ok", duration_ms, counts, null);
 
     return jsonResponse({
-      ok: syncSuccess,
+      ok: true,
       job: JOB_NAME,
       startedAt,
       finishedAt,
       duration_ms,
       counts,
-    }, syncSuccess ? 200 : 500);
+    }, 200);
 
   } catch (error) {
     const duration_ms = Date.now() - startTime;
@@ -202,7 +207,7 @@ export default async (request: Request, context: Context): Promise<Response> => 
     console.error(`[CRON:${JOB_NAME}] Stack: ${stack}`);
     console.error("========================================");
 
-    await finishJobRun(client, runId, "error", duration_ms, null, errorMsg);
+    await finishJobRun(client, runId, "error", duration_ms, { finalized, enqueued, settled }, errorMsg);
 
     return jsonResponse({
       ok: false,
@@ -214,8 +219,4 @@ export default async (request: Request, context: Context): Promise<Response> => 
       stack: stack.slice(0, 500),
     }, 500);
   }
-};
-
-export const config: Config = {
-  schedule: "*/15 * * * *",
 };

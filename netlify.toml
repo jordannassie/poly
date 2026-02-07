@@ -20,17 +20,27 @@
 # These run automatically on schedule. View in Netlify Dashboard:
 # Site → Functions → [function-name] → Logs
 #
-# Function Names (as shown in Netlify):
-#   - sync-games-daily     (*/15 * * * *) - every 15 min
-#   - sync-games-live      (*/2 * * * *)  - every 2 min  
-#   - lifecycle-finalize   (*/10 * * * *) - every 10 min
-#   - sync-games-backfill  (0 4 * * *)    - daily 4 AM UTC
-#
 # Required Env Vars:
 #   - INTERNAL_CRON_SECRET
 #   - NEXT_PUBLIC_SUPABASE_URL
 #   - SUPABASE_SERVICE_ROLE_KEY
 # ============================================================
+
+# Daily Games Sync - every 15 minutes
+[functions."sync-games-daily"]
+  schedule = "*/15 * * * *"
+
+# Live Games Sync - every 2 minutes
+[functions."sync-games-live"]
+  schedule = "*/2 * * * *"
+
+# Finalize and Settle - every 10 minutes
+[functions."lifecycle-finalize"]
+  schedule = "*/10 * * * *"
+
+# Backfill Games - daily at 4 AM UTC
+[functions."sync-games-backfill"]
+  schedule = "0 4 * * *"
 
 # ============================================================
 # REDIRECTS for Netlify Functions
