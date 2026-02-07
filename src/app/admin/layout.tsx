@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import Image from "next/image";
 import { 
   LayoutDashboard, 
   Users, 
@@ -13,7 +14,6 @@ import {
   FileText, 
   Database,
   LogOut,
-  Zap,
   Mail,
   Globe,
   Trophy,
@@ -23,6 +23,9 @@ import {
   ChevronRight,
   Bug
 } from "lucide-react";
+
+// Logo URL from Supabase storage
+const LOGO_URL = "https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/public/SPORTS/logos/Logo.jpg";
 
 // Operations tabs - always visible
 const operationsNavItems = [
@@ -95,9 +98,14 @@ export default function AdminLayout({
         {/* Logo */}
         <div className="p-4 border-b border-[#30363d]">
           <Link href="/admin" className="flex items-center gap-2 text-white">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
-              <Zap className="h-4 w-4 text-white" />
-            </div>
+            <Image
+              src={LOGO_URL}
+              alt="ProvePicks Logo"
+              width={32}
+              height={32}
+              className="h-8 w-8 rounded-lg object-cover"
+              unoptimized
+            />
             <div>
               <span className="font-bold">ProvePicks</span>
               <span className="text-xs text-gray-400 block">Admin Console</span>
