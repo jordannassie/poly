@@ -1,20 +1,20 @@
 /**
- * Netlify Scheduled Function: Live Games Sync
+ * Netlify Scheduled Function: Finalize and Settle
  * 
- * Runs every 2 minutes to update live game scores.
- * Also calls the lifecycle sync job for status normalization.
+ * Runs every 10 minutes to:
+ * 1. Finalize stuck/completed games
+ * 2. Process settlement queue
  * 
- * Schedule: Every 2 minutes
- * Env: INTERNAL_CRON_SECRET, NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+ * Schedule: Every 10 minutes
+ * Env: INTERNAL_CRON_SECRET or SPORTS_JOB_SECRET, NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
  */
 
 import type { Config, Context } from "@netlify/functions";
 import { createClient } from "@supabase/supabase-js";
 
 const SITE_URL = process.env.URL || process.env.DEPLOY_URL || "https://provepicks.com";
-const INTERNAL_CRON_SECRET = process.env.INTERNAL_CRON_SECRET;
-const JOB_SECRET = process.env.SPORTS_JOB_SECRET || INTERNAL_CRON_SECRET;
-const JOB_NAME = "sync-games-live";
+const JOB_SECRET = process.env.SPORTS_JOB_SECRET || process.env.INTERNAL_CRON_SECRET;
+const JOB_NAME = "lifecycle-finalize";
 
 async function logToDb(event: {
   type: string;
@@ -53,75 +53,71 @@ export default async (request: Request, context: Context) => {
   
   await logToDb({ type: "CRON_JOB_START", status: "info", payload: { startedAt } });
 
-  if (!INTERNAL_CRON_SECRET) {
-    console.error(`[CRON:${JOB_NAME}] ERROR: INTERNAL_CRON_SECRET not set`);
-    await logToDb({ type: "CRON_JOB_ERROR", status: "error", payload: { error: "INTERNAL_CRON_SECRET not set" } });
+  if (!JOB_SECRET) {
+    console.error(`[CRON:${JOB_NAME}] ERROR: JOB_SECRET not set`);
+    await logToDb({ type: "CRON_JOB_ERROR", status: "error", payload: { error: "JOB_SECRET not set" } });
     return new Response(JSON.stringify({ 
-      ok: false, jobName: JOB_NAME, startedAt, error: "INTERNAL_CRON_SECRET not configured" 
+      ok: false, jobName: JOB_NAME, startedAt, error: "JOB_SECRET not configured" 
     }), { status: 500, headers: { "Content-Type": "application/json" } });
   }
 
-  let totalGames = 0, totalUpdated = 0;
-  let lifecycleOk = false;
+  let finalized = 0, enqueued = 0, settled = 0, settleFailed = 0;
 
   try {
-    console.log(`[CRON:${JOB_NAME}] Calling /api/internal/sports/sync-games mode=live...`);
-    const response = await fetch(`${SITE_URL}/api/internal/sports/sync-games`, {
+    // Call the finalize job
+    console.log(`[CRON:${JOB_NAME}] Calling /api/jobs/lifecycle finalize...`);
+    const finalizeResponse = await fetch(`${SITE_URL}/api/jobs/lifecycle`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-internal-cron-secret": INTERNAL_CRON_SECRET,
-      },
-      body: JSON.stringify({ mode: "live" }),
+      headers: { "Content-Type": "application/json", "x-job-secret": JOB_SECRET },
+      body: JSON.stringify({ job: "finalize" }),
     });
 
-    const data = await response.json();
-    totalGames = data.totalGames || 0;
-    totalUpdated = data.totalUpdated || 0;
+    let finalizeData: any = {};
+    try { finalizeData = await finalizeResponse.json(); } catch {}
+    finalized = finalizeData.result?.totalFinalized || 0;
+    enqueued = finalizeData.result?.totalEnqueued || 0;
     
-    console.log(`[CRON:${JOB_NAME}] Sync response: ok=${response.ok} games=${totalGames} updated=${totalUpdated}`);
+    console.log(`[CRON:${JOB_NAME}] Finalize: ok=${finalizeResponse.ok} finalized=${finalized} enqueued=${enqueued}`);
+    
+    // Call the settle job
+    console.log(`[CRON:${JOB_NAME}] Calling /api/jobs/lifecycle settle...`);
+    const settleResponse = await fetch(`${SITE_URL}/api/jobs/lifecycle`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-job-secret": JOB_SECRET },
+      body: JSON.stringify({ job: "settle" }),
+    });
 
-    // Also call lifecycle sync job for status normalization
-    if (JOB_SECRET) {
-      try {
-        console.log(`[CRON:${JOB_NAME}] Calling /api/jobs/lifecycle sync...`);
-        const lcRes = await fetch(`${SITE_URL}/api/jobs/lifecycle`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-job-secret": JOB_SECRET },
-          body: JSON.stringify({ job: "sync" }),
-        });
-        lifecycleOk = lcRes.ok;
-        console.log(`[CRON:${JOB_NAME}] Lifecycle sync: ok=${lcRes.ok}`);
-      } catch (e) {
-        console.warn(`[CRON:${JOB_NAME}] Lifecycle sync failed:`, e);
-      }
-    }
+    let settleData: any = {};
+    try { settleData = await settleResponse.json(); } catch {}
+    settled = settleData.result?.succeeded || 0;
+    settleFailed = settleData.result?.failed || 0;
+    
+    console.log(`[CRON:${JOB_NAME}] Settle: ok=${settleResponse.ok} settled=${settled} failed=${settleFailed}`);
 
     const duration_ms = Date.now() - startTime;
     const finishedAt = new Date().toISOString();
     
     console.log("========================================");
     console.log(`[CRON:${JOB_NAME}] COMPLETED in ${duration_ms}ms`);
-    console.log(`[CRON:${JOB_NAME}] games=${totalGames} updated=${totalUpdated}`);
+    console.log(`[CRON:${JOB_NAME}] finalized=${finalized} enqueued=${enqueued} settled=${settled}`);
     console.log("========================================");
 
     await logToDb({ 
       type: "CRON_JOB_COMPLETE", 
-      status: data.success ? "success" : "error", 
+      status: "success", 
       duration_ms,
-      payload: { games: totalGames, updated: totalUpdated, lifecycleOk }
+      payload: { finalized, enqueued, settled, settleFailed }
     });
 
     return new Response(JSON.stringify({ 
-      ok: data.success, 
+      ok: true, 
       jobName: JOB_NAME, 
       startedAt, 
       finishedAt,
       duration_ms,
-      counts: { games: totalGames, updated: totalUpdated },
-      lifecycleOk,
+      counts: { finalized, enqueued, settled, settleFailed },
     }), { 
-      status: response.ok ? 200 : 500,
+      status: 200,
       headers: { "Content-Type": "application/json" }
     });
 
@@ -137,7 +133,7 @@ export default async (request: Request, context: Context) => {
       type: "CRON_JOB_ERROR", 
       status: "error", 
       duration_ms,
-      payload: { error: errorMsg }
+      payload: { error: errorMsg, finalized, enqueued, settled }
     });
 
     return new Response(JSON.stringify({ 
@@ -152,5 +148,5 @@ export default async (request: Request, context: Context) => {
 };
 
 export const config: Config = {
-  schedule: "*/2 * * * *",
+  schedule: "*/10 * * * *",
 };

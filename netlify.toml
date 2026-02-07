@@ -8,12 +8,35 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
+  # Ensure TypeScript modules are included
+  external_node_modules = ["@supabase/supabase-js"]
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Scheduled Functions Configuration
-# Note: Schedules are set via Netlify Dashboard or CLI
-# - sync-games-daily: */30 * * * * (every 30 minutes)
-# - sync-games-live: * * * * * (every minute)
-# - sync-games-backfill: 0 4 * * * (4 AM UTC daily)
+# ============================================================
+# SCHEDULED FUNCTIONS (Netlify Cron Jobs)
+# ============================================================
+# These run automatically on schedule. View in Netlify Dashboard:
+# Site → Functions → [function-name] → Logs
+#
+# Function Names (as shown in Netlify):
+#   - sync-games-daily     (*/15 * * * *) - every 15 min
+#   - sync-games-live      (*/2 * * * *)  - every 2 min  
+#   - lifecycle-finalize   (*/10 * * * *) - every 10 min
+#   - sync-games-backfill  (0 4 * * *)    - daily 4 AM UTC
+#
+# Required Env Vars:
+#   - INTERNAL_CRON_SECRET
+#   - NEXT_PUBLIC_SUPABASE_URL
+#   - SUPABASE_SERVICE_ROLE_KEY
+# ============================================================
+
+# Security Headers - Allow Supabase Storage for images
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; img-src 'self' data: blob: https://*.supabase.co https://media.api-sports.io; connect-src 'self' https://*.supabase.co; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; font-src 'self' data:; frame-ancestors 'self';"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "strict-origin-when-cross-origin"
