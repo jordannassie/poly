@@ -38,8 +38,12 @@ export {
   processAllSettlements,
   markQueueItemDone,
   markQueueItemFailed,
+  previewSettlement,
+  getTreasuryBalance,
+  getTreasuryLedger,
+  isSettlementProcessed,
 } from './settlement';
-export type { SettlementQueueItem, SettlementResult } from './settlement';
+export type { SettlementQueueItem, SettlementResult, SettlementPreview } from './settlement';
 
 export {
   runHealthChecks,

@@ -185,6 +185,31 @@ export default function AdminLifecyclePage() {
   const [showClearLockConfirm, setShowClearLockConfirm] = useState(false);
   const [clearingLock, setClearingLock] = useState(false);
   const [lockCleared, setLockCleared] = useState(false);
+  
+  // Treasury state
+  const [treasury, setTreasury] = useState<{
+    totalFeesCollected: number;
+    totalWithdrawn: number;
+    currentBalance: number;
+    totalEntries: number;
+    lastUpdated: string | null;
+  } | null>(null);
+  const [treasuryLedger, setTreasuryLedger] = useState<any[]>([]);
+  const [settlementPreview, setSettlementPreview] = useState<{
+    gameId: number;
+    outcome: string;
+    totals: {
+      grossPool: number;
+      winningPool: number;
+      losingPool: number;
+      platformFee: number;
+      netDistributed: number;
+      winnersCount: number;
+      losersCount: number;
+    };
+    markets: any[];
+  } | null>(null);
+  const [previewGameId, setPreviewGameId] = useState<string>('');
 
   // Fetch scheduled jobs status
   const fetchScheduledJobsStatus = useCallback(async () => {
@@ -200,6 +225,7 @@ export default function AdminLifecyclePage() {
   // Initial fetch + auto-refresh scheduled jobs every 60s
   useEffect(() => {
     fetchScheduledJobsStatus();
+    fetchTreasuryBalance(); // Also fetch treasury on load
     const interval = setInterval(fetchScheduledJobsStatus, 60000);
     return () => clearInterval(interval);
   }, [fetchScheduledJobsStatus]);
@@ -315,6 +341,66 @@ export default function AdminLifecyclePage() {
         results: data,
       });
       await fetchSettlementQueue();
+      // Refresh treasury after settlements
+      await fetchTreasuryBalance();
+    }
+    setLoading(null);
+  };
+
+  // Treasury functions
+  const fetchTreasuryBalance = async () => {
+    const { data, error } = await safeFetchJson<{ success: boolean; treasury: any }>("/api/admin/lifecycle/settlements", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "treasury-balance" }),
+    });
+
+    if (error) {
+      console.error("Failed to fetch treasury:", error);
+    } else if (data?.treasury) {
+      setTreasury(data.treasury);
+    }
+  };
+
+  const fetchTreasuryLedger = async () => {
+    setLoading("treasury-ledger");
+
+    const { data, error } = await safeFetchJson<{ success: boolean; balance: any; ledger: any[] }>("/api/admin/lifecycle/settlements", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "treasury-ledger", limit: 20 }),
+    });
+
+    if (error) {
+      console.error("Failed to fetch treasury ledger:", error);
+    } else if (data) {
+      setTreasury(data.balance);
+      setTreasuryLedger(data.ledger || []);
+    }
+    setLoading(null);
+  };
+
+  const fetchSettlementPreview = async () => {
+    if (!previewGameId) return;
+    
+    setLoading("preview");
+
+    const { data, error } = await safeFetchJson<{ success: boolean; alreadyProcessed: boolean; preview: any }>("/api/admin/lifecycle/settlements", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "preview", gameId: parseInt(previewGameId) }),
+    });
+
+    if (error) {
+      console.error("Failed to fetch settlement preview:", error);
+      setResult({ success: false, error });
+    } else if (data) {
+      if (data.alreadyProcessed) {
+        setResult({ success: true, error: `Game ${previewGameId} was already settled.` });
+        setSettlementPreview(null);
+      } else {
+        setSettlementPreview(data.preview);
+      }
     }
     setLoading(null);
   };
@@ -965,6 +1051,167 @@ export default function AdminLifecyclePage() {
                     </span>
                     <span className="text-slate-400 text-xs">
                       {item.outcome || '-'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Treasury Section */}
+      <div className="bg-slate-800/50 rounded-lg p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-100">Treasury (3% Fee)</h2>
+            <p className="text-sm text-slate-400">Platform fees from losing side of settlements</p>
+          </div>
+          <Button
+            onClick={fetchTreasuryLedger}
+            disabled={loading !== null}
+            variant="outline"
+            className="text-slate-100 border-slate-700 hover:bg-slate-700"
+          >
+            {loading === "treasury-ledger" ? "Loading..." : "View Ledger"}
+          </Button>
+        </div>
+
+        {treasury && (
+          <div className="grid grid-cols-4 gap-4 text-center">
+            <div className="bg-green-900/30 border border-green-800/50 rounded p-3">
+              <div className="text-2xl font-bold text-green-400">
+                ${treasury.currentBalance.toFixed(2)}
+              </div>
+              <div className="text-xs text-slate-400">Current Balance</div>
+            </div>
+            <div className="bg-blue-900/30 border border-blue-800/50 rounded p-3">
+              <div className="text-2xl font-bold text-blue-400">
+                ${treasury.totalFeesCollected.toFixed(2)}
+              </div>
+              <div className="text-xs text-slate-400">Total Collected</div>
+            </div>
+            <div className="bg-yellow-900/30 border border-yellow-800/50 rounded p-3">
+              <div className="text-2xl font-bold text-yellow-400">
+                ${treasury.totalWithdrawn.toFixed(2)}
+              </div>
+              <div className="text-xs text-slate-400">Total Withdrawn</div>
+            </div>
+            <div className="bg-slate-700/50 border border-slate-600/50 rounded p-3">
+              <div className="text-2xl font-bold text-slate-300">
+                {treasury.totalEntries}
+              </div>
+              <div className="text-xs text-slate-400">Entries</div>
+            </div>
+          </div>
+        )}
+
+        {/* Settlement Preview */}
+        <div className="border-t border-slate-700 pt-4">
+          <h3 className="text-sm font-semibold text-slate-300 mb-2">Settlement Preview</h3>
+          <p className="text-xs text-slate-400 mb-2">
+            Preview payout distribution before settling a game (3% fee from losing side)
+          </p>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              value={previewGameId}
+              onChange={(e) => setPreviewGameId(e.target.value)}
+              placeholder="Game ID"
+              className="w-32 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-slate-100 text-sm focus:border-slate-500 focus:outline-none"
+            />
+            <Button
+              onClick={fetchSettlementPreview}
+              disabled={loading !== null || !previewGameId}
+              variant="outline"
+              className="text-slate-100 border-slate-700 hover:bg-slate-700"
+            >
+              {loading === "preview" ? "Loading..." : "Preview"}
+            </Button>
+          </div>
+          
+          {settlementPreview && (
+            <div className="mt-4 bg-slate-700/50 border border-slate-600/50 rounded p-3 space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-300">Game {settlementPreview.gameId}</span>
+                <span className={`px-2 py-0.5 rounded text-xs text-white ${
+                  settlementPreview.outcome === 'HOME' ? 'bg-blue-600' :
+                  settlementPreview.outcome === 'AWAY' ? 'bg-red-600' :
+                  'bg-slate-600'
+                }`}>
+                  {settlementPreview.outcome}
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-2 text-center text-sm">
+                <div className="bg-slate-800/50 rounded p-2">
+                  <div className="text-lg font-bold text-slate-100">
+                    ${settlementPreview.totals.grossPool.toFixed(2)}
+                  </div>
+                  <div className="text-xs text-slate-400">Gross Pool</div>
+                </div>
+                <div className="bg-green-900/30 rounded p-2">
+                  <div className="text-lg font-bold text-green-400">
+                    ${settlementPreview.totals.winningPool.toFixed(2)}
+                  </div>
+                  <div className="text-xs text-slate-400">Winners ({settlementPreview.totals.winnersCount})</div>
+                </div>
+                <div className="bg-red-900/30 rounded p-2">
+                  <div className="text-lg font-bold text-red-400">
+                    ${settlementPreview.totals.losingPool.toFixed(2)}
+                  </div>
+                  <div className="text-xs text-slate-400">Losers ({settlementPreview.totals.losersCount})</div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2 text-center text-sm">
+                <div className="bg-yellow-900/30 rounded p-2">
+                  <div className="text-lg font-bold text-yellow-400">
+                    ${settlementPreview.totals.platformFee.toFixed(2)}
+                  </div>
+                  <div className="text-xs text-slate-400">Treasury Fee (3%)</div>
+                </div>
+                <div className="bg-blue-900/30 rounded p-2">
+                  <div className="text-lg font-bold text-blue-400">
+                    ${settlementPreview.totals.netDistributed.toFixed(2)}
+                  </div>
+                  <div className="text-xs text-slate-400">Net to Winners</div>
+                </div>
+              </div>
+
+              {settlementPreview.markets.length > 0 && (
+                <div className="text-xs text-slate-400">
+                  {settlementPreview.markets.length} market(s) will be settled
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Treasury Ledger */}
+        {treasuryLedger.length > 0 && (
+          <div className="border-t border-slate-700 pt-4">
+            <h3 className="text-sm font-semibold text-slate-300 mb-2">Recent Treasury Entries</h3>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {treasuryLedger.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="flex items-center justify-between bg-slate-700/50 border border-slate-600/50 rounded p-2 text-sm"
+                >
+                  <div className="flex-1">
+                    <span className="text-slate-100">
+                      {entry.game?.home_team || '?'} vs {entry.game?.away_team || '?'}
+                    </span>
+                    <span className="text-slate-400 ml-2 text-xs">
+                      {new Date(entry.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-slate-400">
+                      Pool: ${Number(entry.losing_pool || 0).toFixed(0)}
+                    </span>
+                    <span className="text-green-400 font-medium">
+                      +${Number(entry.amount).toFixed(2)}
                     </span>
                   </div>
                 </div>

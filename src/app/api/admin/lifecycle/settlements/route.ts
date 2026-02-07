@@ -14,6 +14,10 @@ import {
   processAllSettlements,
   lockNextQueueItem,
   processSettlement,
+  previewSettlement,
+  getTreasuryBalance,
+  getTreasuryLedger,
+  isSettlementProcessed,
 } from "@/lib/lifecycle";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -142,9 +146,57 @@ export async function POST(request: NextRequest) {
         reset: data?.length || 0,
       });
 
+    } else if (action === "preview") {
+      // Preview settlement for a game without executing
+      const gameId = body.gameId;
+      if (!gameId) {
+        return NextResponse.json({ error: "gameId required" }, { status: 400 });
+      }
+
+      // Check if already processed
+      const processedCheck = await isSettlementProcessed(adminClient, gameId);
+      if (processedCheck.processed) {
+        return NextResponse.json({
+          success: true,
+          alreadyProcessed: true,
+          settledAt: processedCheck.settledAt,
+          marketCount: processedCheck.marketCount,
+          preview: null,
+        });
+      }
+
+      const preview = await previewSettlement(adminClient, gameId);
+      
+      return NextResponse.json({
+        success: true,
+        alreadyProcessed: false,
+        preview,
+      });
+
+    } else if (action === "treasury-balance") {
+      // Get treasury balance and stats
+      const balance = await getTreasuryBalance(adminClient);
+      
+      return NextResponse.json({
+        success: true,
+        treasury: balance,
+      });
+
+    } else if (action === "treasury-ledger") {
+      // Get recent treasury ledger entries
+      const limit = body.limit || 50;
+      const ledger = await getTreasuryLedger(adminClient, { limit });
+      const balance = await getTreasuryBalance(adminClient);
+      
+      return NextResponse.json({
+        success: true,
+        balance,
+        ledger,
+      });
+
     } else {
       return NextResponse.json({
-        error: "Unknown action. Options: process-one, process-all, process-batch, retry-failed",
+        error: "Unknown action. Options: process-one, process-all, process-batch, retry-failed, preview, treasury-balance, treasury-ledger",
       }, { status: 400 });
     }
 

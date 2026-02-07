@@ -37,9 +37,35 @@ export interface SettlementResult {
   refundsCreated: number;
   totalPayoutAmount: number;
   totalRefundAmount: number;
+  totalFeeAmount: number;
   receiptsCreated: number;
   skippedDueToReceipt: number;
   error?: string;
+}
+
+export interface SettlementPreview {
+  gameId: number;
+  outcome: string;
+  markets: {
+    marketId: string;
+    grossPool: number;
+    winningPool: number;
+    losingPool: number;
+    platformFee: number;
+    netDistributed: number;
+    winnersCount: number;
+    losersCount: number;
+    feeRate: number;
+  }[];
+  totals: {
+    grossPool: number;
+    winningPool: number;
+    losingPool: number;
+    platformFee: number;
+    netDistributed: number;
+    winnersCount: number;
+    losersCount: number;
+  };
 }
 
 export interface SettlementReceipt {
@@ -61,8 +87,8 @@ export interface SettlementReceipt {
   failure_reason?: string;
 }
 
-// Platform fee (2.5%) - only applied to winning payouts, NOT refunds
-const PLATFORM_FEE_RATE = 0.025;
+// Platform fee (3%) - deducted from losing side, NOT refunds
+const PLATFORM_FEE_RATE = 0.03;
 
 // Worker ID for locking
 const WORKER_ID = process.env.ADMIN_WORKER_ID || `worker-${Date.now()}`;
@@ -367,6 +393,7 @@ export async function processSettlement(
     refundsCreated: 0,
     totalPayoutAmount: 0,
     totalRefundAmount: 0,
+    totalFeeAmount: 0,
     receiptsCreated: 0,
     skippedDueToReceipt: 0,
   };
@@ -519,24 +546,56 @@ export async function processSettlement(
           .eq('market_id', market.id)
           .eq('entry_type', 'trade_lock');
         
-        let totalVolume = 0;
-        let totalPayouts = 0;
-        let payoutCount = 0;
+        let grossPool = 0;
+        let winningPool = 0;
+        let losingPool = 0;
+        let platformFee = 0;
+        let netDistributed = 0;
+        let winnersCount = 0;
+        let losersCount = 0;
+        
+        // First pass: calculate pools
+        const winningTrades: any[] = [];
+        const losingTrades: any[] = [];
         
         if (trades && trades.length > 0) {
           for (const trade of trades) {
             const tradeAmount = Number(trade.amount) || 0;
-            totalVolume += tradeAmount;
+            grossPool += tradeAmount;
+            
+            if (!isCancellation) {
+              const tradeSide = trade.meta?.side || trade.meta?.position;
+              const isWinner = tradeSide?.toUpperCase() === outcome;
+              
+              if (isWinner) {
+                winningPool += tradeAmount;
+                winnersCount++;
+                winningTrades.push({ ...trade, amount: tradeAmount });
+              } else {
+                losingPool += tradeAmount;
+                losersCount++;
+                losingTrades.push({ ...trade, amount: tradeAmount });
+              }
+            }
+          }
+          
+          // Calculate fee from LOSING side (3%)
+          platformFee = losingPool * PLATFORM_FEE_RATE;
+          netDistributed = losingPool - platformFee; // Amount from losers going to winners
+          
+          console.log(`[settlement] Market ${market.id}: grossPool=${grossPool}, winningPool=${winningPool}, losingPool=${losingPool}, fee=${platformFee}, netDistributed=${netDistributed}`);
+          
+          // Process each trade
+          for (const trade of trades) {
+            const tradeAmount = Number(trade.amount) || 0;
             
             if (isCancellation) {
               // CANCELLATION: Full refund (no platform fee)
-              // Check if refund receipt already exists (idempotent)
               if (await receiptExists(adminClient, market.id, trade.user_id, 'REFUND')) {
                 result.skippedDueToReceipt++;
                 continue;
               }
               
-              // Create receipt BEFORE executing refund
               const receipt = await createReceipt(adminClient, {
                 settlement_queue_id: queueItem.id,
                 market_id: market.id,
@@ -554,7 +613,6 @@ export async function processSettlement(
               
               result.receiptsCreated++;
               
-              // Execute refund
               const { data: ledgerEntry, error: refundError } = await adminClient
                 .from('ledger_entries')
                 .insert({
@@ -579,30 +637,27 @@ export async function processSettlement(
                 await failReceipt(adminClient, receipt.id, refundError.message);
               } else {
                 await confirmReceipt(adminClient, receipt.id, { ledger_entry_id: ledgerEntry?.id });
-                totalPayouts += tradeAmount;
-                payoutCount++;
                 result.refundsCreated++;
                 result.totalRefundAmount += tradeAmount;
               }
               
             } else {
-              // NORMAL SETTLEMENT: Pay winners
+              // NORMAL SETTLEMENT: Pay winners proportionally
               const tradeSide = trade.meta?.side || trade.meta?.position;
               const isWinner = tradeSide?.toUpperCase() === outcome;
               
-              if (isWinner) {
-                // Check if payout receipt already exists (idempotent)
+              if (isWinner && winningPool > 0) {
                 if (await receiptExists(adminClient, market.id, trade.user_id, 'PAYOUT')) {
                   result.skippedDueToReceipt++;
                   continue;
                 }
                 
-                // Calculate payout (2x minus platform fee)
-                const grossPayout = tradeAmount * 2;
-                const fee = grossPayout * PLATFORM_FEE_RATE;
-                const netPayout = grossPayout - fee;
+                // Calculate proportional share of losing pool (minus fee)
+                // Winner gets: their stake back + proportional share of (losing pool - fee)
+                const proportion = tradeAmount / winningPool;
+                const shareOfLosingPool = netDistributed * proportion;
+                const netPayout = tradeAmount + shareOfLosingPool;
                 
-                // Create receipt BEFORE executing payout
                 const receipt = await createReceipt(adminClient, {
                   settlement_queue_id: queueItem.id,
                   market_id: market.id,
@@ -620,7 +675,6 @@ export async function processSettlement(
                 
                 result.receiptsCreated++;
                 
-                // Create payout record
                 const { data: payoutRecord, error: payoutError } = await adminClient
                   .from('payouts')
                   .insert({
@@ -639,7 +693,6 @@ export async function processSettlement(
                   continue;
                 }
                 
-                // Create ledger entry
                 const { data: ledgerEntry, error: ledgerError } = await adminClient
                   .from('ledger_entries')
                   .insert({
@@ -655,6 +708,9 @@ export async function processSettlement(
                       original_trade: trade.id,
                       receipt_id: receipt.id,
                       payout_id: payoutRecord?.id,
+                      stake: tradeAmount,
+                      share_of_losing_pool: shareOfLosingPool,
+                      proportion,
                     },
                   })
                   .select('id')
@@ -668,8 +724,6 @@ export async function processSettlement(
                     payout_id: payoutRecord?.id, 
                     ledger_entry_id: ledgerEntry?.id 
                   });
-                  totalPayouts += netPayout;
-                  payoutCount++;
                   result.payoutsCreated++;
                   result.totalPayoutAmount += netPayout;
                 }
@@ -678,18 +732,58 @@ export async function processSettlement(
           }
         }
         
-        // Create market settlement record
-        await adminClient
+        // Create market settlement record with fee tracking
+        const { data: settlementRecord } = await adminClient
           .from('market_settlements')
           .insert({
             market_id: market.id,
             game_id: queueItem.game_id,
             outcome,
-            total_volume: totalVolume,
-            total_payouts: totalPayouts,
-            payout_count: payoutCount,
+            total_volume: grossPool,
+            total_payouts: result.totalPayoutAmount,
+            payout_count: winnersCount,
+            gross_pool: grossPool,
+            losing_pool: losingPool,
+            winning_pool: winningPool,
+            platform_fee_amount: platformFee,
+            net_distributed_amount: netDistributed,
+            winners_count: winnersCount,
+            losers_count: losersCount,
+            fee_rate: PLATFORM_FEE_RATE,
             settled_by: 'system',
-          });
+          })
+          .select('id')
+          .single();
+        
+        // ATOMIC: Record fee in treasury ledger (if fee > 0)
+        if (platformFee > 0 && settlementRecord) {
+          const { error: treasuryError } = await adminClient
+            .from('treasury_ledger')
+            .insert({
+              settlement_id: settlementRecord.id,
+              market_id: market.id,
+              game_id: queueItem.game_id,
+              entry_type: 'SETTLEMENT_FEE',
+              amount: platformFee,
+              fee_rate: PLATFORM_FEE_RATE,
+              gross_pool: grossPool,
+              losing_pool: losingPool,
+              meta: {
+                outcome,
+                winners_count: winnersCount,
+                losers_count: losersCount,
+                net_distributed: netDistributed,
+              },
+            });
+          
+          if (treasuryError) {
+            console.error(`[settlement] Treasury ledger entry failed:`, treasuryError.message);
+            // Non-fatal: settlement still succeeds
+          } else {
+            console.log(`[settlement] Treasury fee recorded: $${platformFee.toFixed(2)} from market ${market.id}`);
+            result.totalFeeAmount += platformFee;
+          }
+        }
         
         result.marketsSettled++;
         
@@ -760,4 +854,224 @@ export async function processAllSettlements(
   console.log(`[settlement] Batch complete: processed=${processed} succeeded=${succeeded} failed=${failed}`);
   
   return { processed, succeeded, failed, results };
+}
+
+// ============================================================================
+// ADMIN PREVIEW & TREASURY
+// ============================================================================
+
+/**
+ * Preview settlement without executing (for admin review)
+ */
+export async function previewSettlement(
+  adminClient: SupabaseClient,
+  gameId: number
+): Promise<SettlementPreview | null> {
+  // Load game
+  const { data: game, error: gameError } = await adminClient
+    .from('sports_games')
+    .select('*')
+    .eq('id', gameId)
+    .single();
+  
+  if (gameError || !game) {
+    console.error(`[settlement] Preview failed - game not found:`, gameError?.message);
+    return null;
+  }
+  
+  // Determine outcome
+  const outcome = game.winner_side || 'UNKNOWN';
+  const isCancellation = outcome === 'CANCELED' || outcome === 'POSTPONED';
+  
+  // Find markets
+  const { data: markets } = await adminClient
+    .from('markets')
+    .select('*')
+    .eq('sports_game_id', gameId);
+  
+  if (!markets || markets.length === 0) {
+    return {
+      gameId,
+      outcome,
+      markets: [],
+      totals: {
+        grossPool: 0,
+        winningPool: 0,
+        losingPool: 0,
+        platformFee: 0,
+        netDistributed: 0,
+        winnersCount: 0,
+        losersCount: 0,
+      },
+    };
+  }
+  
+  const marketPreviews: SettlementPreview['markets'] = [];
+  const totals = {
+    grossPool: 0,
+    winningPool: 0,
+    losingPool: 0,
+    platformFee: 0,
+    netDistributed: 0,
+    winnersCount: 0,
+    losersCount: 0,
+  };
+  
+  for (const market of markets) {
+    // Find trades
+    const { data: trades } = await adminClient
+      .from('ledger_entries')
+      .select('*')
+      .eq('market_id', market.id)
+      .eq('entry_type', 'trade_lock');
+    
+    let grossPool = 0;
+    let winningPool = 0;
+    let losingPool = 0;
+    let winnersCount = 0;
+    let losersCount = 0;
+    
+    if (trades) {
+      for (const trade of trades) {
+        const tradeAmount = Number(trade.amount) || 0;
+        grossPool += tradeAmount;
+        
+        if (!isCancellation) {
+          const tradeSide = trade.meta?.side || trade.meta?.position;
+          const isWinner = tradeSide?.toUpperCase() === outcome;
+          
+          if (isWinner) {
+            winningPool += tradeAmount;
+            winnersCount++;
+          } else {
+            losingPool += tradeAmount;
+            losersCount++;
+          }
+        }
+      }
+    }
+    
+    const platformFee = isCancellation ? 0 : losingPool * PLATFORM_FEE_RATE;
+    const netDistributed = isCancellation ? grossPool : losingPool - platformFee;
+    
+    marketPreviews.push({
+      marketId: market.id,
+      grossPool,
+      winningPool,
+      losingPool,
+      platformFee,
+      netDistributed,
+      winnersCount,
+      losersCount,
+      feeRate: PLATFORM_FEE_RATE,
+    });
+    
+    totals.grossPool += grossPool;
+    totals.winningPool += winningPool;
+    totals.losingPool += losingPool;
+    totals.platformFee += platformFee;
+    totals.netDistributed += netDistributed;
+    totals.winnersCount += winnersCount;
+    totals.losersCount += losersCount;
+  }
+  
+  return {
+    gameId,
+    outcome,
+    markets: marketPreviews,
+    totals,
+  };
+}
+
+/**
+ * Get treasury balance and statistics
+ */
+export async function getTreasuryBalance(
+  adminClient: SupabaseClient
+): Promise<{
+  totalFeesCollected: number;
+  totalWithdrawn: number;
+  currentBalance: number;
+  totalEntries: number;
+  lastUpdated: string | null;
+}> {
+  const { data, error } = await adminClient
+    .from('treasury_balance')
+    .select('*')
+    .single();
+  
+  if (error) {
+    console.error(`[settlement] Treasury balance query failed:`, error.message);
+    return {
+      totalFeesCollected: 0,
+      totalWithdrawn: 0,
+      currentBalance: 0,
+      totalEntries: 0,
+      lastUpdated: null,
+    };
+  }
+  
+  return {
+    totalFeesCollected: Number(data.total_fees_collected) || 0,
+    totalWithdrawn: Number(data.total_withdrawn) || 0,
+    currentBalance: Number(data.current_balance) || 0,
+    totalEntries: Number(data.total_entries) || 0,
+    lastUpdated: data.last_updated,
+  };
+}
+
+/**
+ * Get recent treasury ledger entries
+ */
+export async function getTreasuryLedger(
+  adminClient: SupabaseClient,
+  options?: { limit?: number }
+): Promise<any[]> {
+  const { data, error } = await adminClient
+    .from('treasury_ledger')
+    .select(`
+      *,
+      market:markets(id, slug, home_team, away_team),
+      game:sports_games(id, home_team, away_team, home_score, away_score)
+    `)
+    .order('created_at', { ascending: false })
+    .limit(options?.limit || 50);
+  
+  if (error) {
+    console.error(`[settlement] Treasury ledger query failed:`, error.message);
+    return [];
+  }
+  
+  return data || [];
+}
+
+/**
+ * Check if a settlement has already been processed (idempotency check)
+ */
+export async function isSettlementProcessed(
+  adminClient: SupabaseClient,
+  gameId: number
+): Promise<{ processed: boolean; settledAt?: string; marketCount?: number }> {
+  // Check 1: Game has settled_at
+  const { data: game } = await adminClient
+    .from('sports_games')
+    .select('settled_at')
+    .eq('id', gameId)
+    .single();
+  
+  if (game?.settled_at) {
+    // Check 2: Count market settlements
+    const { data: settlements } = await adminClient
+      .from('market_settlements')
+      .select('id')
+      .eq('game_id', gameId);
+    
+    return {
+      processed: true,
+      settledAt: game.settled_at,
+      marketCount: settlements?.length || 0,
+    };
+  }
+  
+  return { processed: false };
 }
