@@ -3,6 +3,36 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 
+/**
+ * Safe JSON fetch helper - prevents "Unexpected token <" errors
+ * by checking content-type before parsing
+ */
+async function safeFetchJson<T>(url: string, options?: RequestInit): Promise<{ data: T | null; error: string | null }> {
+  try {
+    const res = await fetch(url, options);
+    const contentType = res.headers.get("content-type") || "";
+    
+    if (!contentType.includes("application/json")) {
+      const text = await res.text();
+      const preview = text.slice(0, 200);
+      return { 
+        data: null, 
+        error: `HTTP ${res.status}: Expected JSON but got ${contentType || "unknown"}. Response: ${preview}${text.length > 200 ? '...' : ''}` 
+      };
+    }
+    
+    if (!res.ok) {
+      const data = await res.json();
+      return { data: null, error: `HTTP ${res.status}: ${data.error || JSON.stringify(data)}` };
+    }
+    
+    const data = await res.json();
+    return { data, error: null };
+  } catch (err) {
+    return { data: null, error: err instanceof Error ? err.message : "Unknown fetch error" };
+  }
+}
+
 interface FirstError {
   message: string;
   code?: string;
@@ -142,12 +172,12 @@ export default function AdminLifecyclePage() {
 
   // Fetch scheduled jobs status
   const fetchScheduledJobsStatus = useCallback(async () => {
-    try {
-      const res = await fetch("/.netlify/functions/job-status");
-      const data = await res.json();
+    const { data, error } = await safeFetchJson<ScheduledJobsStatus>("/api/job-status");
+    if (error) {
+      console.error("Failed to fetch scheduled jobs status:", error);
+      setScheduledJobs({ ok: false, jobs: [], error });
+    } else if (data) {
       setScheduledJobs(data);
-    } catch (err) {
-      console.error("Failed to fetch scheduled jobs status:", err);
     }
   }, []);
 
@@ -172,51 +202,46 @@ export default function AdminLifecyclePage() {
     setLoading(job);
     setResult(null);
 
-    try {
-      const res = await fetch("/api/admin/lifecycle/jobs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ job }),
-      });
+    const { data, error } = await safeFetchJson<JobResult>("/api/admin/lifecycle/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job }),
+    });
 
-      const data = await res.json();
+    if (error) {
+      setResult({ success: false, error });
+    } else if (data) {
       setResult(data);
-    } catch (err) {
-      setResult({
-        success: false,
-        error: err instanceof Error ? err.message : "Unknown error",
-      });
-    } finally {
-      setLoading(null);
     }
+    setLoading(null);
   };
 
   const fetchSettlementQueue = async () => {
     setLoading("queue");
 
-    try {
-      const res = await fetch("/api/admin/lifecycle/settlements");
-      const data = await res.json();
+    const { data, error } = await safeFetchJson<{ stats: SettlementStats; items: any[] }>("/api/admin/lifecycle/settlements");
+    if (error) {
+      console.error("Failed to fetch queue:", error);
+      setResult({ success: false, error });
+    } else if (data) {
       setStats(data.stats);
       setQueueItems(data.items || []);
-    } catch (err) {
-      console.error("Failed to fetch queue:", err);
-    } finally {
-      setLoading(null);
     }
+    setLoading(null);
   };
 
   const processSettlements = async (action: string) => {
     setLoading(action);
 
-    try {
-      const res = await fetch("/api/admin/lifecycle/settlements", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
+    const { data, error } = await safeFetchJson<any>("/api/admin/lifecycle/settlements", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
 
-      const data = await res.json();
+    if (error) {
+      setResult({ success: false, error });
+    } else if (data) {
       setResult({
         success: data.success,
         summary: {
@@ -228,120 +253,97 @@ export default function AdminLifecyclePage() {
         },
         results: data,
       });
-
       await fetchSettlementQueue();
-    } catch (err) {
-      setResult({
-        success: false,
-        error: err instanceof Error ? err.message : "Unknown error",
-      });
-    } finally {
-      setLoading(null);
     }
+    setLoading(null);
   };
 
   const fetchHealthChecks = async () => {
     setLoading("health");
 
-    try {
-      const res = await fetch("/api/admin/lifecycle/health");
-      const data = await res.json();
+    const { data, error } = await safeFetchJson<HealthResult>("/api/admin/lifecycle/health");
+    if (error) {
+      console.error("Failed to fetch health:", error);
+      setResult({ success: false, error });
+    } else if (data) {
       setHealth(data);
-    } catch (err) {
-      console.error("Failed to fetch health:", err);
-    } finally {
-      setLoading(null);
     }
+    setLoading(null);
   };
 
   const runHealthRemediation = async (action: string) => {
     setLoading(action);
 
-    try {
-      const res = await fetch("/api/admin/lifecycle/health", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
+    const { data, error } = await safeFetchJson<any>("/api/admin/lifecycle/health", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
 
-      const data = await res.json();
-      setResult({
-        success: data.success,
-        results: data,
-      });
-
-      // Refresh health checks
+    if (error) {
+      setResult({ success: false, error });
+    } else if (data) {
+      setResult({ success: data.success, results: data });
       await fetchHealthChecks();
-    } catch (err) {
-      setResult({
-        success: false,
-        error: err instanceof Error ? err.message : "Unknown error",
-      });
-    } finally {
-      setLoading(null);
     }
+    setLoading(null);
   };
 
   const fetchBackfillStatus = async () => {
-    try {
-      const res = await fetch("/api/admin/lifecycle/backfill");
-      const data = await res.json();
+    const { data, error } = await safeFetchJson<BackfillProgress>("/api/admin/lifecycle/backfill");
+    if (error) {
+      console.error("Failed to fetch backfill status:", error);
+    } else if (data) {
       setBackfill(data);
-    } catch (err) {
-      console.error("Failed to fetch backfill status:", err);
     }
   };
 
   const startBackfill = async () => {
     setLoading("backfill-start");
 
-    try {
-      const res = await fetch("/api/admin/lifecycle/backfill", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "start", days: backfillDays }),
-      });
+    const { data, error } = await safeFetchJson<{ progress: BackfillProgress }>("/api/admin/lifecycle/backfill", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "start", days: backfillDays }),
+    });
 
-      const data = await res.json();
+    if (error) {
+      console.error("Failed to start backfill:", error);
+      setResult({ success: false, error });
+    } else if (data) {
       setBackfill(data.progress);
-    } catch (err) {
-      console.error("Failed to start backfill:", err);
-    } finally {
-      setLoading(null);
     }
+    setLoading(null);
   };
 
   const cancelBackfill = async () => {
     setLoading("backfill-cancel");
 
-    try {
-      const res = await fetch("/api/admin/lifecycle/backfill", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "cancel" }),
-      });
+    const { error } = await safeFetchJson<any>("/api/admin/lifecycle/backfill", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "cancel" }),
+    });
 
-      const data = await res.json();
+    if (error) {
+      console.error("Failed to cancel backfill:", error);
+    } else {
       setBackfill({ status: 'idle', gamesProcessed: 0, gamesUpserted: 0, gamesFinalized: 0, errors: [] });
-    } catch (err) {
-      console.error("Failed to cancel backfill:", err);
-    } finally {
-      setLoading(null);
     }
+    setLoading(null);
   };
 
   const fetchFinalizeDebug = async () => {
     setLoading("finalize-debug");
 
-    try {
-      const res = await fetch("/api/admin/lifecycle/debug");
-      const data = await res.json();
+    const { data, error } = await safeFetchJson<FinalizeDebugResult>("/api/admin/lifecycle/debug");
+    if (error) {
+      console.error("Failed to fetch finalize debug:", error);
+      setResult({ success: false, error });
+    } else if (data) {
       setFinalizeDebug(data);
-    } catch (err) {
-      console.error("Failed to fetch finalize debug:", err);
-    } finally {
-      setLoading(null);
     }
+    setLoading(null);
   };
 
   const getStatusColor = (status: string) => {

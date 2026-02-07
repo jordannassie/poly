@@ -32,6 +32,43 @@
 #   - SUPABASE_SERVICE_ROLE_KEY
 # ============================================================
 
+# ============================================================
+# REDIRECTS for Netlify Functions
+# ============================================================
+# Map /api/<function-name> to /.netlify/functions/<function-name>
+# for scheduled job functions. These must come BEFORE Next.js
+# handles the request.
+
+[[redirects]]
+  from = "/api/job-status"
+  to = "/.netlify/functions/job-status"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/sync-games-daily"
+  to = "/.netlify/functions/sync-games-daily"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/sync-games-live"
+  to = "/.netlify/functions/sync-games-live"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/lifecycle-finalize"
+  to = "/.netlify/functions/lifecycle-finalize"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/sync-games-backfill"
+  to = "/.netlify/functions/sync-games-backfill"
+  status = 200
+  force = true
+
 # Security Headers - Allow Supabase Storage for images
 [[headers]]
   for = "/*"
