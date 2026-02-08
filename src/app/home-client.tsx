@@ -172,14 +172,67 @@ export default function HomeClient() {
             {/* Hero Section */}
             <div className="mb-6 md:mb-8 p-4 md:p-6 rounded-2xl bg-gradient-to-r from-[color:var(--surface)] to-[color:var(--surface-2)] border border-[color:var(--border-soft)]">
               <div className="flex items-center gap-3 md:gap-4">
-                <div className="h-12 w-12 md:h-16 md:w-16 rounded-xl md:rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center flex-shrink-0">
-                  <Trophy className="h-6 w-6 md:h-8 md:w-8 text-white" />
+                <div className="h-12 w-12 md:h-16 md:w-16 rounded-xl md:rounded-2xl overflow-hidden flex-shrink-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/public/SPORTS/logos/ICON%20P.jpg"
+                    alt="ProvePicks Logo"
+                    className="h-full w-full object-cover"
+                  />
                 </div>
                 <div>
                   <h1 className="text-xl md:text-3xl font-bold">ProvePicks</h1>
                   <p className="text-sm md:text-base text-[color:var(--text-muted)]">
                     The social prediction market. Follow traders. Track picks. Prove performance.
                   </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Promo Section */}
+            <div className="mb-6 md:mb-8">
+              <div className="relative overflow-hidden rounded-2xl border border-[color:var(--border-soft)] bg-[color:var(--surface)]">
+                <div className="absolute inset-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/public/SPORTS/images/alluring_swan_07128_woman_sitting_on_couch_with_phone_with_se_812d1f93-94af-4530-bc88-978540ae6620_0.png"
+                    alt="Trade on ProvePicks"
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-black/20" />
+                </div>
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6 p-6 md:p-10">
+                  <div className="max-w-xl">
+                    <div className="flex items-center gap-2 mb-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src="https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/public/SPORTS/logos/ICON%20P.jpg"
+                        alt="ProvePicks"
+                        className="h-6 w-6 rounded object-cover"
+                      />
+                      <span className="text-xs uppercase tracking-[0.25em] text-white/70">
+                        ProvePicks
+                      </span>
+                    </div>
+                    <h2 className="text-2xl md:text-4xl font-bold text-white">
+                      Trade and get up to $500
+                    </h2>
+                    <p className="mt-2 text-sm md:text-base text-white/80">
+                      Make your prediction and follow the sharpest picks in real time.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Link href="/sports">
+                      <Button className="bg-orange-500 hover:bg-orange-600 text-white">
+                        Make your prediction
+                      </Button>
+                    </Link>
+                    <Link href="/leaderboard">
+                      <Button variant="outline" className="border-white/50 text-white hover:bg-white/10">
+                        Learn More
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
