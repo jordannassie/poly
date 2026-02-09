@@ -4,7 +4,7 @@
 
 import { MarketViewModel, DEFAULT_STATS, DEFAULT_LINES } from "./marketViewModel";
 import { locksInLabel, formatVolume } from "@/lib/marketHelpers";
-import { resolveTeamBrand } from "@/lib/teams/teamBrandRegistry";
+import { resolveTeamBrand } from "../teams/teamBrandRegistry";
 
 interface TeamInput {
   teamId?: number;
