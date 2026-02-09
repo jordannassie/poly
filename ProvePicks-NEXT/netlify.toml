@@ -1,0 +1,89 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  # Ensure TypeScript modules are included
+  external_node_modules = ["@supabase/supabase-js"]
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# ============================================================
+# SCHEDULED FUNCTIONS (Netlify Cron Jobs)
+# ============================================================
+# These run automatically on schedule. View in Netlify Dashboard:
+# Site → Functions → [function-name] → Logs
+#
+# Required Env Vars:
+#   - INTERNAL_CRON_SECRET
+#   - NEXT_PUBLIC_SUPABASE_URL
+#   - SUPABASE_SERVICE_ROLE_KEY
+# ============================================================
+
+# Daily Games Sync - every 15 minutes
+[functions."sync-games-daily"]
+  schedule = "*/15 * * * *"
+
+# Live Games Sync - every 2 minutes
+[functions."sync-games-live"]
+  schedule = "*/2 * * * *"
+
+# Finalize and Settle - every 10 minutes
+[functions."lifecycle-finalize"]
+  schedule = "*/10 * * * *"
+
+# Backfill Games - daily at 4 AM UTC
+[functions."sync-games-backfill"]
+  schedule = "0 4 * * *"
+
+# ============================================================
+# REDIRECTS for Netlify Functions
+# ============================================================
+# Map /api/<function-name> to /.netlify/functions/<function-name>
+# for scheduled job functions. These must come BEFORE Next.js
+# handles the request.
+
+[[redirects]]
+  from = "/api/job-status"
+  to = "/.netlify/functions/job-status"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/sync-games-daily"
+  to = "/.netlify/functions/sync-games-daily"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/sync-games-live"
+  to = "/.netlify/functions/sync-games-live"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/lifecycle-finalize"
+  to = "/.netlify/functions/lifecycle-finalize"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/sync-games-backfill"
+  to = "/.netlify/functions/sync-games-backfill"
+  status = 200
+  force = true
+
+# Security Headers - Allow Supabase Storage for images
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; img-src 'self' data: blob: https://*.supabase.co https://media.api-sports.io; connect-src 'self' https://*.supabase.co; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; font-src 'self' data:; frame-ancestors 'self';"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "strict-origin-when-cross-origin"
