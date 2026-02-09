@@ -82,14 +82,14 @@ export function gameToMarketViewModel(input: ConversionInput): MarketViewModel {
     league,
     name: game.awayTeam.name,
     fallbackAbbr: game.awayTeam.abbreviation,
-    fallbackColor: game.awayTeam.primaryColor,
+    fallbackColor: game.awayTeam.primaryColor ?? undefined,
   });
 
   const team2Brand = resolveTeamBrand({
     league,
     name: game.homeTeam.name,
     fallbackAbbr: game.homeTeam.abbreviation,
-    fallbackColor: game.homeTeam.primaryColor,
+    fallbackColor: game.homeTeam.primaryColor ?? undefined,
   });
 
   if (process.env.NODE_ENV !== "production") {
@@ -112,7 +112,7 @@ export function gameToMarketViewModel(input: ConversionInput): MarketViewModel {
       city: game.awayTeam.city,
       fullName: game.awayTeam.fullName,
       logoUrl: game.awayTeam.logoUrl,
-      color: getColor(team1Brand.color || game.awayTeam.primaryColor, "#1e40af"),
+      color: getColor(team1Brand.color || (game.awayTeam.primaryColor ?? undefined), "#1e40af"),
       odds: team1Odds,
       record: "",
     },
@@ -123,7 +123,7 @@ export function gameToMarketViewModel(input: ConversionInput): MarketViewModel {
       city: game.homeTeam.city,
       fullName: game.homeTeam.fullName,
       logoUrl: game.homeTeam.logoUrl,
-      color: getColor(team2Brand.color || game.homeTeam.primaryColor, "#b91c1c"),
+      color: getColor(team2Brand.color || (game.homeTeam.primaryColor ?? undefined), "#b91c1c"),
       odds: team2Odds,
       record: "",
     },
