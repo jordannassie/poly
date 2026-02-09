@@ -4,6 +4,7 @@
 
 import { MarketViewModel, DEFAULT_STATS, DEFAULT_LINES } from "./marketViewModel";
 import { locksInLabel, formatVolume } from "@/lib/marketHelpers";
+import { resolveTeamBrand } from "@/lib/teams/teamBrandRegistry";
 
 interface TeamInput {
   teamId?: number;
@@ -77,6 +78,29 @@ export function gameToMarketViewModel(input: ConversionInput): MarketViewModel {
      (game.status === 'final' || game.status === 'canceled' || game.status === 'postponed') ? 'GAME_FINAL' : 
      undefined);
   
+  const team1Brand = resolveTeamBrand({
+    league,
+    name: game.awayTeam.name,
+    fallbackAbbr: game.awayTeam.abbreviation,
+    fallbackColor: game.awayTeam.primaryColor,
+  });
+
+  const team2Brand = resolveTeamBrand({
+    league,
+    name: game.homeTeam.name,
+    fallbackAbbr: game.homeTeam.abbreviation,
+    fallbackColor: game.homeTeam.primaryColor,
+  });
+
+  if (process.env.NODE_ENV !== "production") {
+    if (!team1Brand.abbr || !team1Brand.color) {
+      console.warn("[TEAM_BRAND_MISSING]", league, game.awayTeam.name);
+    }
+    if (!team2Brand.abbr || !team2Brand.color) {
+      console.warn("[TEAM_BRAND_MISSING]", league, game.homeTeam.name);
+    }
+  }
+
   return {
     league,
     slug: game.gameId,
@@ -84,22 +108,22 @@ export function gameToMarketViewModel(input: ConversionInput): MarketViewModel {
     
     team1: {
       name: game.awayTeam.name,
-      abbr: game.awayTeam.abbreviation,
+      abbr: team1Brand.abbr || game.awayTeam.abbreviation,
       city: game.awayTeam.city,
       fullName: game.awayTeam.fullName,
       logoUrl: game.awayTeam.logoUrl,
-      color: getColor(game.awayTeam.primaryColor, "#1e40af"),
+      color: getColor(team1Brand.color || game.awayTeam.primaryColor, "#1e40af"),
       odds: team1Odds,
       record: "",
     },
     
     team2: {
       name: game.homeTeam.name,
-      abbr: game.homeTeam.abbreviation,
+      abbr: team2Brand.abbr || game.homeTeam.abbreviation,
       city: game.homeTeam.city,
       fullName: game.homeTeam.fullName,
       logoUrl: game.homeTeam.logoUrl,
-      color: getColor(game.homeTeam.primaryColor, "#b91c1c"),
+      color: getColor(team2Brand.color || game.homeTeam.primaryColor, "#b91c1c"),
       odds: team2Odds,
       record: "",
     },
