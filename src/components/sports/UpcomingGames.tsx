@@ -96,6 +96,9 @@ export function UpcomingGames({ league = "nfl", days: initialDays }: UpcomingGam
   const [data, setData] = useState<UpcomingResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [fallbackTriggered, setFallbackTriggered] = useState(false);
+  const [fallbackMessage, setFallbackMessage] = useState<string | null>(null);
+  const fallbackLeagues = new Set(["nhl", "soccer", "mlb"]);
 
   useEffect(() => {
     async function fetchGames() {
@@ -110,6 +113,27 @@ export function UpcomingGames({ league = "nfl", days: initialDays }: UpcomingGam
         if (responseData.message) {
           setSyncMessage(responseData.message);
         }
+        
+        const leagueKey = league.toLowerCase();
+        console.log(`[UpcomingGames] league=${leagueKey} days=${selectedDays} count=${responseData.count} fallback=${fallbackTriggered}`);
+
+        const shouldFallback =
+          fallbackLeagues.has(leagueKey) &&
+          selectedDays === 7 &&
+          responseData.count === 0 &&
+          !fallbackTriggered;
+
+        if (shouldFallback) {
+          const fallbackMsg = "No games in the next 7 days. Try 30D/90D/365D.";
+          setSyncMessage(fallbackMsg);
+          setFallbackMessage(fallbackMsg);
+          setFallbackTriggered(true);
+          setSelectedDays(365);
+          console.log(`[UpcomingGames] fallback triggered for ${leagueKey}`);
+          return;
+        }
+        
+        setFallbackMessage(null);
         
         setData(responseData);
       } catch (err) {
@@ -157,7 +181,7 @@ export function UpcomingGames({ league = "nfl", days: initialDays }: UpcomingGam
             No {league.toUpperCase()} games in the next {selectedDays} days
           </p>
           <p className="text-sm text-[color:var(--text-subtle)] mt-2 max-w-md mx-auto">
-            {syncMessage || (league === "nfl" 
+          {fallbackMessage || syncMessage || (league === "nfl" 
               ? "Sync more games in Admin → API Sports using \"Sync Next 365 Days\"."
               : "Games will appear once synced from Admin.")}
           </p>
@@ -207,7 +231,7 @@ export function UpcomingGames({ league = "nfl", days: initialDays }: UpcomingGam
             No {league.toUpperCase()} games in the next {selectedDays} days
           </p>
           <p className="text-sm text-[color:var(--text-subtle)] mt-2 max-w-md mx-auto">
-            {syncMessage || "Games will appear once synced from Admin."}
+            {fallbackMessage || syncMessage || "Games will appear once synced from Admin."}
           </p>
         </div>
       </div>
