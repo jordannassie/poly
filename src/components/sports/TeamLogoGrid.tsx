@@ -175,14 +175,6 @@ export function TeamLogoGrid({ league = "nfl" }: TeamLogoGridProps) {
         </div>
       )}
 
-      {/* Data Source */}
-      <div className="mt-6 text-center text-xs text-[color:var(--text-subtle)]">
-        Data provided by {
-          source === "api-sports-cache" || source === "sports-teams-cache" 
-            ? "API-Sports (cached)" 
-            : "SportsDataIO"
-        }
-      </div>
     </div>
   );
 }
