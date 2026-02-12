@@ -1,17 +1,27 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, useCallback, Component } from "react";
+import type { MouseEvent, ReactNode, ErrorInfo } from "react";
 import Link from "next/link";
-import { Calendar, Tv, Trophy, ChevronRight, Clock, Flame } from "lucide-react";
-import { LightningLoader } from "@/components/ui/LightningLoader";
+import { useRouter } from "next/navigation";
+import { Calendar, ChevronLeft, ChevronRight, Clock, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getLogoUrl } from "@/lib/images/getLogoUrl";
 
 // Countdown timer hook
-function useCountdown(targetDate: string) {
+function safeDate(value?: string | null): Date | null {
+  if (!value) return null;
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return null;
+  return new Date(parsed);
+}
+
+function useCountdown(targetDate?: string | null) {
   const calculateTimeLeft = useCallback(() => {
-    const difference = new Date(targetDate).getTime() - new Date().getTime();
+    const dateObj = safeDate(targetDate);
+    if (!dateObj) {
+      return { days: 0, hours: 0, minutes: 0, seconds: 0, total: 0 };
+    }
+    const difference = dateObj.getTime() - new Date().getTime();
     
     if (difference <= 0) {
       return { days: 0, hours: 0, minutes: 0, seconds: 0, total: 0 };
@@ -40,7 +50,12 @@ function useCountdown(targetDate: string) {
 }
 
 // Countdown display component
-function CountdownTimer({ targetDate }: { targetDate: string }) {
+function CountdownTimer({ targetDate }: { targetDate?: string | null }) {
+  if (!safeDate(targetDate)) {
+    return (
+      <span className="text-xs uppercase tracking-widest text-white/60">TBD</span>
+    );
+  }
   const timeLeft = useCountdown(targetDate);
   
   if (timeLeft.total <= 0) {
@@ -98,285 +113,347 @@ interface Team {
   primaryColor: string | null;
 }
 
-interface FeaturedGame {
+export interface FeaturedItem {
+  league: string;
   gameId: string;
-  name: string;
-  startTime: string;
-  status: "scheduled" | "in_progress" | "final" | "postponed" | "canceled";
+  startsAt: string;
+  status: "scheduled" | "in_progress" | "final" | "canceled";
   homeTeam: Team;
   awayTeam: Team;
   homeScore: number | null;
   awayScore: number | null;
-  venue: string | null;
-  week: number;
   channel: string | null;
-  isSuperBowl: boolean;
+  volume?: number;
 }
 
-interface FeaturedResponse {
-  featured: FeaturedGame | null;
-  reason: "super_bowl" | "next_game" | "no_games";
-}
+const STORAGE_KEY = "provepicks:mode";
 
 interface FeaturedGameHeroProps {
-  league?: string;
+  items?: FeaturedItem[];
 }
 
-export function FeaturedGameHero({ league = "nfl" }: FeaturedGameHeroProps) {
-  const [data, setData] = useState<FeaturedResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const searchParams = useSearchParams();
-  const isDebug = searchParams?.get("debug") === "1";
+function FeaturedGameHeroInner({ items }: { items?: FeaturedItem[] }) {
+  const router = useRouter();
+  const heroItems = items ?? [];
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [mode, setMode] = useState<"coin" | "cash">("coin");
 
   useEffect(() => {
-    async function fetchFeatured() {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const res = await fetch(`/api/sports/featured?league=${league}`);
-        
-        if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.error || `Failed to fetch: ${res.status}`);
-        }
-        
-        const responseData: FeaturedResponse = await res.json();
-        setData(responseData);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load featured game");
-      } finally {
-        setLoading(false);
+    if (typeof window === "undefined") return undefined;
+    const stored = window.__provepicksMode ?? window.localStorage.getItem(STORAGE_KEY);
+    setMode(stored === "cash" ? "cash" : "coin");
+
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent)?.detail;
+      const incoming = detail?.mode ?? window.__provepicksMode;
+      if (incoming === "coin" || incoming === "cash") {
+        setMode(incoming);
       }
-    }
+    };
+    window.addEventListener("provepicks:mode-change", handler as EventListener);
+    return () => window.removeEventListener("provepicks:mode-change", handler as EventListener);
+  }, []);
 
-    fetchFeatured();
-  }, [league]);
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [heroItems.length]);
 
-  if (loading) {
-    return (
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a1f2e] to-[#0d1117] p-8 md:p-12">
-        <div className="flex items-center justify-center py-16">
-          <LightningLoader size="lg" />
-        </div>
-      </div>
-    );
+  const itemCount = heroItems.length;
+  const safeIndex = itemCount > 0 ? activeIndex % itemCount : 0;
+  const active = itemCount > 0 ? heroItems[safeIndex] : null;
+  const gameHref = active ? `/${active.league}/game/${active.gameId}` : "";
+  const navigateToActiveGame = useCallback(
+    (event?: MouseEvent<HTMLDivElement>) => {
+      event?.stopPropagation();
+      if (!gameHref) return;
+      router.push(gameHref);
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[FeaturedGameHero] push", gameHref);
+      }
+    },
+    [router, gameHref],
+  );
+
+  useEffect(() => {
+    if (itemCount <= 1) return undefined;
+    const timer = setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % itemCount);
+    }, 8000);
+    return () => clearInterval(timer);
+  }, [itemCount]);
+
+  if (!active) {
+    return <FeaturedHeroFallback />;
   }
+  const heroActive = active;
+  const isScheduled = heroActive.status === "scheduled";
+  const isLive = heroActive.status === "in_progress";
+  const startDate = safeDate(heroActive.startsAt);
 
-  if (error || !data || !data.featured) {
-    return <OffseasonHero />;
-  }
+  const handlePrev = () => {
+    setActiveIndex((prev) => (prev - 1 + itemCount) % itemCount);
+  };
 
-  const { featured } = data;
+  const handleNext = () => {
+    setActiveIndex((prev) => (prev + 1) % itemCount);
+  };
+
+  const openLearnMore = () => {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(new Event("provepicks:open-how-it-works"));
+  };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a1f2e] via-[#151922] to-[#0d1117] border border-white/5">
-      {/* Animated background decoration */}
+    <div
+      className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a1f2e] via-[#151922] to-[#0d1117] border border-white/5 cursor-pointer"
+      onClick={() => navigateToActiveGame()}
+      role="button"
+    >
       <div className="absolute inset-0 opacity-20">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-orange-500 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }} />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-amber-400 rounded-full blur-3xl opacity-30" />
       </div>
 
-      {/* Subtle grid pattern overlay */}
-      <div className="absolute inset-0 opacity-5" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)", backgroundSize: "32px 32px" }} />
-
-      {/* Super Bowl badge */}
-      {featured.isSuperBowl && (
-        <div className="absolute top-4 left-4 md:top-6 md:left-6 z-10">
-          <div className="flex items-center gap-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg shadow-yellow-500/30 animate-pulse">
-            <Trophy className="h-4 w-4" />
-            <span>SUPER BOWL</span>
-          </div>
-        </div>
-      )}
-
-      {/* Live badge */}
-      {featured.status === "in_progress" && (
-        <div className="absolute top-4 right-4 md:top-6 md:right-6 z-10">
-          <div className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-full text-sm font-bold animate-pulse shadow-lg shadow-red-500/30">
-            <span className="w-2 h-2 bg-white rounded-full" />
-            <span>LIVE</span>
-          </div>
-        </div>
-      )}
-
       <div className="relative z-10 p-6 md:p-12">
-        {/* Game Name */}
-        <div className="text-center mb-6">
-          <h2 className="text-sm md:text-base text-orange-400 font-semibold uppercase tracking-wider mb-2 flex items-center justify-center gap-2">
-            <Flame className="h-4 w-4 animate-pulse" />
-            Featured Matchup
-            <Flame className="h-4 w-4 animate-pulse" />
-          </h2>
-          <h1 className="text-2xl md:text-4xl font-bold text-white">
-            {featured.name}
-          </h1>
+        <div className="flex flex-col md:flex-row items-center justify-between gap-3 mb-6">
+          <div className="text-center md:text-left">
+            <h2 className="text-sm md:text-base text-orange-400 font-semibold uppercase tracking-wider flex items-center justify-center gap-2">
+              <Flame className="h-4 w-4 animate-pulse" />
+              Featured Matchup
+              <Flame className="h-4 w-4 animate-pulse" />
+            </h2>
+            <p className="text-xs uppercase tracking-widest text-white/60 mt-1">
+              {heroActive.league.toUpperCase()} · {isLive ? "LIVE" : "Upcoming"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-white/60 uppercase tracking-wider">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                handlePrev();
+              }}
+              aria-label="Previous featured matchup"
+              className="rounded-full border border-white/30 p-1 hover:border-white transition"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span>{activeIndex + 1} / {itemCount}</span>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                handleNext();
+              }}
+              aria-label="Next featured matchup"
+              className="rounded-full border border-white/30 p-1 hover:border-white transition"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
-        {/* Teams VS Display */}
-        <div className="flex items-center justify-center gap-4 md:gap-12 mb-8">
-          {/* Away Team */}
-          <TeamDisplay team={featured.awayTeam} score={featured.awayScore} side="away" status={featured.status} league={league} />
-
-          {/* VS */}
-          <div className="flex flex-col items-center">
-            {featured.status === "scheduled" ? (
-              <div className="text-3xl md:text-5xl font-black text-white/30">VS</div>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_auto_1fr] items-center mb-8 relative z-10">
+            <TeamDisplay
+            team={heroActive.awayTeam}
+            score={heroActive.awayScore}
+            side="away"
+            status={heroActive.status}
+            league={heroActive.league}
+            onNavigate={(event) => navigateToActiveGame(event)}
+          />
+          <div className="flex flex-col items-center gap-3 text-center">
+            <div className="text-3xl md:text-4xl font-black text-white/40">VS</div>
+            {isScheduled ? (
+              <CountdownTimer targetDate={heroActive.startsAt} />
             ) : (
-              <div className="text-xl md:text-3xl font-bold text-white/50">-</div>
+              <span className="text-xs uppercase tracking-widest text-white/60">
+                {isLive ? "Live now" : heroActive.status.replace("_", " ").toUpperCase()}
+              </span>
             )}
           </div>
-
-          {/* Home Team */}
-          <TeamDisplay team={featured.homeTeam} score={featured.homeScore} side="home" status={featured.status} league={league} />
+          <TeamDisplay
+            team={heroActive.homeTeam}
+            score={heroActive.homeScore}
+            side="home"
+            status={heroActive.status}
+            league={heroActive.league}
+            onNavigate={(event) => navigateToActiveGame(event)}
+          />
         </div>
 
-        {/* Countdown Timer */}
-        {featured.status === "scheduled" && (
-          <div className="mb-6">
-            <CountdownTimer targetDate={featured.startTime} />
-          </div>
-        )}
-
-        {/* Game Info */}
         <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 text-white/70 text-sm mb-8">
-          {featured.status === "scheduled" && (
+          <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-full">
+            <Calendar className="h-4 w-4 text-orange-400" />
+            <span>
+              {startDate
+                ? startDate.toLocaleDateString("en-US", {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })
+                : "Coming soon"}
+            </span>
+          </div>
+          {heroActive.channel && (
             <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-full">
-              <Calendar className="h-4 w-4 text-orange-400" />
-              <span>
-                {new Date(featured.startTime).toLocaleDateString("en-US", {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
-              </span>
-            </div>
-          )}
-          {featured.channel && (
-            <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-full">
-              <Tv className="h-4 w-4 text-purple-400" />
-              <span>{featured.channel}</span>
+              <Clock className="h-4 w-4 text-purple-400" />
+              <span>{heroActive.channel}</span>
             </div>
           )}
         </div>
 
-        {/* CTA Button */}
-        {featured.status === "scheduled" && (
-          <div className="flex justify-center">
-            <Link href={featured.gameId ? `/${league}/game/${featured.gameId}` : `/sports?league=${league}`}>
-              <Button 
+        <div className="flex flex-col items-center gap-3 relative z-10">
+          {mode === "coin" ? (
+            <Link href={gameHref} onClick={(event) => event.stopPropagation()}>
+              <Button
                 size="lg"
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold px-8 py-6 text-lg rounded-xl shadow-lg shadow-blue-500/25 group"
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold px-8 py-4 text-lg rounded-xl shadow-lg shadow-blue-500/25 group"
               >
-                <span>View Matchup</span>
+                <span>Trade (Coins)</span>
                 <ChevronRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
-          </div>
-        )}
-
-        {featured.status === "in_progress" && (
-          <div className="flex justify-center">
-            <Link href={featured.gameId ? `/${league}/game/${featured.gameId}` : `/sports?league=${league}`}>
-              <Button 
-                size="lg"
-                className="bg-green-600 hover:bg-green-700 text-white font-bold px-8 py-6 text-lg rounded-xl"
-              >
-                <span>Follow Live</span>
-              </Button>
-            </Link>
-          </div>
-        )}
-
-        {/* Debug output - only shows when ?debug=1 is in URL */}
-        {isDebug && (
-          <div className="mt-6 p-4 bg-black/80 rounded-lg text-left font-mono text-xs text-green-400 overflow-x-auto">
-            <div className="font-bold mb-2 text-yellow-400">🔍 DEBUG: Logo URLs</div>
-            <div className="mb-1">
-              <span className="text-gray-400">Away Team Raw: </span>
-              <span className="text-white break-all">{featured.awayTeam.logoUrl || "NULL"}</span>
-            </div>
-            <div className="mb-1">
-              <span className="text-gray-400">Away Team Resolved: </span>
-              <span className="text-green-400 break-all">{getLogoUrl(featured.awayTeam.logoUrl) || "NULL"}</span>
-            </div>
-            <div className="mb-1">
-              <span className="text-gray-400">Home Team Raw: </span>
-              <span className="text-white break-all">{featured.homeTeam.logoUrl || "NULL"}</span>
-            </div>
-            <div className="mb-1">
-              <span className="text-gray-400">Home Team Resolved: </span>
-              <span className="text-green-400 break-all">{getLogoUrl(featured.homeTeam.logoUrl) || "NULL"}</span>
-            </div>
-            <div className="mt-2 text-gray-500">
-              NEXT_PUBLIC_SUPABASE_URL: {process.env.NEXT_PUBLIC_SUPABASE_URL || "NOT SET"}
-            </div>
-          </div>
-        )}
+          ) : (
+            <Button
+              size="lg"
+              disabled
+              className="bg-white/10 text-white font-bold px-8 py-4 text-lg rounded-xl border border-white/30"
+            >
+              Cash mode coming soon
+            </Button>
+          )}
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              openLearnMore();
+            }}
+            className="text-xs font-semibold tracking-[0.3em] uppercase text-slate-900 dark:text-white border border-white/30 bg-white/10 px-4 py-2 rounded-full transition hover:bg-white/20"
+          >
+            Learn more
+          </button>
+          {mode === "cash" && (
+            <span className="text-xs text-white/70 italic">Coin trading will be back soon for cash mode.</span>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-// Generate slug from team data
-function getTeamSlug(team: Team, league: string): string {
-  const nameSlug = team.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  return `${league.toLowerCase()}-${team.teamId}-${nameSlug}`;
+function FeaturedHeroFallback() {
+  return (
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a1f2e] via-[#151922] to-[#0d1117] border border-white/5">
+      <div className="absolute inset-0 opacity-20">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-orange-500 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-amber-400 rounded-full blur-3xl opacity-30" />
+      </div>
+      <div className="relative z-10 p-8 md:p-12 text-center">
+        <p className="text-sm text-white/60 uppercase tracking-wider">Featured matchup unavailable</p>
+      </div>
+    </div>
+  );
 }
 
-function TeamDisplay({ 
-  team, 
-  score, 
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, _info: ErrorInfo) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[FeaturedGameHero] crashed", error);
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <FeaturedHeroFallback />;
+    }
+    return this.props.children;
+  }
+}
+
+export default function FeaturedGameHero({ items }: FeaturedGameHeroProps) {
+  return (
+    <ErrorBoundary>
+      <FeaturedGameHeroInner items={items} />
+    </ErrorBoundary>
+  );
+}
+
+// Generate slug from team data
+function getTeamSlug(team: Team, league: string): string {
+  const name = team?.name ?? team?.fullName ?? "team";
+  const leagueSlug = league ? league.toLowerCase() : "sports";
+  const idPart = typeof team.teamId === "number" ? team.teamId : 0;
+  const nameSlug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return `${leagueSlug}-${idPart}-${nameSlug}`;
+}
+
+function TeamDisplay({
+  team,
+  score,
   side,
   status,
-  league
-}: { 
-  team: Team; 
+  league,
+  onNavigate,
+}: {
+  team: Team;
   score: number | null;
   side: "home" | "away";
-  status: FeaturedGame["status"];
+  status: FeaturedItem["status"];
   league: string;
+  onNavigate?: (event: MouseEvent<HTMLDivElement>) => void;
 }) {
   const [imgError, setImgError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const safeName = team?.name ?? team?.fullName ?? "Team";
+  const safeCity = team?.city ?? safeName;
+  const safeAbbreviation = team?.abbreviation ?? safeName.slice(0, 3).toUpperCase();
+  const safeLogo = typeof team?.logoUrl === "string" ? team.logoUrl : null;
+  const safePrimaryColor = team?.primaryColor || "#374151";
   const slug = getTeamSlug(team, league);
-  const teamUrl = `/teams/${league.toLowerCase()}/${slug}`;
-
-  // Use helper to resolve logo URL
-  const resolvedUrl = getLogoUrl(team.logoUrl);
-  const showFallback = !resolvedUrl || imgError;
+  const showFallback = !safeLogo || imgError;
 
   return (
-    <div className="flex flex-col items-center">
-      {/* Team Logo - Clickable */}
-      <Link 
-        href={teamUrl}
+    <div
+      className={`flex flex-col items-center ${onNavigate ? "cursor-pointer" : ""}`}
+      onClick={onNavigate}
+      role={onNavigate ? "button" : undefined}
+      tabIndex={onNavigate ? 0 : undefined}
+    >
+      <div
         className="w-20 h-20 md:w-32 md:h-32 rounded-2xl flex items-center justify-center mb-3 shadow-xl overflow-hidden hover:ring-4 hover:ring-white/30 transition relative"
-        style={{ 
-          backgroundColor: team.primaryColor || "#374151",
-          boxShadow: team.primaryColor ? `0 10px 40px ${team.primaryColor}40` : undefined
+        style={{
+          backgroundColor: safePrimaryColor,
+          boxShadow: safePrimaryColor ? `0 10px 40px ${safePrimaryColor}40` : undefined,
         }}
       >
-        {/* Fallback initials */}
-        <span className={`text-white font-bold text-2xl md:text-4xl ${!showFallback && isLoaded ? 'opacity-0' : 'opacity-100'} transition-opacity`}>
-          {team.abbreviation}
+        <span className={`text-white font-bold text-2xl md:text-4xl ${!showFallback && isLoaded ? "opacity-0" : "opacity-100"} transition-opacity`}>
+          {safeAbbreviation}
         </span>
-        
-        {/* Image overlay - using native img to bypass Next.js Image optimization */}
-        {resolvedUrl && !imgError && (
+
+        {safeLogo && !imgError && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={resolvedUrl}
-            alt={team.fullName}
+            src={safeLogo}
+            alt={safeName}
             width={80}
             height={80}
-            data-img-src={resolvedUrl}
-            data-original-logo={team.logoUrl || "null"}
-            className={`object-contain w-16 h-16 md:w-24 md:h-24 absolute transition-opacity duration-200 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className={`object-contain w-16 h-16 md:w-24 md:h-24 absolute transition-opacity duration-200 ${isLoaded ? "opacity-100" : "opacity-0"}`}
             onLoad={() => setIsLoaded(true)}
             onError={() => setImgError(true)}
             loading="lazy"
@@ -385,53 +462,22 @@ function TeamDisplay({
             crossOrigin="anonymous"
           />
         )}
-      </Link>
+      </div>
 
-      {/* Score (if game has started) */}
       {status !== "scheduled" && score !== null && (
         <div className="text-3xl md:text-5xl font-black text-white mb-2">
           {score}
         </div>
       )}
 
-      {/* Team Name */}
       <div className="text-center">
-        <div className="text-white font-bold text-sm md:text-lg">{team.city}</div>
-        <div className="text-white/70 text-xs md:text-sm">{team.name}</div>
+        <div className="text-white font-bold text-sm md:text-lg">{safeCity}</div>
+        <div className="text-white/70 text-xs md:text-sm">{safeName}</div>
       </div>
 
-      {/* Home indicator */}
       {side === "home" && (
         <div className="mt-2 text-xs text-white/50 uppercase tracking-wider">Home</div>
       )}
-    </div>
-  );
-}
-
-function OffseasonHero() {
-  return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a1f2e] to-[#0d1117] p-8 md:p-12">
-      {/* Background decoration */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-orange-500 rounded-full blur-3xl" />
-      </div>
-
-      <div className="relative z-10 text-center py-8">
-        <div className="text-6xl mb-4">🏈</div>
-        <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">
-          NFL Season Returning Soon
-        </h2>
-        <p className="text-white/60 max-w-md mx-auto mb-6">
-          Check back when the season starts to make your picks on upcoming matchups
-        </p>
-        <Link href="/sports">
-          <Button 
-            className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold px-6 shadow-lg"
-          >
-            View All Teams
-          </Button>
-        </Link>
-      </div>
     </div>
   );
 }

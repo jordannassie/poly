@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { TopNav } from "@/components/TopNav";
@@ -8,7 +8,7 @@ import { CategoryTabs } from "@/components/CategoryTabs";
 import { SportsSidebar } from "@/components/SportsSidebar";
 import { Leaderboard } from "@/components/Leaderboard";
 import { MainFooter } from "@/components/MainFooter";
-import { FeaturedGameHero } from "@/components/home/FeaturedGameHero";
+import FeaturedGameHero, { type FeaturedItem } from "@/components/home/FeaturedGameHero";
 import { Button } from "@/components/ui/button";
 import {
   Flame,
@@ -48,6 +48,182 @@ interface HotGame {
   volumeToday: number;
   volume10m: number;
   activeBettors: number;
+}
+
+
+type FeaturedSource = "featured-api" | "hot-fallback";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+const STATUS_VALUES = ["scheduled", "in_progress", "final", "canceled"] as const;
+
+function normalizeTeamPayload(payload: any): FeaturedItem["homeTeam"] | null {
+  if (!isRecord(payload)) {
+    return null;
+  }
+  const name =
+    typeof payload.name === "string"
+      ? payload.name
+      : typeof payload.fullName === "string"
+        ? payload.fullName
+        : typeof payload.teamName === "string"
+          ? payload.teamName
+          : typeof payload.city === "string"
+            ? payload.city
+            : undefined;
+  if (!name) {
+    return null;
+  }
+  const abbreviation =
+    typeof payload.abbreviation === "string"
+      ? payload.abbreviation
+      : typeof payload.abbr === "string"
+        ? payload.abbr
+        : name.slice(0, 3).toUpperCase();
+  return {
+    teamId:
+      typeof payload.teamId === "number"
+        ? payload.teamId
+        : typeof payload.id === "number"
+          ? payload.id
+          : 0,
+    name,
+    city: typeof payload.city === "string" ? payload.city : name,
+    abbreviation,
+    fullName: typeof payload.fullName === "string" ? payload.fullName : name,
+    logoUrl:
+      typeof payload.logoUrl === "string"
+        ? payload.logoUrl
+        : typeof payload.logo === "string"
+          ? payload.logo
+          : null,
+    primaryColor:
+      typeof payload.primaryColor === "string"
+        ? payload.primaryColor
+        : typeof payload.color === "string"
+          ? payload.color
+          : null,
+  };
+}
+
+function getCandidateId(candidate: Record<string, unknown>): string | null {
+  const rawId =
+    candidate.gameId ??
+    candidate.id ??
+    candidate.eventId ??
+    candidate.externalId ??
+    candidate.matchupId ??
+    candidate.marketId;
+  if (typeof rawId === "number") return String(rawId);
+  if (typeof rawId === "string" && rawId.trim().length > 0) return rawId;
+  return null;
+}
+
+function getCandidateTeams(candidate: Record<string, unknown>) {
+  const home =
+    candidate.homeTeam ??
+    candidate.home ??
+    (isRecord(candidate.teams) ? candidate.teams.home : undefined) ??
+    candidate.home_team;
+  const away =
+    candidate.awayTeam ??
+    candidate.away ??
+    (isRecord(candidate.teams) ? candidate.teams.away : undefined) ??
+    candidate.away_team;
+  if (!home || !away) {
+    return null;
+  }
+  return { homeTeam: home, awayTeam: away };
+}
+
+function getCandidateStatus(candidate: Record<string, unknown>): FeaturedItem["status"] {
+  const statusCandidate = typeof candidate.status === "string" ? candidate.status : undefined;
+  if (statusCandidate && STATUS_VALUES.includes(statusCandidate as FeaturedItem["status"])) {
+    return statusCandidate as FeaturedItem["status"];
+  }
+  return "scheduled";
+}
+
+function getCandidateStartTime(candidate: Record<string, unknown>): string {
+  const keys = ["startsAt", "starts_at", "startTime", "start_time", "commence_time"];
+  for (const key of keys) {
+    const value = candidate[key];
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value;
+    }
+  }
+  return "";
+}
+
+function getCandidateChannel(candidate: Record<string, unknown>): string | null {
+  if (typeof candidate.channel === "string") return candidate.channel;
+  if (typeof candidate.broadcast === "string") return candidate.broadcast;
+  return null;
+}
+
+function normalizeCandidate(candidate: Record<string, unknown>): FeaturedItem | null {
+  const id = getCandidateId(candidate);
+  const teams = getCandidateTeams(candidate);
+  if (!id || !teams) {
+    return null;
+  }
+  const homeTeam = normalizeTeamPayload(teams.homeTeam);
+  const awayTeam = normalizeTeamPayload(teams.awayTeam);
+  if (!homeTeam || !awayTeam) {
+    return null;
+  }
+  const league = typeof candidate.league === "string" ? candidate.league : "sports";
+  const startsAt = getCandidateStartTime(candidate);
+  const channel = getCandidateChannel(candidate);
+  const homeScore =
+    typeof candidate.homeScore === "number"
+      ? candidate.homeScore
+      : typeof candidate.home_score === "number"
+        ? candidate.home_score
+        : null;
+  const awayScore =
+    typeof candidate.awayScore === "number"
+      ? candidate.awayScore
+      : typeof candidate.away_score === "number"
+        ? candidate.away_score
+        : null;
+  const volume =
+    typeof candidate.volume === "number"
+      ? candidate.volume
+      : typeof candidate.volumeToday === "number"
+        ? candidate.volumeToday
+        : undefined;
+  return {
+    league,
+    gameId: id,
+    startsAt,
+    status: getCandidateStatus(candidate),
+    homeTeam,
+    awayTeam,
+    homeScore,
+    awayScore,
+    channel,
+    volume,
+  };
+}
+
+function normalizeFeaturedItems(items: unknown): FeaturedItem[] {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+  return items
+    .map((item) => (isRecord(item) ? normalizeCandidate(item) : null))
+    .filter((item): item is FeaturedItem => Boolean(item));
+}
+function normalizeHotItems(items: unknown): FeaturedItem[] {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+  return items
+    .map((item) => (isRecord(item) ? normalizeCandidate(item) : null))
+    .filter((item): item is FeaturedItem => Boolean(item));
 }
 
 // Helper to get the correct game page URL based on league
@@ -102,6 +278,7 @@ export default function HomeClient() {
   const [games, setGames] = useState<HotGame[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [featuredItems, setFeaturedItems] = useState<unknown[]>([]);
 
   useEffect(() => {
     async function fetchHotGames() {
@@ -142,6 +319,85 @@ export default function HomeClient() {
     fetchHotGames();
   }, [view]);
 
+  useEffect(() => {
+    let isCancelled = false;
+    async function fetchFeaturedMatchup() {
+      try {
+        const res = await fetch("/api/sports/featured");
+        if (!res.ok) {
+          throw new Error(`Failed to fetch featured matchup (${res.status})`);
+        }
+        const data = await res.json();
+        if (!isCancelled) {
+          setFeaturedItems(Array.isArray(data?.items) ? data.items : []);
+        }
+      } catch (err) {
+        console.error("Failed to load featured matchup:", err);
+        if (!isCancelled) {
+          setFeaturedItems([]);
+        }
+      }
+    }
+    fetchFeaturedMatchup();
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  const normalizedFeatured = useMemo(() => normalizeFeaturedItems(featuredItems), [featuredItems]);
+  const normalizedHot = useMemo(() => normalizeHotItems(games), [games]);
+
+  const heroBase = useMemo(
+    () => {
+      if (normalizedFeatured.length > 0) {
+        return {
+          heroItems: [normalizedFeatured[0]],
+          featuredSource: "featured-api" as FeaturedSource,
+          pickedId: normalizedFeatured[0].gameId,
+        };
+      }
+      if (normalizedHot.length > 0) {
+        return {
+          heroItems: [normalizedHot[0]],
+          featuredSource: "hot-fallback" as FeaturedSource,
+          pickedId: normalizedHot[0].gameId,
+        };
+      }
+      return {
+        heroItems: [],
+        featuredSource: null,
+        pickedId: null,
+      };
+    },
+    [normalizedFeatured, normalizedHot],
+  );
+
+  const heroItems = normalizedHot.length > 0 ? [normalizedHot[0]] : heroBase.heroItems;
+  const heroSource = normalizedHot.length > 0 ? "hot-fallback" as FeaturedSource : heroBase.featuredSource;
+  const heroPickedId = normalizedHot.length > 0 ? normalizedHot[0].gameId : heroBase.pickedId;
+  const heroFeaturedLen = normalizedFeatured.length;
+  const heroHotLen = normalizedHot.length;
+
+  const sampleHotKeys = useMemo(() => {
+    const first = games[0];
+    if (!first || !isRecord(first)) return [];
+    return Object.keys(first);
+  }, [games]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    if (heroItems.length === 0) {
+      console.log("[home featured] NO PICK", {
+        featuredLen: heroFeaturedLen,
+        hotLen: heroHotLen,
+        sampleHotKeys,
+      });
+      return;
+    }
+    if (!heroSource) return;
+    console.log("[home featured] source=", heroSource, "id=", heroPickedId ?? "none");
+  }, [heroItems.length, heroSource, heroPickedId, heroFeaturedLen, heroHotLen, sampleHotKeys]);
+
   const getViewTitle = () => {
     switch (view) {
       case "live":
@@ -156,11 +412,15 @@ export default function HomeClient() {
   };
 
   const viewInfo = getViewTitle();
+  const watermarkTimestamp = useMemo(() => new Date().toISOString(), []);
 
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
       <TopNav />
       <CategoryTabs activeLabel={view === "hot" ? "🔥 Hot Right Now" : view === "live" ? "Live" : view === "starting-soon" ? "Starting Soon" : view === "big-volume" ? "Big Volume" : "🔥 Hot Right Now"} />
+      <div className="pointer-events-none fixed bottom-3 right-3 z-50 rounded-full border border-white/30 bg-black/80 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.2em] text-white shadow-lg shadow-black/50">
+        HOME BUILD CHECK: {watermarkTimestamp}
+      </div>
 
       <div className="flex">
         {/* Sidebar */}
@@ -169,24 +429,9 @@ export default function HomeClient() {
         {/* Main Content */}
         <main className="flex-1 p-4 md:p-6">
           <div className="max-w-5xl mx-auto">
-            {/* Hero Section */}
-            <div className="mb-6 md:mb-8 p-4 md:p-6 rounded-2xl bg-gradient-to-r from-[color:var(--surface)] to-[color:var(--surface-2)] border border-[color:var(--border-soft)]">
-              <div className="flex items-center gap-3 md:gap-4">
-                <div className="h-12 w-12 md:h-16 md:w-16 rounded-xl md:rounded-2xl overflow-hidden flex-shrink-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/public/SPORTS/logos/ICON%20P.jpg"
-                    alt="ProvePicks Logo"
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-                <div>
-                  <h1 className="text-xl md:text-3xl font-bold">ProvePicks</h1>
-                  <p className="text-sm md:text-base text-[color:var(--text-muted)]">
-                    The social prediction market. Follow traders. Track picks. Prove performance.
-                  </p>
-                </div>
-              </div>
+            {/* Featured Matchup Hero */}
+            <div className="mb-6 md:mb-8">
+              <FeaturedGameHero items={heroItems} />
             </div>
 
             {/* Promo Section */}
@@ -235,11 +480,6 @@ export default function HomeClient() {
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Featured Game Hero - Real SportsDataIO Data */}
-            <div className="mb-8">
-              <FeaturedGameHero league="nfl" />
             </div>
 
             {/* View Title */}
