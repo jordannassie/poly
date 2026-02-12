@@ -5,7 +5,11 @@ import { SportGamePage } from "@/components/sports/SportGamePage";
 
 export default function NBAGamePage() {
   const params = useParams();
-  const gameId = params.gameId as string;
+  const gameId = (params as any)?.gameId as string | undefined;
+
+  if (!gameId) {
+    return null;
+  }
   
   return <SportGamePage league="nba" gameId={gameId} />;
 }

@@ -127,7 +127,7 @@ export function FeaturedGameHero({ league = "nfl" }: FeaturedGameHeroProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
-  const isDebug = searchParams.get("debug") === "1";
+  const isDebug = searchParams?.get("debug") === "1";
 
   useEffect(() => {
     async function fetchFeatured() {

@@ -32,7 +32,7 @@ function SportsPageContent() {
   const searchParams = useSearchParams();
   
   // Parse and validate league from URL
-  const leagueParam = searchParams.get("league")?.toLowerCase() || "nfl";
+  const leagueParam = searchParams?.get("league")?.toLowerCase() || "nfl";
   const league: ValidLeague = VALID_LEAGUES.includes(leagueParam as ValidLeague) 
     ? (leagueParam as ValidLeague) 
     : "nfl";
