@@ -4,12 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Radio,
-  BarChart3,
   ChevronRight,
   PanelLeftClose,
   PanelLeft,
 } from "lucide-react";
-import { SidebarCommunities } from "./SidebarCommunities";
 import { Button } from "./ui/button";
 import {
   Sheet,
@@ -18,11 +16,10 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "./ui/sheet";
-import { sportsMenu, isSportEnabled } from "@/config/sports";
+import { sportsMenu } from "@/config/sports";
 
 const topMenu = [
   { id: "live", label: "Live", icon: <Radio className="h-4 w-4" />, href: "/?view=live" },
-  { id: "futures", label: "Futures", icon: <BarChart3 className="h-4 w-4" />, href: "/sports" },
 ];
 
 // Games menu - HIDDEN (Plinko code saved but not shown in nav)
@@ -43,7 +40,7 @@ function SidebarContent({
   return (
     <>
       <div className="p-4 space-y-1">
-        {/* Top Menu - Live & Futures */}
+        {/* Top Menu - Live */}
         {topMenu.map((item) => (
           <Link
             key={item.id}
@@ -95,8 +92,6 @@ function SidebarContent({
           })}
       </div>
 
-      {/* Communities Section */}
-      <SidebarCommunities onNavigate={onNavigate} />
     </>
   );
 }
@@ -159,7 +154,7 @@ export function SportsSidebar({ activeSport = "nfl", activeGame }: { activeSport
         {/* Collapsed state: just icons */}
         {isCollapsed ? (
           <div className="flex-1 py-4 space-y-2">
-            {/* Live & Futures icons */}
+            {/* Live icon */}
             {topMenu.map((item) => (
               <Link
                 key={item.id}
@@ -193,8 +188,6 @@ export function SportsSidebar({ activeSport = "nfl", activeGame }: { activeSport
                   </Link>
                 );
               })}
-            {/* Communities icon in collapsed view */}
-            <SidebarCommunities collapsed />
           </div>
         ) : (
           /* Expanded state: full content */
