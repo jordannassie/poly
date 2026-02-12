@@ -97,7 +97,7 @@ function locksInLabel(startTime: string): string {
 
 export default function HomeClient() {
   const searchParams = useSearchParams();
-  const view = searchParams.get("view") || "hot";
+  const view = searchParams?.get("view") ?? "hot";
 
   const [games, setGames] = useState<HotGame[]>([]);
   const [loading, setLoading] = useState(true);
