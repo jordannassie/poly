@@ -51,6 +51,9 @@ export function TopNav() {
       if (data.user) {
         setRealUser(data.user);
         setAuthType(data.authType);
+        void fetch("/api/coins/ensure", { method: "POST" }).catch((error) => {
+          console.error("Failed to ensure coin account:", error);
+        });
       } else {
         setRealUser(null);
         setAuthType("none");
