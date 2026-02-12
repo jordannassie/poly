@@ -23,6 +23,7 @@ import {
   SheetTrigger,
 } from "./ui/sheet";
 import { clearDemoUser, DemoUser, getDemoUser, setDemoUser } from "@/lib/demoAuth";
+import { getSupabaseClient, getUntypedSupabaseClient } from "@/lib/supabase";
 import { initTheme, ThemeMode, toggleTheme } from "@/lib/theme";
 
 // Real user type from /api/me
@@ -42,6 +43,8 @@ export function TopNav() {
   const [realUser, setRealUser] = useState<RealUser | null>(null);
   const [authType, setAuthType] = useState<"supabase" | "wallet" | "none">("none");
   const [theme, setTheme] = useState<ThemeMode>("dark");
+  const [coinBalance, setCoinBalance] = useState<number | null>(null);
+  const [coinLoading, setCoinLoading] = useState(false);
 
   // Fetch real user from /api/me
   const fetchMe = useCallback(async () => {
@@ -69,6 +72,58 @@ export function TopNav() {
     setTheme(initTheme());
     fetchMe();
   }, [fetchMe]);
+
+  useEffect(() => {
+    if (!realUser) {
+      setCoinBalance(null);
+      setCoinLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchFallback = async () => {
+      const client = getUntypedSupabaseClient();
+      if (!client) {
+        return;
+      }
+
+      const { data } = await client
+        .from("coin_balances")
+        .select("balance")
+        .eq("user_id", realUser.id)
+        .maybeSingle();
+
+      if (cancelled) return;
+      setCoinBalance(data?.balance ?? 0);
+    };
+
+    const fetchBalance = async () => {
+      setCoinLoading(true);
+      try {
+        const res = await fetch("/api/coins/balance");
+        const data = await res.json().catch(() => null);
+        if (!cancelled && res.ok && data?.ok) {
+          setCoinBalance(data.balance);
+        } else {
+          await fetchFallback();
+        }
+      } catch (error) {
+        console.error("Failed to fetch coin balance:", error);
+        await fetchFallback();
+      } finally {
+        if (!cancelled) {
+          setCoinLoading(false);
+        }
+      }
+    };
+
+    fetchBalance();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [realUser?.id]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -185,6 +240,14 @@ export function TopNav() {
                     <div className="text-[10px] md:text-xs text-white/70">Cash</div>
                     <div className="text-xs md:text-sm font-semibold text-white">$0.00</div>
                   </div>
+                  {realUser && (
+                    <div className="text-center">
+                      <div className="text-[10px] md:text-xs text-white/70">Coins</div>
+                      <div className="text-xs md:text-sm font-semibold text-white">
+                        {coinLoading || coinBalance === null ? "—" : coinBalance.toLocaleString()}
+                      </div>
+                    </div>
+                  )}
                 </Link>
                 {/* Notifications */}
                 <Button
