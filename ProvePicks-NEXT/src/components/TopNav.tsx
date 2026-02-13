@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
-import { ChevronDown, Moon, Sun, Bell, Menu, X, Home, Trophy, Settings, Wallet, Radio, BarChart3 } from "lucide-react";
+import { ChevronDown, Moon, Sun, Bell, Menu, X, Home, Trophy, Settings, Wallet, Radio, BarChart3, Coins, DollarSign } from "lucide-react";
 import { ProvePicksLogo } from "./ui/ProvePicksLogo";
 import { Button } from "./ui/button";
 import { Avatar } from "./ui/Avatar";
@@ -173,13 +173,22 @@ export function TopNav() {
             {isLoggedIn ? (
               <div className="flex items-center gap-2 md:gap-4">
                 {/* Portfolio & Cash */}
-                <Link href="/portfolio" className="flex items-center gap-2 md:gap-4 hover:opacity-80 transition">
+                <Link href="/portfolio" className="flex items-center gap-3 md:gap-4 hover:opacity-80 transition">
                   <div className="text-center">
-                    <div className="text-[10px] md:text-xs text-white/70">Portfolio</div>
-                    <div className="text-xs md:text-sm font-semibold text-white">$0.00</div>
+                    <div className="flex items-center justify-center gap-1 text-[10px] md:text-xs uppercase tracking-[0.2em] text-white/70">
+                      <Coins className="h-3 w-3 text-white/70" />
+                      Portfolio
+                    </div>
+                    <div className="flex items-center justify-center gap-1 text-xs md:text-sm font-semibold text-white">
+                      <DollarSign className="h-3 w-3 text-white/70" />
+                      $0.00
+                    </div>
                   </div>
                   <div className="text-center">
-                    <div className="text-[10px] md:text-xs text-white/70">Cash</div>
+                    <div className="flex items-center justify-center gap-1 text-[10px] md:text-xs uppercase tracking-[0.2em] text-white/70">
+                      <DollarSign className="h-3 w-3 text-white/70" />
+                      Cash
+                    </div>
                     <div className="text-xs md:text-sm font-semibold text-white">$0.00</div>
                   </div>
                 </Link>

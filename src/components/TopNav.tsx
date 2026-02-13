@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
-import { ChevronDown, Moon, Sun, Bell, Menu, X, Home, Trophy, Settings, Wallet, Radio, BarChart3 } from "lucide-react";
+import { ChevronDown, Moon, Sun, Bell, Coins, DollarSign, Menu, X, Home, Trophy, Settings, Wallet, Radio, BarChart3 } from "lucide-react";
 import { ProvePicksLogo } from "./ui/ProvePicksLogo";
 import { Button } from "./ui/button";
 import { Avatar } from "./ui/Avatar";
@@ -240,29 +240,31 @@ export function TopNav() {
             >
               How it works
             </button>
-            <div className="hidden md:flex items-center gap-0.5 rounded-full border border-white/30 bg-black/20 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+            <div className="hidden md:flex items-center rounded-full border border-white/25 bg-black/50 px-1 py-1 text-[10px] font-semibold uppercase tracking-[0.25em] shadow-[0_0_20px_rgba(0,0,0,0.55)]">
               <button
                 type="button"
                 onClick={() => setMode("coin")}
                 aria-pressed={mode === "coin"}
-                className={`px-3 py-1 rounded-full transition ${
+                className={`flex items-center gap-1 rounded-full px-3 py-1 transition ${
                   mode === "coin"
-                    ? "bg-white text-orange-600 shadow"
+                    ? "bg-gradient-to-r from-white to-white/70 text-orange-600 shadow-[0_0_16px_rgba(255,255,255,0.35)]"
                     : "text-white/60 hover:text-white hover:bg-white/10"
                 }`}
               >
+                <Coins className="h-3 w-3 text-white/80" />
                 Coin
               </button>
               <button
                 type="button"
                 onClick={() => setMode("cash")}
                 aria-pressed={mode === "cash"}
-                className={`px-3 py-1 rounded-full transition ${
+                className={`flex items-center gap-1 rounded-full px-3 py-1 transition ${
                   mode === "cash"
-                    ? "bg-white text-orange-600 shadow"
+                    ? "bg-gradient-to-r from-white to-white/70 text-orange-600 shadow-[0_0_16px_rgba(255,255,255,0.35)]"
                     : "text-white/60 hover:text-white hover:bg-white/10"
                 }`}
               >
+                <DollarSign className="h-3 w-3 text-white/80" />
                 Cash
               </button>
             </div>
@@ -273,16 +275,26 @@ export function TopNav() {
                   href="/portfolio"
                   className="flex flex-col items-center gap-1 rounded-full border border-white/20 px-3 py-1 hover:border-white/40 focus-visible:ring-2 focus-visible:ring-white/50 transition"
                 >
-                  <span className="text-[10px] uppercase tracking-[0.2em] text-white/70">
-                    {mode === "coin" ? "Coins" : "Cash"}
-                  </span>
-                  <span className="text-xs md:text-sm font-semibold text-white">
+                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-white/70">
+                    {mode === "coin" ? (
+                      <>
+                        <Coins className="h-3 w-3 text-white/70" />
+                        Coins
+                      </>
+                    ) : (
+                      <>
+                        <DollarSign className="h-3 w-3 text-white/70" />
+                        Cash
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 text-xs md:text-sm font-semibold text-white">
                     {mode === "coin"
                       ? coinLoading || coinBalance === null
                         ? "—"
                         : coinBalance.toLocaleString()
                       : "$0.00"}
-                  </span>
+                  </div>
                 </Link>
                 {/* Notifications */}
                 <Button
