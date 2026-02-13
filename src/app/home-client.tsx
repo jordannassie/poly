@@ -334,29 +334,8 @@ export default function HomeClient() {
         if (!res.ok) throw new Error("Failed to fetch games");
         const data = await res.json();
         
-        let filteredGames = data.games || [];
-        
-        // Filter based on view
-        switch (view) {
-          case "live":
-            console.log("[live] raw games count", filteredGames.length, filteredGames[0]);
-            filteredGames = filteredGames.filter((g: HotGame) => isGameInProgress(g));
-            console.log("[live] filtered live count", filteredGames.length, filteredGames[0]);
-            break;
-          case "starting-soon":
-            filteredGames = filteredGames.filter((g: HotGame) => {
-              const ms = getStartMs(g);
-              if (ms === null) return false;
-              const diff = ms - Date.now();
-              return diff > 0 && diff < 2 * 60 * 60 * 1000; // Within 2 hours
-            });
-            break;
-          default:
-            // "hot" - show all
-            break;
-        }
-        
-        setGames(filteredGames);
+        const fetchedGames = data.games || [];
+        setGames(fetchedGames);
       } catch (err) {
         console.error("Failed to fetch hot games:", err);
         setError("Failed to load games");
@@ -462,27 +441,90 @@ export default function HomeClient() {
 
   const viewInfo = getViewTitle();
   const nowMs = Date.now();
+  const sixHoursMs = 6 * 60 * 60 * 1000;
 
-  const liveGames = games
+  const gamesWithMs = games
     .map((g) => ({ game: g, ms: getStartMs(g) }))
-    .filter(({ game, ms }) => ms !== null && isLiveStatus(game.status))
-    .sort((a, b) => (a.ms ?? 0) - (b.ms ?? 0));
+    .filter(({ ms }) => ms !== null) as { game: HotGame; ms: number }[];
 
-  const upcomingGames = games
-    .map((g) => ({ game: g, ms: getStartMs(g) }))
-    .filter(({ game, ms }) => ms !== null && ms >= nowMs && isUpcomingStatus(game.status))
-    .sort((a, b) => (a.ms ?? 0) - (b.ms ?? 0));
+  const isFinished = (game: HotGame) => {
+    const s = String(game.status || "").toLowerCase();
+    return s.includes("final") || s === "ft" || s.includes("cancel");
+  };
 
-  const futureGames = games
-    .map((g) => ({ game: g, ms: getStartMs(g) }))
-    .filter(({ ms }) => ms !== null && ms >= nowMs)
-    .sort((a, b) => (a.ms ?? 0) - (b.ms ?? 0));
+  const dedupeById = (list: { game: HotGame; ms: number }[]) => {
+    const seen = new Set<string>();
+    const out: { game: HotGame; ms: number }[] = [];
+    for (const item of list) {
+      if (seen.has(item.game.id)) continue;
+      seen.add(item.game.id);
+      out.push(item);
+    }
+    return out;
+  };
+
+  const liveGames = dedupeById(
+    gamesWithMs.filter(({ game }) => isLiveStatus(game.status)).sort((a, b) => a.ms - b.ms)
+  );
+
+  const upcomingAny = dedupeById(
+    gamesWithMs.filter(({ ms }) => ms >= nowMs).sort((a, b) => a.ms - b.ms)
+  );
+
+  const recentPast = dedupeById(
+    gamesWithMs.filter(({ ms }) => ms < nowMs).sort((a, b) => b.ms - a.ms)
+  );
+
+  const startingSoonBase = dedupeById(
+    gamesWithMs
+      .filter(({ game, ms }) => ms >= nowMs && ms <= nowMs + sixHoursMs && !isFinished(game))
+      .sort((a, b) => a.ms - b.ms)
+  );
+
+  const startingSoonGames =
+    startingSoonBase.length > 0 ? startingSoonBase : upcomingAny.slice(0, 10);
+
+  const hotGames = (() => {
+    const combined = dedupeById([...liveGames, ...upcomingAny.slice(0, 10)]);
+    if (combined.length > 0) return combined;
+    return recentPast.slice(0, 10);
+  })();
+
+  const displayGames = useMemo(() => {
+    switch (view) {
+      case "live":
+        return liveGames.map((x) => x.game);
+      case "starting-soon":
+        return startingSoonGames.map((x) => x.game);
+      default:
+        return hotGames.map((x) => x.game);
+    }
+  }, [view, liveGames, startingSoonGames, hotGames]);
+
+  const featuredCandidates = (() => {
+    const primary = dedupeById([...liveGames, ...upcomingAny]).slice(0, 3);
+    if (primary.length > 0) return primary;
+    if (recentPast.length > 0) return recentPast.slice(0, 1);
+    return [];
+  })();
+
+  const [featuredIndex, setFeaturedIndex] = useState(0);
+
+  useEffect(() => {
+    if (featuredCandidates.length <= 1) {
+      setFeaturedIndex(0);
+      return;
+    }
+    const id = window.setInterval(() => {
+      setFeaturedIndex((prev) => prev + 1);
+    }, 8000);
+    return () => window.clearInterval(id);
+  }, [featuredCandidates.length]);
 
   const featuredGame =
-    liveGames[0]?.game ??
-    upcomingGames[0]?.game ??
-    futureGames[0]?.game ??
-    null;
+    featuredCandidates.length === 0
+      ? null
+      : featuredCandidates[featuredIndex % featuredCandidates.length].game;
   const featuredAny = featuredGame as any;
   const featuredStartsAtText = (
     featuredAny?.startsAtText ??
@@ -613,7 +655,7 @@ export default function HomeClient() {
                 {viewInfo.text}
               </h2>
               <span className="text-sm text-[color:var(--text-muted)]">
-                {games.length} games
+                {displayGames.length} games
               </span>
             </div>
 
@@ -635,8 +677,8 @@ export default function HomeClient() {
             {/* Games Grid */}
             {!loading && !error && (
               <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
-                {games.map((game) => {
-                  const isLive = game.isLive;
+                {displayGames.map((game) => {
+                  const isLive = isLiveStatus(game.status);
 
                   return (
                     <Link
