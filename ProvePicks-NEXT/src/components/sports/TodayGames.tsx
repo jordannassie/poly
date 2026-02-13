@@ -75,6 +75,17 @@ interface TodayGamesProps {
   date?: string; // YYYY-MM-DD format
 }
 
+const formatLocalDay = (value: any) => {
+  const ms = value ? Date.parse(String(value)) : NaN;
+  const d = Number.isFinite(ms) ? new Date(ms) : new Date();
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(d);
+};
+
 export function TodayGames({ league = "nfl", date }: TodayGamesProps) {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,13 +124,7 @@ export function TodayGames({ league = "nfl", date }: TodayGamesProps) {
   }, [league, date]);
 
   // Format date for display
-  const formattedDate = displayDate 
-    ? new Date(displayDate + "T12:00:00").toLocaleDateString("en-US", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-      })
-    : "";
+  const formattedDate = formatLocalDay(games?.[0]?.Date ?? displayDate);
 
   if (loading) {
     return (
