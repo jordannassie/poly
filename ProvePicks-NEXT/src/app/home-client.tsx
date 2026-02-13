@@ -21,6 +21,7 @@ import {
   Radio,
 } from "lucide-react";
 import { LightningLoader } from "@/components/ui/LightningLoader";
+import FeaturedMatchupCard from "@/components/home/FeaturedMatchupCard";
 
 // Hot game type from API
 interface HotGame {
@@ -155,6 +156,7 @@ export default function HomeClient() {
   };
 
   const viewInfo = getViewTitle();
+  const hotRightNowGames = games;
 
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
@@ -170,12 +172,30 @@ export default function HomeClient() {
           <div className="max-w-5xl mx-auto">
             {/* Featured Matchup Hero */}
             <div className="mb-6 md:mb-8">
-              <div className="rounded-xl border border-white/10 bg-black/20 p-6">
-                <div className="text-lg font-semibold">Featured Matchup</div>
-                <div className="mt-2 text-sm text-white/60">
-                  Featured matchup temporarily disabled while rebuilding.
-                </div>
-              </div>
+              <FeaturedMatchupCard
+                league={(hotRightNowGames?.[0]?.league ?? null) as any}
+                awayTeamName={
+                  (hotRightNowGames?.[0]?.team1?.name ?? null) as any
+                }
+                homeTeamName={
+                  (hotRightNowGames?.[0]?.team2?.name ?? null) as any
+                }
+                awayTeamAbbr={
+                  (hotRightNowGames?.[0]?.team1?.abbr ?? null) as any
+                }
+                homeTeamAbbr={
+                  (hotRightNowGames?.[0]?.team2?.abbr ?? null) as any
+                }
+                awayLogoUrl={
+                  (hotRightNowGames?.[0]?.team1?.logoUrl ?? null) as any
+                }
+                homeLogoUrl={
+                  (hotRightNowGames?.[0]?.team2?.logoUrl ?? null) as any
+                }
+                startsAtText={
+                  (hotRightNowGames?.[0]?.startTime ?? null) as any
+                }
+              />
             </div>
 
             {/* Promo Section */}
