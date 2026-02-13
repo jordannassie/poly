@@ -26,7 +26,7 @@ const SOCCER_LEAGUES_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 /**
  * Get enabled soccer league IDs from sports_leagues table
  */
-async function getEnabledSoccerLeagueIds(): Promise<number[]> {
+export async function getEnabledSoccerLeagueIds(): Promise<number[]> {
   // Check cache
   const now = Date.now();
   if (enabledSoccerLeagueIds !== null && now - enabledSoccerLeaguesCacheTime < SOCCER_LEAGUES_CACHE_TTL) {
@@ -108,7 +108,7 @@ export interface SimplifiedGame {
  * Filter out placeholder games (NFC vs AFC, All-Stars, TBD, etc.)
  * Safety net in case any slipped through sync
  */
-function filterRealGames(games: CachedGame[]): CachedGame[] {
+export function filterRealGames(games: CachedGame[]): CachedGame[] {
   return games.filter(game => isRealGame(game.home_team, game.away_team));
 }
 

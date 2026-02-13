@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { TopNav } from "@/components/TopNav";
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { MainFooter } from "@/components/MainFooter";
@@ -10,8 +10,43 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDemoBets, DemoBet } from "@/lib/demoAuth";
 import { Search, ArrowUpRight, ChevronDown, Wallet, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { refreshCoinBalance } from "@/lib/coins/coinBalanceStore";
+
+interface CoinPosition {
+  id: string;
+  market_id: string;
+  side: string;
+  amount_coins: number;
+  status: string;
+  created_at: string;
+  meta?: {
+    market_title?: string | null;
+    market_slug?: string | null;
+  };
+}
+
+interface CoinLedgerEntry {
+  id: string;
+  amount: number;
+  entry_type: string;
+  ref_type: string | null;
+  ref_id: string | null;
+  meta?: {
+    market_title?: string | null;
+    market_slug?: string | null;
+  };
+  created_at: string;
+}
 
 const timeRanges = ["1D", "1W", "1M", "ALL"];
+
+const getStoredMode = (): "coin" | "cash" => {
+  if (typeof window === "undefined") {
+    return "coin";
+  }
+  const stored = (window.__provepicksMode as "coin" | "cash" | undefined) ?? window.localStorage.getItem("provepicks:mode");
+  return stored === "cash" ? "cash" : "coin";
+};
 
 export default function PortfolioPage() {
   const [activeRange, setActiveRange] = useState("1M");
@@ -19,6 +54,92 @@ export default function PortfolioPage() {
   const [bets, setBets] = useState<DemoBet[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [coinPositions, setCoinPositions] = useState<CoinPosition[]>([]);
+  const [coinHistory, setCoinHistory] = useState<CoinLedgerEntry[]>([]);
+  const [positionsLoading, setPositionsLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [mode, setMode] = useState<"coin" | "cash">(getStoredMode);
+  const positionsController = useRef<AbortController | null>(null);
+  const historyController = useRef<AbortController | null>(null);
+
+  const fetchPositions = useCallback(async () => {
+    if (!isLoggedIn || mode !== "coin") {
+      setCoinPositions([]);
+      setPositionsLoading(false);
+      return;
+    }
+
+    positionsController.current?.abort();
+    const controller = new AbortController();
+    positionsController.current = controller;
+    setPositionsLoading(true);
+
+    try {
+      const res = await fetch("/api/coins/positions", { signal: controller.signal });
+      if (res.status === 401) {
+        setCoinPositions([]);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error("Failed to load positions");
+      }
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.ok) {
+        setCoinPositions(data.positions || []);
+      }
+    } catch (error) {
+      if ((error as Error).name !== "AbortError") {
+        console.error("Failed to fetch coin positions:", error);
+      }
+    } finally {
+      setPositionsLoading(false);
+    }
+  }, [isLoggedIn, mode]);
+
+  const fetchHistory = useCallback(async () => {
+    if (!isLoggedIn || mode !== "coin") {
+      setCoinHistory([]);
+      setHistoryLoading(false);
+      return;
+    }
+
+    historyController.current?.abort();
+    const controller = new AbortController();
+    historyController.current = controller;
+    setHistoryLoading(true);
+
+    try {
+      const res = await fetch("/api/coins/ledger", { signal: controller.signal });
+      if (res.status === 401) {
+        setCoinHistory([]);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error("Failed to load ledger");
+      }
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.ok) {
+        setCoinHistory(data.entries || []);
+      }
+    } catch (error) {
+      if ((error as Error).name !== "AbortError") {
+        console.error("Failed to fetch coin ledger:", error);
+      }
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [isLoggedIn, mode]);
+
+  const handleRefresh = useCallback(() => {
+    if (!isLoggedIn || mode !== "coin") return;
+    setIsRefreshing(true);
+    Promise.all([fetchPositions(), fetchHistory()])
+      .finally(() => {
+        refreshCoinBalance();
+        setIsRefreshing(false);
+      });
+  }, [isLoggedIn, fetchPositions, fetchHistory, mode]);
 
   useEffect(() => {
     // Check auth status via /api/me
@@ -35,6 +156,39 @@ export default function PortfolioPage() {
     };
     checkAuth();
     setBets(getDemoBets());
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent)?.detail;
+      const incoming = detail?.mode ?? window.__provepicksMode;
+      if (incoming === "coin" || incoming === "cash") {
+        setMode(incoming);
+      }
+    };
+    window.addEventListener("provepicks:mode-change", handler as EventListener);
+    return () => {
+      window.removeEventListener("provepicks:mode-change", handler as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isLoggedIn || mode !== "coin") {
+      setCoinPositions([]);
+      setCoinHistory([]);
+      return;
+    }
+
+    fetchPositions();
+    fetchHistory();
+  }, [isLoggedIn, fetchPositions, fetchHistory, mode]);
+
+  useEffect(() => {
+    return () => {
+      positionsController.current?.abort();
+      historyController.current?.abort();
+    };
   }, []);
 
   if (isLoading) {
@@ -166,13 +320,30 @@ export default function PortfolioPage() {
                 className="pl-9 bg-[color:var(--surface-2)] border-[color:var(--border-soft)] text-sm"
               />
             </div>
-            <Button
-              variant="outline"
-              className="border-[color:var(--border-soft)] gap-2 text-xs md:text-sm h-9"
-            >
-              Current value
-              <ChevronDown className="h-3 w-3 md:h-4 md:w-4" />
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="border-[color:var(--border-soft)] gap-2 text-xs md:text-sm h-9"
+              >
+                Current value
+                <ChevronDown className="h-3 w-3 md:h-4 md:w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                className="border-[color:var(--border-soft)] gap-2 text-xs md:text-sm h-9"
+                onClick={handleRefresh}
+                disabled={!isLoggedIn || isRefreshing || mode !== "coin"}
+              >
+                {isRefreshing ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Refreshing...
+                  </>
+                ) : (
+                  "Refresh"
+                )}
+              </Button>
+            </div>
           </div>
 
           {/* Table Header - Hidden on mobile */}
@@ -188,61 +359,178 @@ export default function PortfolioPage() {
 
           {/* Table Body */}
           <div className="p-3 md:p-6">
-            {bets.length === 0 ? (
-              <div className="text-center py-8 md:py-12 text-[color:var(--text-muted)] text-sm">
-                No positions found.
-              </div>
+            {activeTab === "history" ? (
+              mode === "cash" ? (
+                <div className="text-center py-8 md:py-12 text-[color:var(--text-muted)] text-sm">
+                  Cash mode coming soon.
+                </div>
+              ) : historyLoading ? (
+                <div className="text-center py-8 md:py-12 text-[color:var(--text-muted)] text-sm">
+                  Loading history...
+                </div>
+              ) : coinHistory.length === 0 ? (
+                <div className="text-center py-8 md:py-12 text-[color:var(--text-muted)] text-sm">
+                  No ledger entries found.
+                </div>
+              ) : (
+                <div className="space-y-3 md:space-y-4">
+                  {coinHistory.map((entry) => {
+                    const entryDate = new Date(entry.created_at).toLocaleString();
+                    const marketTitle = entry.meta?.market_title || "";
+                    const amountClass =
+                      entry.amount >= 0 ? "text-green-500" : "text-red-500";
+                    const amountLabel = `${entry.amount >= 0 ? "+" : ""}${entry.amount.toLocaleString()} coins`;
+
+                    return (
+                      <div
+                        key={entry.id}
+                        className="block md:grid md:grid-cols-4 md:gap-4 md:items-center p-3 md:p-4 rounded-xl bg-[color:var(--surface-2)] hover:bg-[color:var(--surface-3)] transition"
+                      >
+                        <div className="md:hidden space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium text-sm">{entryDate}</div>
+                              <div className="text-xs text-[color:var(--text-muted)]">
+                                {entry.entry_type}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className={`font-medium text-sm ${amountClass}`}>
+                                {amountLabel}
+                              </div>
+                              <span className="text-[color:var(--text-muted)]">
+                                {marketTitle}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="hidden md:block text-sm">{entryDate}</div>
+                        <div className="hidden md:block text-sm text-[color:var(--text-muted)]">
+                          {entry.entry_type}
+                        </div>
+                        <div className="hidden md:block text-sm">
+                          <span className={`font-semibold ${amountClass}`}>
+                            {amountLabel}
+                          </span>
+                        </div>
+                        <div className="hidden md:block text-sm text-[color:var(--text-muted)]">
+                          {marketTitle}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
             ) : (
-              <div className="space-y-3 md:space-y-4">
-                {bets.map((bet) => (
-                  <Link
-                    key={bet.id}
-                    href={`/market/${bet.marketSlug || "seahawks-vs-patriots"}`}
-                    className="block md:grid md:grid-cols-5 md:gap-4 md:items-center p-3 md:p-4 rounded-xl bg-[color:var(--surface-2)] hover:bg-[color:var(--surface-3)] transition cursor-pointer"
-                  >
-                    {/* Mobile Layout */}
-                    <div className="md:hidden space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div>
+              mode === "cash" ? (
+                <div className="text-center py-8 md:py-12 text-[color:var(--text-muted)] text-sm">
+                  Cash mode coming soon.
+                </div>
+              ) : (
+                <>
+                {positionsLoading && bets.length === 0 && coinPositions.length === 0 ? (
+                  <div className="text-center py-8 md:py-12 text-[color:var(--text-muted)] text-sm">
+                    Loading positions...
+                  </div>
+                ) : bets.length === 0 && coinPositions.length === 0 ? (
+                  <div className="text-center py-8 md:py-12 text-[color:var(--text-muted)] text-sm">
+                    No positions found.
+                  </div>
+                ) : (
+                  <div className="space-y-3 md:space-y-4">
+                    {bets.map((bet) => (
+                      <Link
+                        key={bet.id}
+                        href={`/market/${bet.marketSlug || "seahawks-vs-patriots"}`}
+                        className="block md:grid md:grid-cols-5 md:gap-4 md:items-center p-3 md:p-4 rounded-xl bg-[color:var(--surface-2)] hover:bg-[color:var(--surface-3)] transition cursor-pointer"
+                      >
+                        {/* Mobile Layout */}
+                        <div className="md:hidden space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium text-sm">{bet.marketTitle}</div>
+                              <div className="text-xs text-[color:var(--text-muted)]">
+                                {bet.outcomeName}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-medium text-sm">${bet.amount}</div>
+                              <span className={`text-xs ${bet.position === "yes" ? "text-green-500" : "text-red-500"}`}>
+                                {bet.position.toUpperCase()}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-[color:var(--text-muted)]">
+                            <span>{bet.price}¢ → {bet.price}¢</span>
+                            <span>Win: ${bet.amount}</span>
+                          </div>
+                        </div>
+                        {/* Desktop Layout */}
+                        <div className="hidden md:block">
                           <div className="font-medium text-sm">{bet.marketTitle}</div>
                           <div className="text-xs text-[color:var(--text-muted)]">
                             {bet.outcomeName}
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="font-medium text-sm">${bet.amount}</div>
-                          <span className={`text-xs ${bet.position === "yes" ? "text-green-500" : "text-red-500"}`}>
+                        <div className="hidden md:block text-sm">
+                          {bet.price}¢ → {bet.price}¢
+                        </div>
+                        <div className="hidden md:block text-sm">
+                          <span className={bet.position === "yes" ? "text-green-500" : "text-red-500"}>
                             {bet.position.toUpperCase()}
                           </span>
                         </div>
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-[color:var(--text-muted)]">
-                        <span>{bet.price}¢ → {bet.price}¢</span>
-                        <span>Win: ${bet.amount}</span>
-                      </div>
-                    </div>
-                    {/* Desktop Layout */}
-                    <div className="hidden md:block">
-                      <div className="font-medium text-sm">{bet.marketTitle}</div>
-                      <div className="text-xs text-[color:var(--text-muted)]">
-                        {bet.outcomeName}
-                      </div>
-                    </div>
-                    <div className="hidden md:block text-sm">
-                      {bet.price}¢ → {bet.price}¢
-                    </div>
-                    <div className="hidden md:block text-sm">
-                      <span className={bet.position === "yes" ? "text-green-500" : "text-red-500"}>
-                        {bet.position.toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="hidden md:block text-sm">${bet.amount}</div>
-                    <div className="hidden md:block text-right text-sm font-medium">
-                      ${bet.amount}
-                    </div>
-                  </Link>
-                ))}
-              </div>
+                        <div className="hidden md:block text-sm">${bet.amount}</div>
+                        <div className="hidden md:block text-right text-sm font-medium">
+                          ${bet.amount}
+                        </div>
+                      </Link>
+                    ))}
+                    {coinPositions.map((position) => {
+                      const marketTitle =
+                        position.meta?.market_title || position.market_id;
+                      return (
+                        <div
+                          key={`coin-${position.id}`}
+                          className="block md:grid md:grid-cols-5 md:gap-4 md:items-center p-3 md:p-4 rounded-xl bg-[color:var(--surface-2)] hover:bg-[color:var(--surface-3)] transition"
+                        >
+                          <div className="md:hidden space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-medium text-sm">{marketTitle}</div>
+                                <div className="text-xs text-[color:var(--text-muted)]">
+                                  {position.status}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-medium text-sm">
+                                  {position.amount_coins.toLocaleString()} Coins
+                                </div>
+                                <span className="text-xs text-[color:var(--text-muted)]">
+                                  {position.side.toUpperCase()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="hidden md:block">
+                            <div className="font-medium text-sm">{marketTitle}</div>
+                            <div className="text-xs text-[color:var(--text-muted)]">
+                              {position.side.toUpperCase()}
+                            </div>
+                          </div>
+                          <div className="hidden md:block text-sm text-[color:var(--text-muted)]">—</div>
+                          <div className="hidden md:block text-sm">
+                            {position.amount_coins.toLocaleString()} Coins
+                          </div>
+                          <div className="hidden md:block text-sm text-[color:var(--text-muted)]">—</div>
+                          <div className="hidden md:block text-sm text-[color:var(--text-muted)]">—</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                </>
+              )
             )}
           </div>
         </div>

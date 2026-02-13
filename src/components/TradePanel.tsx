@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Market } from "@/lib/mockData";
 import { Button } from "./ui/button";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
@@ -13,9 +13,23 @@ import {
 import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
-import { addDemoBet } from "@/lib/demoAuth";
 import { ChevronDown, Target, PartyPopper, Flame } from "lucide-react";
 import { TeamOutcomeButtonPair } from "./market/TeamOutcomeButton";
+import {
+  refreshCoinBalance,
+  subscribeCoinBalance,
+  getCurrentCoinBalanceState,
+} from "@/lib/coins/coinBalanceStore";
+
+const getStoredMode = (): "coin" | "cash" => {
+  if (typeof window === "undefined") {
+    return "coin";
+  }
+  const stored =
+    (window.__provepicksMode as "coin" | "cash" | undefined) ??
+    window.localStorage.getItem("provepicks:mode");
+  return stored === "cash" ? "cash" : "coin";
+};
 
 interface TeamData {
   name: string;
@@ -38,6 +52,103 @@ export function TradePanel({ market, teamA, teamB }: TradePanelProps) {
   const [position, setPosition] = useState<"yes" | "no">("yes");
   const [amount, setAmount] = useState(0);
   const [tradeOpen, setTradeOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [coinState, setCoinState] = useState(getCurrentCoinBalanceState());
+  const [authSnapshot, setAuthSnapshot] = useState<
+    { isLoggedIn: boolean; userId: string | null } | null
+  >(() => (typeof window !== "undefined" ? window.__provepicksAuth ?? null : null));
+  const [mode, setMode] = useState<"coin" | "cash">(getStoredMode);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent)?.detail;
+      if (detail) {
+        setAuthSnapshot(detail);
+        return;
+      }
+      setAuthSnapshot(window.__provepicksAuth ?? null);
+    };
+    handler(new CustomEvent("provepicks:auth-ready")); // initial
+    window.addEventListener("provepicks:auth-ready", handler as EventListener);
+    return () => {
+      window.removeEventListener("provepicks:auth-ready", handler as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent)?.detail;
+      const incoming = detail?.mode ?? window.__provepicksMode;
+      if (incoming === "coin" || incoming === "cash") {
+        setMode(incoming);
+      }
+    };
+    window.addEventListener("provepicks:mode-change", handler as EventListener);
+    return () => {
+      window.removeEventListener("provepicks:mode-change", handler as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeCoinBalance(setCoinState);
+    return () => unsubscribe();
+  }, []);
+
+  const handlePlaceBet = async () => {
+    if (!selectedOutcome || isSubmitting) return;
+    setErrorMessage(null);
+    if (mode === "cash") {
+      return;
+    }
+    const amountCoins = amount > 0 ? amount : 50;
+    const isLoggedIn =
+      authSnapshot?.isLoggedIn && Boolean(authSnapshot?.userId);
+    const isPendingAuth = authSnapshot === null;
+
+    if (process.env.NODE_ENV === "development") {
+      console.log("[TradePanel] click", {
+        isLoggedIn,
+        userId: authSnapshot?.userId ?? null,
+        pendingAuth: isPendingAuth,
+        amountCoins,
+      });
+    }
+
+    if (!isLoggedIn) {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("provepicks:open-auth"));
+      }
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/coins/trade", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          marketId: market.slug,
+          marketTitle: market.title,
+          marketSlug: market.slug,
+          side: position === "yes" ? "yes" : "no",
+          amountCoins,
+        }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok || !body?.ok) {
+        setErrorMessage(body?.error || "Failed to place trade");
+        return;
+      }
+      setTradeOpen(true);
+      refreshCoinBalance();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Unable to place trade");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const selectedOutcome = useMemo(
     () => market.outcomes.find((outcome) => outcome.id === selectedOutcomeId),
@@ -150,64 +261,77 @@ export function TradePanel({ market, teamA, teamB }: TradePanelProps) {
 
       <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface-2)] p-4 space-y-3">
         <div className="flex items-center justify-between text-sm text-[color:var(--text-muted)]">
+          <span>Balance</span>
+          <span className="text-sm text-[color:var(--text-strong)]">
+            {mode === "cash"
+              ? "Cash $0.00"
+              : coinState.loading
+              ? "Loading..."
+              : `${coinState.balance?.toLocaleString() ?? "0"} coins`}
+          </span>
+        </div>
+        <div className="flex items-center justify-between text-sm text-[color:var(--text-muted)]">
           <span>Amount</span>
           <span className="text-2xl text-[color:var(--text-strong)]">
-            ${amount.toLocaleString()}
+            {amount.toLocaleString()} coins
           </span>
         </div>
         <Input
           type="number"
           min="0"
           value={amount === 0 ? "" : amount}
-          onChange={(event) =>
-            setAmount(Number(event.target.value || 0))
-          }
+          onChange={(event) => setAmount(Number(event.target.value || 0))}
           placeholder="Enter amount"
+          disabled={mode === "cash"}
           className="bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] placeholder:text-[color:var(--text-subtle)]"
         />
         <div className="grid grid-cols-4 gap-2 text-xs">
           {[1, 20, 100, 250].map((value, index) => (
             <button
               key={value}
-              className="rounded-lg bg-[color:var(--surface)] py-2 text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)] hover:bg-[color:var(--surface-3)] transition"
+              className="rounded-lg bg-[color:var(--surface)] py-2 text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)] hover:bg-[color:var(--surface-3)] transition disabled:opacity-50 disabled:cursor-not-allowed"
               type="button"
+              disabled={mode === "cash"}
               onClick={() =>
-                setAmount(index === 3 ? 500 : amount + value)
+                setAmount(
+                  index === 3
+                    ? coinState.balance ?? amount
+                    : amount + value,
+                )
               }
             >
-              {index === 3 ? "Max" : `+$${value}`}
+              {index === 3 ? "Max" : `+${value}`}
             </button>
           ))}
         </div>
       </div>
 
       <Button
+        type="button"
         className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white h-12 text-base font-bold shadow-lg shadow-blue-500/30 transition-all hover:shadow-xl hover:shadow-purple-500/40 hover:scale-[1.02]"
-        onClick={() => {
-          if (!selectedOutcome) return;
-          const price =
-            position === "yes"
-              ? selectedOutcome.yesPrice
-              : selectedOutcome.noPrice;
-          addDemoBet({
-            id: `${market.slug}-${Date.now()}`,
-            marketSlug: market.slug,
-            marketTitle: market.title,
-            outcomeName: selectedOutcome.name,
-            side: side === "sell" ? "sell" : "buy",
-            position,
-            price,
-            amount: amount || 50,
-            placedAt: new Date().toISOString(),
-          });
-          setTradeOpen(true);
-        }}
+        onClick={handlePlaceBet}
+        disabled={isSubmitting || mode === "cash"}
       >
         <Target className="h-4 w-4 mr-2" /> Place Bet
       </Button>
+      {errorMessage && (
+        <div className="text-xs text-red-500 text-center mt-2">{errorMessage}</div>
+      )}
+      {mode === "cash" && (
+        <div className="text-xs text-[color:var(--text-subtle)] text-center italic mt-1">
+          Cash mode coming soon.
+        </div>
+      )}
       <div className="text-xs text-[color:var(--text-subtle)] text-center">
         By trading, you agree to the Terms of Use.
       </div>
+      {process.env.NODE_ENV !== "production" && (
+        <div className="text-[10px] text-[color:var(--text-muted)] text-center">
+          Auth: {authSnapshot?.isLoggedIn ? "logged-in" : "logged-out"}{" "}
+          {authSnapshot?.userId ? `(${authSnapshot.userId.slice(0, 6)})` : ""}
+          | Coins: {coinState.balance?.toLocaleString() ?? "—"}
+        </div>
+      )}
 
       <Dialog open={tradeOpen} onOpenChange={setTradeOpen}>
         <DialogContent className="bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] max-w-sm overflow-hidden">
@@ -236,7 +360,7 @@ export function TradePanel({ market, teamA, teamB }: TradePanelProps) {
               <div className="flex justify-between mb-2">
                 <span className="text-[color:var(--text-muted)]">Amount</span>
                 <span className="font-bold text-lg">
-                  ${amount || 50}
+                  {amount || 50} coins
                 </span>
               </div>
               <div className="flex justify-between mb-2">
@@ -251,7 +375,7 @@ export function TradePanel({ market, teamA, teamB }: TradePanelProps) {
               <div className="flex justify-between pt-2 border-t border-[color:var(--border-soft)]">
                 <span className="text-[color:var(--text-muted)]">Potential Win</span>
                 <span className="font-bold text-green-500">
-                  ${Math.round((amount || 50) * (100 / (position === "yes" ? selectedOutcome?.yesPrice || 50 : selectedOutcome?.noPrice || 50)))}
+                  {Math.round((amount || 50) * (100 / (position === "yes" ? selectedOutcome?.yesPrice || 50 : selectedOutcome?.noPrice || 50)))} coins
                 </span>
               </div>
             </div>

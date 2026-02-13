@@ -23,16 +23,20 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { getUntypedSupabaseClient } from "@/lib/supabase";
 import { getFromCache, setInCache, getCacheKey } from "@/lib/sportsdataio/cache";
-import { isValidFrontendLeague, ALL_FRONTEND_LEAGUES } from "@/lib/sports/providers";
-import { getUpcomingGamesWithTeamsFromCache } from "@/lib/sports/games-cache";
-import { getLogoUrl } from "@/lib/images/getLogoUrl";
+import {
+  filterRealGames,
+  getEnabledSoccerLeagueIds,
+  getAllTeamMapsFromCache,
+} from "@/lib/sports/games-cache";
 
-// Cache TTL
-const CACHE_TTL_LIVE = 5 * 60 * 1000;       // 5 minutes for live/upcoming
-const CACHE_TTL_NO_GAMES = 30 * 60 * 1000;  // 30 minutes when no games
+const CACHE_KEY = getCacheKey("global", "featured", "all");
+const CACHE_TTL_ACTIVE = 5 * 60 * 1000;
+const CACHE_TTL_IDLE = 30 * 60 * 1000;
+const FEATURED_LEAGUES = ["nfl", "nba", "mlb", "nhl", "soccer"];
 
-interface FeaturedTeam {
+interface TeamMeta {
   teamId: number;
   name: string;
   city: string;
@@ -42,113 +46,134 @@ interface FeaturedTeam {
   primaryColor: string | null;
 }
 
-interface FeaturedGame {
+interface FeaturedItem {
+  league: string;
   gameId: string;
-  name: string;
-  startTime: string;
-  status: "scheduled" | "in_progress" | "final" | "postponed" | "canceled";
-  homeTeam: FeaturedTeam;
-  awayTeam: FeaturedTeam;
+  externalGameId: string;
+  startsAt: string;
+  status: string;
+  homeTeam: TeamMeta;
+  awayTeam: TeamMeta;
   homeScore: number | null;
   awayScore: number | null;
-  venue: string | null;
-  week: number;
   channel: string | null;
-  isChampionship: boolean;
 }
 
-interface FeaturedResponse {
-  featured: FeaturedGame | null;
-  reason: "championship" | "next_game" | "no_games";
+interface FeaturedListResponse {
+  ok: true;
+  items: FeaturedItem[];
 }
 
-export async function GET(request: NextRequest) {
+function getAbbreviation(name?: string) {
+  if (!name) {
+    return "";
+  }
+  const words = name.split(" ");
+  const candidate = words[words.length - 1];
+  return candidate.slice(0, 3).toUpperCase();
+}
+
+export async function GET() {
   try {
-    const url = new URL(request.url);
-    const leagueParam = url.searchParams.get("league")?.toLowerCase() || "nfl";
-
-    // Validate league
-    if (!isValidFrontendLeague(leagueParam)) {
-      return NextResponse.json(
-        { error: `Invalid league. Must be one of: ${ALL_FRONTEND_LEAGUES.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    const league = leagueParam;
-
-    // Check cache
-    const cacheKey = getCacheKey(league, "featured", "main");
-    const cached = getFromCache<FeaturedResponse>(cacheKey);
+    const cached = getFromCache<FeaturedListResponse>(CACHE_KEY);
     if (cached) {
       return NextResponse.json(cached);
     }
 
-    // Get upcoming games from sports_games table
-    const cachedGames = await getUpcomingGamesWithTeamsFromCache(league, 14);
-
-    // Filter to upcoming/live games only
-    const upcomingGames = cachedGames.filter((g) => !g.IsOver);
-
-    let response: FeaturedResponse;
-
-    if (upcomingGames.length > 0) {
-      const firstGame = upcomingGames[0];
-      response = {
-        featured: {
-          gameId: firstGame.GameKey,
-          name: `${firstGame.AwayTeamData?.Name || "Away"} @ ${firstGame.HomeTeamData?.Name || "Home"}`,
-          startTime: firstGame.DateTime,
-          status: firstGame.IsOver ? "final" : firstGame.IsInProgress ? "in_progress" : "scheduled",
-          homeTeam: {
-            teamId: firstGame.HomeTeamData?.TeamID || 0,
-            name: firstGame.HomeTeamData?.Name || firstGame.HomeTeam,
-            city: "",
-            abbreviation: firstGame.HomeTeam,
-            fullName: firstGame.HomeTeamData?.FullName || firstGame.HomeTeam,
-            logoUrl: getLogoUrl(firstGame.HomeTeamData?.WikipediaLogoUrl),
-            primaryColor: null,
-          },
-          awayTeam: {
-            teamId: firstGame.AwayTeamData?.TeamID || 0,
-            name: firstGame.AwayTeamData?.Name || firstGame.AwayTeam,
-            city: "",
-            abbreviation: firstGame.AwayTeam,
-            fullName: firstGame.AwayTeamData?.FullName || firstGame.AwayTeam,
-            logoUrl: getLogoUrl(firstGame.AwayTeamData?.WikipediaLogoUrl),
-            primaryColor: null,
-          },
-          homeScore: firstGame.HomeScore,
-          awayScore: firstGame.AwayScore,
-          venue: null,
-          week: 0,
-          channel: null,
-          isChampionship: false,
-        },
-        reason: "next_game",
-      };
-    } else {
-      response = {
-        featured: null,
-        reason: "no_games",
-      };
+    const client = getUntypedSupabaseClient();
+    if (!client) {
+      return NextResponse.json({ ok: true, items: [] });
     }
 
-    const hasUpcoming = response.featured && response.featured.status !== "final";
-    const cacheTtl = hasUpcoming ? CACHE_TTL_LIVE : CACHE_TTL_NO_GAMES;
-    setInCache(cacheKey, response, cacheTtl);
+    const now = new Date().toISOString();
+    const { data, error } = await client
+      .from("sports_games")
+      .select("*")
+      .in("league", FEATURED_LEAGUES)
+      .gte("starts_at", now)
+      .order("starts_at", { ascending: true })
+      .limit(60);
 
-    console.log(`[/api/sports/featured] ${league.toUpperCase()} (sports_games): ${response.reason}`);
+    if (error) {
+      console.error("[/api/sports/featured] Supabase error:", error.message);
+      return NextResponse.json({ ok: true, items: [] });
+    }
 
-    return NextResponse.json(response);
+    let games = data || [];
+    const enabledSoccerLeagues = await getEnabledSoccerLeagueIds();
+    if (enabledSoccerLeagues.length > 0) {
+      games = games.filter((game) => {
+        if (game.league === "soccer") {
+          return Boolean(game.league_id && enabledSoccerLeagues.includes(game.league_id));
+        }
+        return true;
+      });
+    } else {
+      games = games.filter((game) => game.league !== "soccer");
+    }
+
+    games = filterRealGames(games);
+
+    const teamMap = await getAllTeamMapsFromCache();
+
+    const items: FeaturedItem[] = games
+      .map((game) => {
+        const league = (game.league || "").toLowerCase();
+        const statusNorm = (game.status_norm || game.status || "").toUpperCase();
+        const normalizedStatus =
+          statusNorm === "LIVE"
+            ? "in_progress"
+            : statusNorm === "FINAL"
+              ? "final"
+              : statusNorm === "CANCELED" || statusNorm === "POSTPONED"
+                ? "canceled"
+                : "scheduled";
+        if (normalizedStatus === "final" || normalizedStatus === "canceled") {
+          return null;
+        }
+
+        const makeTeam = (teamName?: string) => {
+          const lookupKey = `${league}:${(teamName || "").toLowerCase()}`;
+          const meta = teamMap.get(lookupKey);
+          return {
+            teamId: meta?.id ?? 0,
+            name: teamName || "Team",
+            city: teamName || "Team",
+            abbreviation: getAbbreviation(teamName),
+            fullName: teamName || "Team",
+            logoUrl: meta?.logo || null,
+            primaryColor: null,
+          };
+        };
+
+        return {
+          league,
+          gameId: game.external_game_id || String(game.id),
+          externalGameId: game.external_game_id || String(game.id),
+          startsAt: game.starts_at,
+          status: normalizedStatus,
+          homeTeam: makeTeam(game.home_team),
+          awayTeam: makeTeam(game.away_team),
+          homeScore: game.home_score,
+          awayScore: game.away_score,
+          channel: null,
+        };
+      })
+      .filter(Boolean) as FeaturedItem[];
+
+    const result: FeaturedListResponse = {
+      ok: true,
+      items: items.slice(0, 3),
+    };
+
+    const cacheTtl = items.length > 0 ? CACHE_TTL_ACTIVE : CACHE_TTL_IDLE;
+    setInCache(CACHE_KEY, result, cacheTtl);
+
+    console.log(`[/api/sports/featured] returning ${result.items.length} items`);
+    return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("[/api/sports/featured] Error:", message);
-    
-    // Return no_games instead of error for frontend
-    return NextResponse.json({
-      featured: null,
-      reason: "no_games",
-    });
+    return NextResponse.json({ ok: true, items: [] });
   }
 }

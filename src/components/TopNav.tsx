@@ -25,6 +25,17 @@ import {
 import { clearDemoUser, DemoUser, getDemoUser, setDemoUser } from "@/lib/demoAuth";
 import { getSupabaseClient, getUntypedSupabaseClient } from "@/lib/supabase";
 import { initTheme, ThemeMode, toggleTheme } from "@/lib/theme";
+import { useCoinBalance } from "@/lib/coins/useCoinBalance";
+
+const MODE_KEY = "provepicks:mode";
+
+declare global {
+  interface Window {
+    __provepicksAuth?: { isLoggedIn: boolean; userId: string | null };
+    __provepicksIsLoggedIn?: boolean;
+    __provepicksMode?: "coin" | "cash";
+  }
+}
 
 // Real user type from /api/me
 interface RealUser {
@@ -43,9 +54,7 @@ export function TopNav() {
   const [realUser, setRealUser] = useState<RealUser | null>(null);
   const [authType, setAuthType] = useState<"supabase" | "wallet" | "none">("none");
   const [theme, setTheme] = useState<ThemeMode>("dark");
-  const [coinBalance, setCoinBalance] = useState<number | null>(null);
-  const [coinLoading, setCoinLoading] = useState(false);
-
+  const [mode, setMode] = useState<"coin" | "cash">("coin");
   // Fetch real user from /api/me
   const fetchMe = useCallback(async () => {
     try {
@@ -74,56 +83,35 @@ export function TopNav() {
   }, [fetchMe]);
 
   useEffect(() => {
-    if (!realUser) {
-      setCoinBalance(null);
-      setCoinLoading(false);
-      return;
-    }
+    if (typeof window === "undefined") return;
+    const stored = window.__provepicksMode ?? window.localStorage.getItem(MODE_KEY);
+    setMode(stored === "cash" ? "cash" : "coin");
+  }, []);
 
-    let cancelled = false;
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(MODE_KEY, mode);
+    window.__provepicksMode = mode;
+    window.dispatchEvent(
+      new CustomEvent("provepicks:mode-change", {
+        detail: { mode },
+      }),
+    );
+  }, [mode]);
 
-    const fetchFallback = async () => {
-      const client = getUntypedSupabaseClient();
-      if (!client) {
-        return;
-      }
-
-      const { data } = await client
-        .from("coin_balances")
-        .select("balance")
-        .eq("user_id", realUser.id)
-        .maybeSingle();
-
-      if (cancelled) return;
-      setCoinBalance(data?.balance ?? 0);
-    };
-
-    const fetchBalance = async () => {
-      setCoinLoading(true);
-      try {
-        const res = await fetch("/api/coins/balance");
-        const data = await res.json().catch(() => null);
-        if (!cancelled && res.ok && data?.ok) {
-          setCoinBalance(data.balance);
-        } else {
-          await fetchFallback();
-        }
-      } catch (error) {
-        console.error("Failed to fetch coin balance:", error);
-        await fetchFallback();
-      } finally {
-        if (!cancelled) {
-          setCoinLoading(false);
-        }
-      }
-    };
-
-    fetchBalance();
-
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handler = () => setHowOpen(true);
+    window.addEventListener("provepicks:open-how-it-works", handler);
     return () => {
-      cancelled = true;
+      window.removeEventListener("provepicks:open-how-it-works", handler);
     };
-  }, [realUser?.id]);
+  }, []);
+
+  const {
+    coinBalance,
+    coinLoading,
+  } = useCoinBalance(realUser?.id ?? null);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -139,6 +127,31 @@ export function TopNav() {
   // Determine if user is logged in (real user takes priority over demo)
   const isLoggedIn = realUser !== null || demoUser !== null;
   const currentUser = realUser || demoUser;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    window.__provepicksAuth = {
+      isLoggedIn,
+      userId: realUser?.id ?? null,
+    };
+    window.dispatchEvent(
+      new CustomEvent("provepicks:auth-ready", {
+        detail: window.__provepicksAuth,
+      }),
+    );
+    return () => {
+      window.__provepicksAuth = undefined;
+    };
+  }, [isLoggedIn, realUser?.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handler = () => setAuthOpen(true);
+    window.addEventListener("provepicks:open-auth", handler);
+    return () => {
+      window.removeEventListener("provepicks:open-auth", handler);
+    };
+  }, []);
 
   const initials = useMemo(() => {
     if (realUser) {
@@ -227,27 +240,49 @@ export function TopNav() {
             >
               How it works
             </button>
+            <div className="hidden md:flex items-center gap-0.5 rounded-full border border-white/30 bg-black/20 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+              <button
+                type="button"
+                onClick={() => setMode("coin")}
+                aria-pressed={mode === "coin"}
+                className={`px-3 py-1 rounded-full transition ${
+                  mode === "coin"
+                    ? "bg-white text-orange-600 shadow"
+                    : "text-white/60 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                Coin
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("cash")}
+                aria-pressed={mode === "cash"}
+                className={`px-3 py-1 rounded-full transition ${
+                  mode === "cash"
+                    ? "bg-white text-orange-600 shadow"
+                    : "text-white/60 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                Cash
+              </button>
+            </div>
             
             {isLoggedIn ? (
               <div className="flex items-center gap-2 md:gap-4">
-                {/* Portfolio & Cash */}
-                <Link href="/portfolio" className="flex items-center gap-2 md:gap-4 hover:opacity-80 transition">
-                  <div className="text-center">
-                    <div className="text-[10px] md:text-xs text-white/70">Portfolio</div>
-                    <div className="text-xs md:text-sm font-semibold text-white">$0.00</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-[10px] md:text-xs text-white/70">Cash</div>
-                    <div className="text-xs md:text-sm font-semibold text-white">$0.00</div>
-                  </div>
-                  {realUser && (
-                    <div className="text-center">
-                      <div className="text-[10px] md:text-xs text-white/70">Coins</div>
-                      <div className="text-xs md:text-sm font-semibold text-white">
-                        {coinLoading || coinBalance === null ? "—" : coinBalance.toLocaleString()}
-                      </div>
-                    </div>
-                  )}
+                <Link
+                  href="/portfolio"
+                  className="flex flex-col items-center gap-1 rounded-full border border-white/20 px-3 py-1 hover:border-white/40 focus-visible:ring-2 focus-visible:ring-white/50 transition"
+                >
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-white/70">
+                    {mode === "coin" ? "Coins" : "Cash"}
+                  </span>
+                  <span className="text-xs md:text-sm font-semibold text-white">
+                    {mode === "coin"
+                      ? coinLoading || coinBalance === null
+                        ? "—"
+                        : coinBalance.toLocaleString()
+                      : "$0.00"}
+                  </span>
                 </Link>
                 {/* Notifications */}
                 <Button
@@ -269,15 +304,12 @@ export function TopNav() {
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] w-48">
-                    <DropdownMenuItem asChild>
-                      <Link href={profileLink}>Profile</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/portfolio">Portfolio</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/settings">Settings</Link>
-                    </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href={profileLink}>Profile</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings">Settings</Link>
+                  </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link href="/leaderboard">Leaderboard</Link>
                     </DropdownMenuItem>
@@ -384,14 +416,6 @@ export function TopNav() {
                         >
                           <div className="h-5 w-5 rounded-full bg-gradient-to-br from-purple-500 to-pink-500" />
                           <span className="font-medium">Profile</span>
-                        </Link>
-                        <Link
-                          href="/portfolio"
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center gap-3 px-3 py-3 rounded-lg text-[color:var(--text-muted)] hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-strong)] transition"
-                        >
-                          <Wallet className="h-5 w-5 text-green-500" />
-                          <span className="font-medium">Portfolio</span>
                         </Link>
                         <Link
                           href="/settings"
