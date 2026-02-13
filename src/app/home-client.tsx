@@ -48,6 +48,11 @@ interface HotGame {
   volumeToday: number;
   volume10m: number;
   activeBettors: number;
+  state?: string;
+  isInProgress?: boolean;
+  started?: boolean;
+  completed?: boolean;
+  clock?: string | number | null;
 }
 
 interface Team {
@@ -259,6 +264,34 @@ function getGameHref(game: HotGame): string {
   return `/market/${game.id}`;
 }
 
+const LIVE_STATUS_VALUES = new Set([
+  "inprogress",
+  "in_progress",
+  "live",
+  "playing",
+  "active",
+]);
+
+function isGameInProgress(game: HotGame): boolean {
+  const status = String(game.status ?? game.state ?? "").toLowerCase();
+  if (status && LIVE_STATUS_VALUES.has(status)) {
+    return true;
+  }
+  if (game.isInProgress) {
+    return true;
+  }
+  if (game.started && game.completed === false) {
+    return true;
+  }
+  if (typeof game.clock === "string" && game.clock.trim().length > 0) {
+    return true;
+  }
+  if (typeof game.clock === "number" && !Number.isNaN(game.clock)) {
+    return true;
+  }
+  return Boolean(game.isLive);
+}
+
 // Format volume for display
 function formatVolume(volume: number): string {
   if (volume >= 1000000) {
@@ -316,7 +349,9 @@ export default function HomeClient() {
         // Filter based on view
         switch (view) {
           case "live":
-            filteredGames = filteredGames.filter((g: HotGame) => g.isLive);
+            console.log("[live] raw games count", filteredGames.length, filteredGames[0]);
+            filteredGames = filteredGames.filter((g: HotGame) => isGameInProgress(g));
+            console.log("[live] filtered live count", filteredGames.length, filteredGames[0]);
             break;
           case "starting-soon":
             filteredGames = filteredGames.filter((g: HotGame) => {
@@ -734,8 +769,8 @@ export default function HomeClient() {
                 <div className="text-[color:var(--text-muted)] mb-4">
                   No games found for today
                 </div>
-                <Link href="/sports?league=nfl">
-                  <Button>Browse NFL Games</Button>
+                <Link href="/sports">
+                  <Button>Browse Games</Button>
                 </Link>
               </div>
             )}
