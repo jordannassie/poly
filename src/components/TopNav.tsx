@@ -113,6 +113,13 @@ export function TopNav() {
     coinLoading,
   } = useCoinBalance(realUser?.id ?? null);
 
+  const proveItAmount =
+    mode === "coin"
+      ? coinLoading || coinBalance === null
+        ? "— Coins"
+        : `${coinBalance.toLocaleString()} Coins`
+      : "$0.00";
+
   useEffect(() => {
     if (typeof document === "undefined") return;
     const observer = new MutationObserver(() => {
@@ -489,9 +496,13 @@ export function TopNav() {
           </div>
         </div>
       </div>
-      <div className="hidden md:block border-b border-white/10 bg-black/80">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-center px-4 py-3">
-          <div className="flex items-center rounded-full border border-white/20 bg-black/40 px-1.5 py-1.5 text-[11px] font-semibold tracking-wider">
+      <div className="border-b border-white/10 bg-[color:var(--app-bg)]">
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-center gap-3 px-4 py-3 text-white md:flex-row md:gap-6">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/70">
+            <span>Prove it:</span>
+            <span className="text-base font-bold text-white">{proveItAmount}</span>
+          </div>
+          <div className="flex items-center gap-2 rounded-full border border-white/20 bg-black/40 px-1.5 py-1.5 text-[11px] font-semibold tracking-wider">
             <button
               type="button"
               onClick={() => setMode("coin")}
