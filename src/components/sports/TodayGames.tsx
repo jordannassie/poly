@@ -62,6 +62,37 @@ function isValidGame(game: Game): boolean {
   return isValidTeamName(homeName) && isValidTeamName(awayName);
 }
 
+const formatLiveDetail = (g: any) => {
+  const q =
+    g?.quarter ??
+    g?.period ??
+    g?.currentPeriod ??
+    g?.game?.quarter ??
+    g?.game?.period ??
+    null;
+
+  const t =
+    g?.clock ??
+    g?.timeRemaining ??
+    g?.displayClock ??
+    g?.gameClock ??
+    g?.game?.clock ??
+    g?.game?.displayClock ??
+    null;
+
+  const status = String(g?.status ?? g?.state ?? g?.gameStatus ?? "").toLowerCase();
+  const isLive =
+    g?.isLive === true ||
+    g?.isInProgress === true ||
+    ["live", "inprogress", "in_progress", "playing", "in progress"].includes(status);
+
+  if (q != null && t) return `Q${q} • ${t}`;
+  if (q != null) return `Q${q}`;
+  if (t) return String(t);
+  if (isLive) return "Live";
+  return "";
+};
+
 interface GamesResponse {
   league: string;
   date: string;
@@ -183,15 +214,22 @@ function GameCard({ game, league }: { game: Game; league: string }) {
     if (game.IsOver) {
       return { text: "Final", color: "text-[color:var(--text-muted)]" };
     }
+    const liveDetail = formatLiveDetail({
+      quarter: game.Quarter,
+      clock: game.TimeRemaining,
+      status: game.IsInProgress ? "in_progress" : undefined,
+      isLive: game.IsInProgress,
+      isInProgress: game.IsInProgress,
+    });
     if (game.IsInProgress) {
-      return { 
-        text: game.QuarterDescription || `Q${game.Quarter} ${game.TimeRemaining}`, 
+      return {
+        text: liveDetail || "Live",
         color: "text-green-500",
-        live: true
+        live: true,
       };
     }
     if (game.HasStarted) {
-      return { text: "In Progress", color: "text-green-500", live: true };
+      return { text: liveDetail || "Live", color: "text-green-500", live: true };
     }
     // Game hasn't started - show time
     const gameDate = new Date(game.Date);
