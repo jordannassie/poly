@@ -12,6 +12,7 @@ import { normalizeStatus, determineWinner, needsSettlement, StatusNorm } from ".
 import { fetchGamesForDate, fetchLiveGames, seasonForDate, GameRecord } from "@/lib/apiSports/gameSync";
 import { getLeagueConfig, SupportedLeague } from "@/lib/apiSports/leagueConfig";
 import { isRealGame } from "@/lib/sports/placeholderTeams";
+import { PAST_DAYS, FUTURE_DAYS } from "@/lib/sports/window";
 
 // Enabled leagues for lifecycle processing
 const ENABLED_LEAGUES: SupportedLeague[] = ['NFL', 'NBA', 'NHL', 'MLB', 'SOCCER'];
@@ -209,7 +210,7 @@ function buildGamePayload(
 }
 
 /**
- * Discover games in a rolling window: now-36h to now+36h
+ * Discover games in a rolling window: now-7d to now+30d
  * Upserts all games with normalized status
  * 
  * Uses dynamic schema detection to match production table structure.
@@ -225,8 +226,8 @@ export async function discoverGamesRollingWindow(
 ): Promise<MultiLeagueJobResult> {
   const startTime = Date.now();
   const leagues = options?.leagues || ENABLED_LEAGUES;
-  const hoursBack = options?.hoursBack ?? 36;
-  const hoursForward = options?.hoursForward ?? 36;
+  const hoursBack = options?.hoursBack ?? PAST_DAYS * 24;
+  const hoursForward = options?.hoursForward ?? FUTURE_DAYS * 24;
   const maxGamesPerLeague = options?.maxGamesPerLeague ?? 500; // Default high limit
   
   const now = new Date();
@@ -440,6 +441,7 @@ export async function discoverGamesRollingWindow(
   }
   
   const duration = Date.now() - startTime;
+  console.log(`[lifecycle:discover] WINDOW from=${fromDate.toISOString()} to=${toDate.toISOString()} fetched=${totalFetched} upserted=${totalUpserted}`);
   console.log(`[lifecycle:discover] COMPLETE total_fetched=${totalFetched} total_upserted=${totalUpserted} duration=${duration}ms`);
   console.log(`[lifecycle:discover] GLOBAL_STATS raw=${globalSkipStats.rawFromApi} valid=${globalSkipStats.validGames} upsertOK=${globalSkipStats.upsertSuccess} upsertErr=${globalSkipStats.upsertErrors}`);
   
