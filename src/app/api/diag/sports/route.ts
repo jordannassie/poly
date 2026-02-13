@@ -1,5 +1,3 @@
-"use server";
-
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
@@ -18,7 +16,7 @@ function getServiceClient() {
 }
 
 export async function GET() {
-  const appRootHint = "ProvePicks-NEXT";
+  const appRootHint = "root-src";
   const { client, hasUrl, hasServiceKey } = getServiceClient();
   const urlHost = process.env.NEXT_PUBLIC_SUPABASE_URL
     ? (() => {
