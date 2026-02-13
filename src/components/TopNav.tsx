@@ -215,7 +215,7 @@ export function TopNav() {
       <div className="bg-gradient-to-r from-orange-500 to-amber-500">
         <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-4 py-4">
           <Link href="/" className="flex items-center gap-2 text-white">
-            <ProvePicksLogo size="sm" glow />
+            <ProvePicksLogo size="lg" glow />
             <span className="text-lg font-bold text-white">
               ProvePicks
             </span>
