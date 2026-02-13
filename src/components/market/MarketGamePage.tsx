@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { PicksCardModal } from "@/components/picks-card/PicksCardModal";
 import { getLogoUrl } from "@/lib/images/getLogoUrl";
+import AliveLayer from "@/components/market/AliveLayer";
 
 // Countdown hook for trading lock-in time
 function useCountdown(targetDate: Date | undefined) {
@@ -443,6 +444,8 @@ const formatWithCommas = (value: number): string => {
   return value.toLocaleString("en-US");
 };
 
+const clampValue = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
 interface MarketGamePageProps {
   market: MarketViewModel;
 }
@@ -516,6 +519,47 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
   const selectedTeamData = selectedTeam === "teamA" ? team1 : team2;
   const selectedPrice = selectedTeam === "teamA" ? team1.odds : team2.odds;
 
+  type LiveConfidenceState = {
+    leftPct: number;
+    rightPct: number;
+    leftPriceCents: number;
+    rightPriceCents: number;
+  };
+
+  const [liveConfidence, setLiveConfidence] = useState<LiveConfidenceState>({
+    leftPct: team1.odds,
+    rightPct: team2.odds,
+    leftPriceCents: team1.odds,
+    rightPriceCents: team2.odds,
+  });
+
+  useEffect(() => {
+    setLiveConfidence({
+      leftPct: team1.odds,
+      rightPct: team2.odds,
+      leftPriceCents: team1.odds,
+      rightPriceCents: team2.odds,
+    });
+  }, [team1.odds, team2.odds]);
+
+  const refreshLiveConfidence = useCallback(async () => {
+    setLiveConfidence((prev) => {
+      const change = (Math.random() - 0.5) * 4;
+      const nextLeftPct = clampValue(prev.leftPct + change, 2, 98);
+      const nextRightPct = 100 - nextLeftPct;
+      const priceShift = Math.round((Math.random() - 0.5) * 3);
+      const nextLeftPrice = clampValue(prev.leftPriceCents + priceShift, 2, 98);
+      const nextRightPrice = clampValue(prev.rightPriceCents - priceShift, 2, 98);
+      return {
+        leftPct: nextLeftPct,
+        rightPct: nextRightPct,
+        leftPriceCents: nextLeftPrice,
+        rightPriceCents: nextRightPrice,
+      };
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }, []);
+
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
       <TopNav />
@@ -550,19 +594,29 @@ export function MarketGamePage({ market }: MarketGamePageProps) {
 
             {/* A) Compact Countdown - inline under title */}
             <div className="mb-4">
-              <CompactCountdown 
-                targetDate={market.startTime} 
-                status={market.status} 
+              <CompactCountdown
+                targetDate={market.startTime}
+                status={market.status}
                 isLocked={market.isLocked}
                 lockReason={market.lockReason}
               />
             </div>
 
             {/* A) TIMELINE STEPPER - Always visible at top */}
-            <TimelineStepper 
-              status={market.status} 
+            <TimelineStepper
+              status={market.status}
               isLocked={market.isLocked}
               isSettled={false} // TODO: pass actual settlement status when available
+            />
+
+            <AliveLayer
+              leftLabel={team1.abbr}
+              rightLabel={team2.abbr}
+              leftPct={liveConfidence.leftPct}
+              rightPct={liveConfidence.rightPct}
+              leftPriceCents={liveConfidence.leftPriceCents}
+              rightPriceCents={liveConfidence.rightPriceCents}
+              onTickRefresh={refreshLiveConfidence}
             />
 
             {/* Teams Display - Clean matchup card */}
