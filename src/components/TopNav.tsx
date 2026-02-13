@@ -240,18 +240,18 @@ export function TopNav() {
             >
               How it works
             </button>
-            <div className="hidden md:flex items-center rounded-full border border-white/25 bg-black px-1 py-1 text-[10px] font-semibold uppercase tracking-[0.25em]">
+              <div className="hidden md:flex items-center rounded-full border border-white/25 bg-black px-1 py-1 text-[10px] font-semibold uppercase tracking-[0.25em]">
               <button
                 type="button"
                 onClick={() => setMode("coin")}
                 aria-pressed={mode === "coin"}
                 className={`flex items-center gap-1 rounded-full px-3 py-1 transition ${
                   mode === "coin"
-                    ? "bg-white text-black"
-                    : "text-white hover:text-white hover:bg-white/10"
+                      ? "bg-white text-black"
+                      : "text-orange-400 hover:text-orange-300 hover:bg-white/10"
                 }`}
               >
-                <Coins className="h-3 w-3 text-white/80" />
+                <Coins className={`h-3 w-3 ${mode === "coin" ? "text-black" : "text-orange-400"}`} />
                 Coin
               </button>
               <button
@@ -261,10 +261,10 @@ export function TopNav() {
                 className={`flex items-center gap-1 rounded-full px-3 py-1 transition ${
                   mode === "cash"
                     ? "bg-white text-black"
-                    : "text-white hover:text-white hover:bg-white/10"
+                    : "text-orange-400 hover:text-orange-300 hover:bg-white/10"
                 }`}
               >
-                <DollarSign className="h-3 w-3 text-white/80" />
+                <DollarSign className={`h-3 w-3 ${mode === "cash" ? "text-black" : "text-orange-400"}`} />
                 Cash
               </button>
             </div>
