@@ -275,20 +275,20 @@ export function TopNav() {
                   href="/portfolio"
                   className="flex flex-col items-center gap-1 rounded-full border border-white/20 bg-black px-3 py-1 hover:border-white/40 focus-visible:ring-2 focus-visible:ring-white/50 transition"
                 >
-                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-white/70">
+                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-lime-400">
                     {mode === "coin" ? (
                       <>
-                        <Coins className="h-3 w-3 text-white/70" />
+                        <Coins className="h-3 w-3 text-lime-400" />
                         Coins
                       </>
                     ) : (
                       <>
-                        <DollarSign className="h-3 w-3 text-white/70" />
+                        <DollarSign className="h-3 w-3 text-lime-400" />
                         Cash
                       </>
                     )}
                   </div>
-                  <div className="flex items-center gap-1 text-xs md:text-sm font-semibold text-white">
+                  <div className="flex items-center gap-1 text-xs md:text-sm font-semibold text-lime-400">
                     {mode === "coin"
                       ? coinLoading || coinBalance === null
                         ? "—"

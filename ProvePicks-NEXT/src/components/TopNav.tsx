@@ -175,21 +175,21 @@ export function TopNav() {
                 {/* Portfolio & Cash */}
                 <Link href="/portfolio" className="flex items-center gap-3 md:gap-4 hover:opacity-80 transition">
                   <div className="text-center">
-                    <div className="flex items-center justify-center gap-1 text-[10px] md:text-xs uppercase tracking-[0.2em] text-white/70">
-                      <Coins className="h-3 w-3 text-white/70" />
+                    <div className="flex items-center justify-center gap-1 text-[10px] md:text-xs uppercase tracking-[0.2em] text-lime-400">
+                      <Coins className="h-3 w-3 text-lime-400" />
                       Portfolio
                     </div>
-                    <div className="flex items-center justify-center gap-1 text-xs md:text-sm font-semibold text-white">
-                      <DollarSign className="h-3 w-3 text-white/70" />
+                    <div className="flex items-center justify-center gap-1 text-xs md:text-sm font-semibold text-lime-400">
+                      <DollarSign className="h-3 w-3 text-lime-400" />
                       $0.00
                     </div>
                   </div>
                   <div className="text-center">
-                    <div className="flex items-center justify-center gap-1 text-[10px] md:text-xs uppercase tracking-[0.2em] text-white/70">
-                      <DollarSign className="h-3 w-3 text-white/70" />
+                    <div className="flex items-center justify-center gap-1 text-[10px] md:text-xs uppercase tracking-[0.2em] text-lime-400">
+                      <DollarSign className="h-3 w-3 text-lime-400" />
                       Cash
                     </div>
-                    <div className="text-xs md:text-sm font-semibold text-white">$0.00</div>
+                    <div className="text-xs md:text-sm font-semibold text-lime-400">$0.00</div>
                   </div>
                 </Link>
                 {/* Notifications */}
