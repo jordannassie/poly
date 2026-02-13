@@ -12,11 +12,11 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { usesApiSportsCache, usesSportsGamesCache, isValidFrontendLeague, ALL_FRONTEND_LEAGUES } from "@/lib/sports/providers";
 import { getNflGamesByDateFromCache, getNflTeamMap, transformCachedGameToLegacyFormat } from "@/lib/sports/nfl-cache";
-import { transformCachedGame, getTeamMapFromCache, CachedGame } from "@/lib/sports/games-cache";
+import { transformCachedGame, CachedGame } from "@/lib/sports/games-cache";
 import { PAST_DAYS, FUTURE_DAYS } from "@/lib/sports/window";
+import { getServiceClient } from "@/lib/supabase/serverServiceClient";
 
 export async function GET(request: NextRequest) {
   try {
@@ -57,32 +57,17 @@ export async function GET(request: NextRequest) {
 
     // All other leagues use sports_games cache
     if (usesSportsGamesCache(league)) {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-      if (!supabaseUrl || !supabaseAnonKey) {
-        console.error("[/api/sports/games] Missing Supabase env vars");
-        return NextResponse.json({
-          league,
-          source: "sports-games-cache",
-          count: 0,
-          games: [],
-          message: "Supabase configuration missing.",
-        }, { status: 500 });
-      }
-
-      const client = createClient(supabaseUrl, supabaseAnonKey);
-
-      const now = new Date();
-      const past = new Date(now.getTime() - PAST_DAYS * 24 * 60 * 60 * 1000);
-      const future = new Date(now.getTime() + FUTURE_DAYS * 24 * 60 * 60 * 1000);
+      const client = getServiceClient();
+      const nowMs = Date.now();
+      const pastIso = new Date(nowMs - PAST_DAYS * 24 * 60 * 60 * 1000).toISOString();
+      const futureIso = new Date(nowMs + FUTURE_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
       const { data, error } = await client
         .from("sports_games")
         .select("*")
         .eq("league", league)
-        .gte("starts_at", past.toISOString())
-        .lt("starts_at", future.toISOString())
+        .gte("starts_at", pastIso)
+        .lt("starts_at", futureIso)
         .order("starts_at", { ascending: true })
         .limit(200);
 
@@ -97,13 +82,34 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      const teamMap = await getTeamMapFromCache(league);
+      // Build team map with service role to avoid RLS issues
+      const { data: teamData, error: teamError } = await client
+        .from("sports_teams")
+        .select("id, name, logo, slug")
+        .eq("league", league);
+
+      if (teamError) {
+        console.warn(`[/api/sports/games] ${league.toUpperCase()} team map error:`, teamError.message);
+      }
+
+      const teamMap = new Map<string, { id: number; name: string; logo: string | null; slug: string }>();
+      (teamData || []).forEach((team) => {
+        if (team?.name) {
+          teamMap.set(String(team.name).toLowerCase(), {
+            id: team.id,
+            name: team.name,
+            logo: team.logo,
+            slug: team.slug,
+          });
+        }
+      });
+
       const gamesWithTeams = (data as CachedGame[] || []).map((game) =>
         transformCachedGame(game, teamMap)
       );
 
       console.log(
-        `[/api/sports/games] ${league.toUpperCase()} window ${past.toISOString()} -> ${future.toISOString()}: ${gamesWithTeams.length} games`
+        `[/api/sports/games] ${league.toUpperCase()} window ${pastIso} -> ${futureIso}: ${gamesWithTeams.length} games`
       );
 
       return NextResponse.json({

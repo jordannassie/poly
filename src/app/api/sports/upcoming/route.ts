@@ -24,9 +24,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFromCache, setInCache, getCacheKey } from "@/lib/sportsdataio/cache";
 import { isValidFrontendLeague, ALL_FRONTEND_LEAGUES } from "@/lib/sports/providers";
-import { getUpcomingGamesWithTeamsFromCache } from "@/lib/sports/games-cache";
+import { transformCachedGame, CachedGame } from "@/lib/sports/games-cache";
 import { getLogoUrl } from "@/lib/images/getLogoUrl";
 import { FUTURE_DAYS } from "@/lib/sports/window";
+import { getServiceClient } from "@/lib/supabase/serverServiceClient";
 
 // Cache TTL
 const CACHE_TTL_WITH_GAMES = 30 * 60 * 1000; // 30 minutes
@@ -62,19 +63,6 @@ interface UpcomingResponse {
   message?: string;
 }
 
-function getDateRange(days: number): string[] {
-  const dates: string[] = [];
-  const today = new Date();
-  
-  for (let i = 0; i < days; i++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() + i);
-    dates.push(date.toISOString().split("T")[0]);
-  }
-  
-  return dates;
-}
-
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
@@ -103,43 +91,86 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(cached);
     }
 
-    // Get date range
-    const dates = getDateRange(days);
-    const startDate = dates[0];
-    const endDate = dates[dates.length - 1];
+    // Date bounds
+    const nowMs = Date.now();
+    const startDate = new Date(nowMs).toISOString();
+    const endDate = new Date(nowMs + days * 24 * 60 * 60 * 1000).toISOString();
 
-    // All leagues use unified sports_games cache
-    const cachedGames = await getUpcomingGamesWithTeamsFromCache(league, days);
+    const client = getServiceClient();
 
-    // Transform to normalized format - use status from games-cache (already derived from status_norm)
-    const allGames: NormalizedGame[] = cachedGames.map((game) => ({
-      gameId: game.GameKey,
-      status: game.Canceled ? "canceled" : game.IsOver ? "final" : game.IsInProgress ? "in_progress" : "scheduled",
-      startTime: game.DateTime,
-      homeTeam: {
-        teamId: game.HomeTeamData?.TeamID || 0,
-        abbreviation: game.HomeTeam,
-        name: game.HomeTeamData?.Name || game.HomeTeam,
-        city: "",
-        fullName: game.HomeTeamData?.FullName || game.HomeTeam,
-        logoUrl: getLogoUrl(game.HomeTeamData?.WikipediaLogoUrl),
-        primaryColor: null,
-      },
-      awayTeam: {
-        teamId: game.AwayTeamData?.TeamID || 0,
-        abbreviation: game.AwayTeam,
-        name: game.AwayTeamData?.Name || game.AwayTeam,
-        city: "",
-        fullName: game.AwayTeamData?.FullName || game.AwayTeam,
-        logoUrl: getLogoUrl(game.AwayTeamData?.WikipediaLogoUrl),
-        primaryColor: null,
-      },
-      homeScore: game.HomeScore,
-      awayScore: game.AwayScore,
-      venue: null,
-      channel: null,
-      week: 0,
-    }));
+    const { data, error } = await client
+      .from("sports_games")
+      .select("*")
+      .eq("league", league)
+      .gte("starts_at", startDate)
+      .lt("starts_at", endDate)
+      .order("starts_at", { ascending: true })
+      .limit(300);
+
+    if (error) {
+      console.error(`[/api/sports/upcoming] ${league.toUpperCase()} query error:`, error.message);
+      return NextResponse.json({
+        range: { startDate, endDate },
+        count: 0,
+        games: [],
+        message: "Games will appear once synced from Admin.",
+      });
+    }
+
+    // Team map (service role)
+    const { data: teamData, error: teamError } = await client
+      .from("sports_teams")
+      .select("id, name, logo, slug")
+      .eq("league", league);
+
+    if (teamError) {
+      console.warn(`[/api/sports/upcoming] ${league.toUpperCase()} team map error:`, teamError.message);
+    }
+
+    const teamMap = new Map<string, { id: number; name: string; logo: string | null; slug: string }>();
+    (teamData || []).forEach((team) => {
+      if (team?.name) {
+        teamMap.set(String(team.name).toLowerCase(), {
+          id: team.id,
+          name: team.name,
+          logo: team.logo,
+          slug: team.slug,
+        });
+      }
+    });
+
+    // Transform to normalized format
+    const allGames: NormalizedGame[] = (data as CachedGame[] || []).map((game) => {
+      const simplified = transformCachedGame(game, teamMap);
+      return {
+        gameId: simplified.GameKey,
+        status: simplified.Canceled ? "canceled" : simplified.IsOver ? "final" : simplified.IsInProgress ? "in_progress" : "scheduled",
+        startTime: simplified.DateTime,
+        homeTeam: {
+          teamId: simplified.HomeTeamData?.TeamID || 0,
+          abbreviation: simplified.HomeTeam,
+          name: simplified.HomeTeamData?.Name || simplified.HomeTeam,
+          city: "",
+          fullName: simplified.HomeTeamData?.FullName || simplified.HomeTeam,
+          logoUrl: getLogoUrl(simplified.HomeTeamData?.WikipediaLogoUrl),
+          primaryColor: null,
+        },
+        awayTeam: {
+          teamId: simplified.AwayTeamData?.TeamID || 0,
+          abbreviation: simplified.AwayTeam,
+          name: simplified.AwayTeamData?.Name || simplified.AwayTeam,
+          city: "",
+          fullName: simplified.AwayTeamData?.FullName || simplified.AwayTeam,
+          logoUrl: getLogoUrl(simplified.AwayTeamData?.WikipediaLogoUrl),
+          primaryColor: null,
+        },
+        homeScore: simplified.HomeScore,
+        awayScore: simplified.AwayScore,
+        venue: null,
+        channel: null,
+        week: 0,
+      };
+    });
 
     const response: UpcomingResponse = {
       range: { startDate, endDate },
