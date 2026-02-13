@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { LightningLoader } from "@/components/ui/LightningLoader";
 import FeaturedMatchupHero from "@/components/home/FeaturedMatchupHero";
+import { isLiveStatus, isUpcomingStatus } from "@/lib/sports/normalizeGameStatus";
 
 // Hot game type from API
 interface HotGame {
@@ -43,6 +44,7 @@ interface HotGame {
     logoUrl: string | null;
   };
   startTime: string;
+  starts_at?: string;
   status: string;
   isLive: boolean;
   volumeToday: number;
@@ -66,32 +68,20 @@ function getGameHref(game: HotGame): string {
   return `/market/${game.id}`;
 }
 
-const LIVE_STATUS_VALUES = new Set([
-  "inprogress",
-  "in_progress",
-  "live",
-  "playing",
-  "active",
-]);
+function getStartMs(game: HotGame): number | null {
+  const raw =
+    (game as any).starts_at ??
+    (game as any).startsAt ??
+    game.startTime ??
+    (game as any).start_time ??
+    null;
+  if (!raw) return null;
+  const ms = Date.parse(String(raw));
+  return Number.isFinite(ms) ? ms : null;
+}
 
 function isGameInProgress(game: HotGame): boolean {
-  const status = String(game.status ?? game.state ?? "").toLowerCase();
-  if (status && LIVE_STATUS_VALUES.has(status)) {
-    return true;
-  }
-  if (game.isInProgress) {
-    return true;
-  }
-  if (game.started && game.completed === false) {
-    return true;
-  }
-  if (typeof game.clock === "string" && game.clock.trim().length > 0) {
-    return true;
-  }
-  if (typeof game.clock === "number" && !Number.isNaN(game.clock)) {
-    return true;
-  }
-  return Boolean(game.isLive);
+  return isLiveStatus(game.status);
 }
 
 // Format volume for display
@@ -156,7 +146,9 @@ export default function HomeClient() {
             break;
           case "starting-soon":
             filteredGames = filteredGames.filter((g: HotGame) => {
-              const diff = new Date(g.startTime).getTime() - Date.now();
+              const ms = getStartMs(g);
+              if (ms === null) return false;
+              const diff = ms - Date.now();
               return diff > 0 && diff < 2 * 60 * 60 * 1000; // Within 2 hours
             });
             break;
@@ -192,20 +184,31 @@ export default function HomeClient() {
 
   const viewInfo = getViewTitle();
   const nowMs = Date.now();
-  const liveGames = games.filter((game) => game.isLive);
-  const startingSoonGames = games.filter((game) => {
-    const diffMs = new Date(game.startTime).getTime() - nowMs;
-    return diffMs > 0 && diffMs < 2 * 60 * 60 * 1000;
-  });
-  const hotRightNowGames = games;
+
+  const liveGames = games
+    .map((g) => ({ game: g, ms: getStartMs(g) }))
+    .filter(({ game, ms }) => ms !== null && isLiveStatus(game.status))
+    .sort((a, b) => (a.ms ?? 0) - (b.ms ?? 0));
+
+  const upcomingGames = games
+    .map((g) => ({ game: g, ms: getStartMs(g) }))
+    .filter(({ game, ms }) => ms !== null && ms >= nowMs && isUpcomingStatus(game.status))
+    .sort((a, b) => (a.ms ?? 0) - (b.ms ?? 0));
+
+  const futureGames = games
+    .map((g) => ({ game: g, ms: getStartMs(g) }))
+    .filter(({ ms }) => ms !== null && ms >= nowMs)
+    .sort((a, b) => (a.ms ?? 0) - (b.ms ?? 0));
+
   const featuredGame =
-    (startingSoonGames.length ? startingSoonGames[0] : null) ||
-    (hotRightNowGames.length ? hotRightNowGames[0] : null) ||
-    (liveGames.length ? liveGames[0] : null) ||
+    liveGames[0]?.game ??
+    upcomingGames[0]?.game ??
+    futureGames[0]?.game ??
     null;
   const featuredAny = featuredGame as any;
   const featuredStartsAtText = (
-    featuredAny?.startsAtText ?? (featuredGame ? locksInLabel(featuredGame.startTime) : null)
+    featuredAny?.startsAtText ??
+    (featuredGame ? locksInLabel((featuredAny?.starts_at ?? featuredGame.startTime) as string) : null)
   ) as any;
   const featuredCtaHref = (
     featuredAny?.href ??
@@ -227,49 +230,51 @@ export default function HomeClient() {
         <main className="flex-1 p-4 md:p-6">
           <div className="max-w-5xl mx-auto">
             {/* Featured Matchup Hero */}
-            <div className="mb-6 md:mb-8">
-              <FeaturedMatchupHero
-                league={(featuredGame?.league ?? featuredAny?.sport ?? null) as any}
-                awayName={
-                  (featuredGame?.team1?.name ??
-                    featuredAny?.awayTeam?.name ??
-                    featuredAny?.awayTeamName ??
-                    null) as any
-                }
-                homeName={
-                  (featuredGame?.team2?.name ??
-                    featuredAny?.homeTeam?.name ??
-                    featuredAny?.homeTeamName ??
-                    null) as any
-                }
-                awayAbbr={
-                  (featuredGame?.team1?.abbr ??
-                    featuredAny?.awayTeam?.abbreviation ??
-                    featuredAny?.awayTeamAbbr ??
-                    null) as any
-                }
-                homeAbbr={
-                  (featuredGame?.team2?.abbr ??
-                    featuredAny?.homeTeam?.abbreviation ??
-                    featuredAny?.homeTeamAbbr ??
-                    null) as any
-                }
-                awayLogoUrl={
-                  (featuredGame?.team1?.logoUrl ??
-                    featuredAny?.awayTeam?.logoUrl ??
-                    featuredAny?.awayLogoUrl ??
-                    null) as any
-                }
-                homeLogoUrl={
-                  (featuredGame?.team2?.logoUrl ??
-                    featuredAny?.homeTeam?.logoUrl ??
-                    featuredAny?.homeLogoUrl ??
-                    null) as any
-                }
-                startsAtText={featuredStartsAtText}
-                ctaHref={featuredCtaHref}
-              />
-            </div>
+            {featuredGame ? (
+              <div className="mb-6 md:mb-8">
+                <FeaturedMatchupHero
+                  league={(featuredGame?.league ?? featuredAny?.sport ?? null) as any}
+                  awayName={
+                    (featuredGame?.team1?.name ??
+                      featuredAny?.awayTeam?.name ??
+                      featuredAny?.awayTeamName ??
+                      null) as any
+                  }
+                  homeName={
+                    (featuredGame?.team2?.name ??
+                      featuredAny?.homeTeam?.name ??
+                      featuredAny?.homeTeamName ??
+                      null) as any
+                  }
+                  awayAbbr={
+                    (featuredGame?.team1?.abbr ??
+                      featuredAny?.awayTeam?.abbreviation ??
+                      featuredAny?.awayTeamAbbr ??
+                      null) as any
+                  }
+                  homeAbbr={
+                    (featuredGame?.team2?.abbr ??
+                      featuredAny?.homeTeam?.abbreviation ??
+                      featuredAny?.homeTeamAbbr ??
+                      null) as any
+                  }
+                  awayLogoUrl={
+                    (featuredGame?.team1?.logoUrl ??
+                      featuredAny?.awayTeam?.logoUrl ??
+                      featuredAny?.awayLogoUrl ??
+                      null) as any
+                  }
+                  homeLogoUrl={
+                    (featuredGame?.team2?.logoUrl ??
+                      featuredAny?.homeTeam?.logoUrl ??
+                      featuredAny?.homeLogoUrl ??
+                      null) as any
+                  }
+                  startsAtText={featuredStartsAtText}
+                  ctaHref={featuredCtaHref}
+                />
+              </div>
+            ) : null}
 
             {/* Promo Section */}
             <div className="mb-6 md:mb-8">
