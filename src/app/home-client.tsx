@@ -21,6 +21,7 @@ import {
   Radio,
 } from "lucide-react";
 import { LightningLoader } from "@/components/ui/LightningLoader";
+import FeaturedMatchupHero from "@/components/home/FeaturedMatchupHero";
 
 // Hot game type from API
 interface HotGame {
@@ -433,6 +434,28 @@ export default function HomeClient() {
   };
 
   const viewInfo = getViewTitle();
+  const nowMs = Date.now();
+  const liveGames = games.filter((game) => game.isLive);
+  const startingSoonGames = games.filter((game) => {
+    const diffMs = new Date(game.startTime).getTime() - nowMs;
+    return diffMs > 0 && diffMs < 2 * 60 * 60 * 1000;
+  });
+  const hotRightNowGames = games;
+  const featuredGame =
+    (startingSoonGames.length ? startingSoonGames[0] : null) ||
+    (hotRightNowGames.length ? hotRightNowGames[0] : null) ||
+    (liveGames.length ? liveGames[0] : null) ||
+    null;
+  const featuredAny = featuredGame as any;
+  const featuredStartsAtText = (
+    featuredAny?.startsAtText ?? (featuredGame ? locksInLabel(featuredGame.startTime) : null)
+  ) as any;
+  const featuredCtaHref = (
+    featuredAny?.href ??
+    featuredAny?.marketHref ??
+    featuredAny?.url ??
+    (featuredGame ? getGameHref(featuredGame) : "/sports")
+  ) as any;
   const watermarkTimestamp = useMemo(() => new Date().toISOString(), []);
 
   return (
@@ -452,12 +475,47 @@ export default function HomeClient() {
           <div className="max-w-5xl mx-auto">
             {/* Featured Matchup Hero */}
             <div className="mb-6 md:mb-8">
-              <div className="rounded-xl border border-white/10 bg-black/20 p-6">
-                <div className="text-lg font-semibold">Featured Matchup</div>
-                <div className="mt-2 text-sm text-white/60">
-                  Featured matchup temporarily disabled while rebuilding.
-                </div>
-              </div>
+              <FeaturedMatchupHero
+                league={(featuredGame?.league ?? featuredAny?.sport ?? null) as any}
+                awayName={
+                  (featuredGame?.team1?.name ??
+                    featuredAny?.awayTeam?.name ??
+                    featuredAny?.awayTeamName ??
+                    null) as any
+                }
+                homeName={
+                  (featuredGame?.team2?.name ??
+                    featuredAny?.homeTeam?.name ??
+                    featuredAny?.homeTeamName ??
+                    null) as any
+                }
+                awayAbbr={
+                  (featuredGame?.team1?.abbr ??
+                    featuredAny?.awayTeam?.abbreviation ??
+                    featuredAny?.awayTeamAbbr ??
+                    null) as any
+                }
+                homeAbbr={
+                  (featuredGame?.team2?.abbr ??
+                    featuredAny?.homeTeam?.abbreviation ??
+                    featuredAny?.homeTeamAbbr ??
+                    null) as any
+                }
+                awayLogoUrl={
+                  (featuredGame?.team1?.logoUrl ??
+                    featuredAny?.awayTeam?.logoUrl ??
+                    featuredAny?.awayLogoUrl ??
+                    null) as any
+                }
+                homeLogoUrl={
+                  (featuredGame?.team2?.logoUrl ??
+                    featuredAny?.homeTeam?.logoUrl ??
+                    featuredAny?.homeLogoUrl ??
+                    null) as any
+                }
+                startsAtText={featuredStartsAtText}
+                ctaHref={featuredCtaHref}
+              />
             </div>
 
             {/* Promo Section */}

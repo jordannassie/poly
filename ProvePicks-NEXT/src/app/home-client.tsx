@@ -21,7 +21,7 @@ import {
   Radio,
 } from "lucide-react";
 import { LightningLoader } from "@/components/ui/LightningLoader";
-import FeaturedMatchupHero from "../components/home/FeaturedMatchupHero";
+import FeaturedMatchupHero from "@/components/home/FeaturedMatchupHero";
 
 // Hot game type from API
 interface HotGame {
