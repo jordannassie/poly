@@ -2,6 +2,7 @@
 
 import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import AppIcon, { type IconName } from "@/components/ui/AppIcon";
 import { TopNav } from "@/components/TopNav";
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { SportsSidebar } from "@/components/SportsSidebar";
@@ -19,12 +20,12 @@ const VALID_LEAGUES = ["nfl", "nba", "mlb", "nhl", "soccer"] as const;
 type ValidLeague = (typeof VALID_LEAGUES)[number];
 
 // League display config
-const LEAGUE_CONFIG: Record<ValidLeague, { name: string; icon: string; color: string }> = {
-  nfl: { name: "NFL", icon: "🏈", color: "#013369" },
-  nba: { name: "NBA", icon: "🏀", color: "#C9082A" },
-  mlb: { name: "MLB", icon: "⚾", color: "#002D72" },
-  nhl: { name: "NHL", icon: "🏒", color: "#000000" },
-  soccer: { name: "Soccer", icon: "⚽", color: "#37003C" },
+const LEAGUE_CONFIG: Record<ValidLeague, { name: string; icon: IconName; color: string }> = {
+  nfl: { name: "NFL", icon: "nfl", color: "#013369" },
+  nba: { name: "NBA", icon: "nba", color: "#C9082A" },
+  mlb: { name: "MLB", icon: "mlb", color: "#002D72" },
+  nhl: { name: "NHL", icon: "nhl", color: "#000000" },
+  soccer: { name: "Soccer", icon: "soccer", color: "#37003C" },
 };
 
 // Inner component that uses useSearchParams
@@ -56,7 +57,9 @@ function SportsPageContent() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 md:mb-6">
               <div className="flex items-center gap-2 md:gap-3">
-                <span className="text-xl md:text-2xl">{leagueConfig.icon}</span>
+                {leagueConfig.icon && (
+                  <AppIcon name={leagueConfig.icon} className="text-white/80" size={24} />
+                )}
                 <h1 className="text-xl md:text-2xl font-bold">{leagueConfig.name}</h1>
               </div>
               <div className="flex items-center gap-2 md:gap-4">
