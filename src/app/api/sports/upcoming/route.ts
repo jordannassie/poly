@@ -26,6 +26,7 @@ import { getFromCache, setInCache, getCacheKey } from "@/lib/sportsdataio/cache"
 import { isValidFrontendLeague, ALL_FRONTEND_LEAGUES } from "@/lib/sports/providers";
 import { getUpcomingGamesWithTeamsFromCache } from "@/lib/sports/games-cache";
 import { getLogoUrl } from "@/lib/images/getLogoUrl";
+import { FUTURE_DAYS } from "@/lib/sports/window";
 
 // Cache TTL
 const CACHE_TTL_WITH_GAMES = 30 * 60 * 1000; // 30 minutes
@@ -80,10 +81,9 @@ export async function GET(request: NextRequest) {
     const leagueParam = url.searchParams.get("league")?.toLowerCase() || "nfl";
     const daysParam = url.searchParams.get("days");
     
-    // All leagues default to 30 days for faster queries
-    // Max 365 days allowed, capped to 200 games for performance
-    const defaultDays = 30;
-    const maxDays = 365;
+    // Default to FUTURE_DAYS window; cap at that window to keep deterministic payload size
+    const defaultDays = FUTURE_DAYS;
+    const maxDays = FUTURE_DAYS;
     const days = Math.min(Math.max(parseInt(daysParam || String(defaultDays), 10) || defaultDays, 1), maxDays);
 
     // Validate league

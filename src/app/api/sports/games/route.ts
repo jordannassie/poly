@@ -12,16 +12,16 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getTodayIso } from "@/lib/sportsdataio/nflDate";
+import { createClient } from "@supabase/supabase-js";
 import { usesApiSportsCache, usesSportsGamesCache, isValidFrontendLeague, ALL_FRONTEND_LEAGUES } from "@/lib/sports/providers";
 import { getNflGamesByDateFromCache, getNflTeamMap, transformCachedGameToLegacyFormat } from "@/lib/sports/nfl-cache";
-import { getGamesWithTeamsFromCache } from "@/lib/sports/games-cache";
+import { transformCachedGame, getTeamMapFromCache, CachedGame } from "@/lib/sports/games-cache";
+import { PAST_DAYS, FUTURE_DAYS } from "@/lib/sports/window";
 
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const leagueParam = url.searchParams.get("league")?.toLowerCase() || "nfl";
-    const date = url.searchParams.get("date") || getTodayIso();
 
     // Validate league (includes soccer)
     if (!isValidFrontendLeague(leagueParam)) {
@@ -33,18 +33,10 @@ export async function GET(request: NextRequest) {
 
     const league = leagueParam;
 
-    // Validate date format (YYYY-MM-DD)
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return NextResponse.json(
-        { error: "Invalid date format. Expected: YYYY-MM-DD" },
-        { status: 400 }
-      );
-    }
-
     // NFL uses API-Sports cache (api_sports_nfl_games table)
     if (usesApiSportsCache(league)) {
       const [cachedGames, teamMap] = await Promise.all([
-        getNflGamesByDateFromCache(date),
+        getNflGamesByDateFromCache(new Date().toISOString().split("T")[0]),
         getNflTeamMap(),
       ]);
 
@@ -52,11 +44,11 @@ export async function GET(request: NextRequest) {
         transformCachedGameToLegacyFormat(game, teamMap)
       );
 
-      console.log(`[/api/sports/games] ${league.toUpperCase()} ${date} (nfl-cache): ${gamesWithTeams.length} games`);
+      console.log(`[/api/sports/games] ${league.toUpperCase()} (nfl-cache windowed): ${gamesWithTeams.length} games`);
 
       return NextResponse.json({
         league,
-        date,
+        window: { pastDays: PAST_DAYS, futureDays: FUTURE_DAYS },
         source: "api-sports-cache",
         count: gamesWithTeams.length,
         games: gamesWithTeams,
@@ -65,20 +57,65 @@ export async function GET(request: NextRequest) {
 
     // All other leagues use sports_games cache
     if (usesSportsGamesCache(league)) {
-      const gamesWithTeams = await getGamesWithTeamsFromCache(league, date);
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-      console.log(`[/api/sports/games] ${league.toUpperCase()} ${date} (sports-games-cache): ${gamesWithTeams.length} games`);
+      if (!supabaseUrl || !supabaseAnonKey) {
+        console.error("[/api/sports/games] Missing Supabase env vars");
+        return NextResponse.json({
+          league,
+          source: "sports-games-cache",
+          count: 0,
+          games: [],
+          message: "Supabase configuration missing.",
+        }, { status: 500 });
+      }
+
+      const client = createClient(supabaseUrl, supabaseAnonKey);
+
+      const now = new Date();
+      const past = new Date(now.getTime() - PAST_DAYS * 24 * 60 * 60 * 1000);
+      const future = new Date(now.getTime() + FUTURE_DAYS * 24 * 60 * 60 * 1000);
+
+      const { data, error } = await client
+        .from("sports_games")
+        .select("*")
+        .eq("league", league)
+        .gte("starts_at", past.toISOString())
+        .lt("starts_at", future.toISOString())
+        .order("starts_at", { ascending: true })
+        .limit(200);
+
+      if (error) {
+        console.error(`[/api/sports/games] ${league.toUpperCase()} query error:`, error.message);
+        return NextResponse.json({
+          league,
+          source: "sports-games-cache",
+          count: 0,
+          games: [],
+          message: "Games will appear once synced from Admin.",
+        });
+      }
+
+      const teamMap = await getTeamMapFromCache(league);
+      const gamesWithTeams = (data as CachedGame[] || []).map((game) =>
+        transformCachedGame(game, teamMap)
+      );
+
+      console.log(
+        `[/api/sports/games] ${league.toUpperCase()} window ${past.toISOString()} -> ${future.toISOString()}: ${gamesWithTeams.length} games`
+      );
 
       return NextResponse.json({
         league,
-        date,
+        window: { pastDays: PAST_DAYS, futureDays: FUTURE_DAYS },
         source: "sports-games-cache",
         count: gamesWithTeams.length,
         games: gamesWithTeams,
-        // Friendly message if no games (not an error)
-        message: gamesWithTeams.length === 0 
-          ? "No games scheduled for this date. Games appear once synced from Admin."
-          : undefined,
+        message:
+          gamesWithTeams.length === 0
+            ? "No games found in the last 7 days or next 30 days."
+            : undefined,
       });
     }
 
@@ -87,7 +124,7 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json({
       league,
-      date,
+      window: { pastDays: PAST_DAYS, futureDays: FUTURE_DAYS },
       source: "none",
       count: 0,
       games: [],
@@ -100,7 +137,7 @@ export async function GET(request: NextRequest) {
     // Return empty result instead of error for frontend
     return NextResponse.json({
       league: request.url.includes("league=") ? new URL(request.url).searchParams.get("league") : "unknown",
-      date: getTodayIso(),
+      window: { pastDays: PAST_DAYS, futureDays: FUTURE_DAYS },
       source: "error",
       count: 0,
       games: [],
