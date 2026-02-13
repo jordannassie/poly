@@ -362,9 +362,14 @@ export async function discoverGamesRollingWindow(
             .select('id, external_game_id');
           
           if (error) {
+            const details = error.details ? ` details=${error.details}` : "";
+            const hint = error.hint ? ` hint=${error.hint}` : "";
+            const status = 'status' in error && error.status ? ` status=${error.status}` : "";
             const errMsg = `Upsert batch ${Math.floor(i/BATCH_SIZE) + 1}: ${error.message}`;
             errors.push(errMsg);
-            console.error(`[lifecycle:discover] ${league} UPSERT_ERROR ${error.message} code=${error.code}`);
+            console.error(
+              `[lifecycle:discover] ${league} UPSERT_ERROR table=sports_games message="${error.message}" code=${error.code}${status}${details}${hint}`
+            );
             globalSkipStats.upsertErrors += batch.length;
             
             // Capture first error for UI

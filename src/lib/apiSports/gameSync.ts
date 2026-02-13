@@ -478,7 +478,12 @@ export async function syncGamesForDateRange(
         .select("id");
       
       if (error) {
-        console.error(`[games-sync] UPSERT_ERROR league=${leagueNormalized} batch=${i/BATCH_SIZE + 1} error="${error.message}" code=${error.code}`);
+        const details = error.details ? ` details=${error.details}` : "";
+        const hint = error.hint ? ` hint=${error.hint}` : "";
+        const status = 'status' in error && error.status ? ` status=${error.status}` : "";
+        console.error(
+          `[games-sync] UPSERT_ERROR table=sports_games league=${leagueNormalized} batch=${i/BATCH_SIZE + 1} message="${error.message}" code=${error.code}${status}${details}${hint}`
+        );
         upsertErrors += batch.length;
       } else {
         // Count based on what was actually returned

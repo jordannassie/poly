@@ -19,6 +19,7 @@ export interface JobLock {
 export interface LockResult {
   acquired: boolean;
   existingLock?: JobLock;
+  failOpen?: boolean;
 }
 
 // Worker ID for this instance
@@ -37,55 +38,79 @@ export async function acquireJobLock(
   const now = new Date();
   const expiresAt = new Date(now.getTime() + ttlMinutes * 60 * 1000);
 
-  // First, clean up expired locks
-  await adminClient
-    .from('job_locks')
-    .delete()
-    .eq('job_name', jobName)
-    .lt('expires_at', now.toISOString());
+  const formatError = (error: unknown) => {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    return typeof error === "string" ? error : "Unknown error";
+  };
 
-  // Check for existing valid lock
-  const { data: existingLock } = await adminClient
-    .from('job_locks')
-    .select('*')
-    .eq('job_name', jobName)
-    .single();
+  const failOpen = (error: unknown): LockResult => {
+    const message = formatError(error);
+    console.warn(`[job-lock] WARN fail-open: ${message}`);
+    return { acquired: true, failOpen: true };
+  };
+
+  try {
+    await adminClient
+      .from('job_locks')
+      .delete()
+      .eq('job_name', jobName)
+      .lt('expires_at', now.toISOString());
+  } catch (error) {
+    if ((error instanceof Error && /Could not find the table/i.test(error.message)) || /schema cache/i.test(formatError(error))) {
+      return failOpen(error);
+    }
+    return failOpen(error);
+  }
+
+  let existingLock: JobLock | null = null;
+  try {
+    const { data } = await adminClient
+      .from('job_locks')
+      .select('*')
+      .eq('job_name', jobName)
+      .single();
+    existingLock = data || null;
+  } catch (error) {
+    return failOpen(error);
+  }
 
   if (existingLock && new Date(existingLock.expires_at) > now) {
-    // Lock exists and is valid
-    console.log(`[job-lock] Job ${jobName} already locked by ${existingLock.locked_by} until ${existingLock.expires_at}`);
+    console.log(`[job-lock] INFO lock held, skipping: key=${jobName} locked_until=${existingLock.expires_at} owner=${existingLock.locked_by}`);
     return { acquired: false, existingLock };
   }
 
-  // Try to insert or update the lock
-  const { error } = await adminClient
-    .from('job_locks')
-    .upsert({
-      job_name: jobName,
-      locked_at: now.toISOString(),
-      expires_at: expiresAt.toISOString(),
-      locked_by: WORKER_ID,
-      meta: { started_at: now.toISOString() },
-    }, { onConflict: 'job_name' });
-
-  if (error) {
-    console.error(`[job-lock] Failed to acquire lock for ${jobName}:`, error.message);
-    return { acquired: false };
+  try {
+    const { error } = await adminClient
+      .from('job_locks')
+      .upsert({
+        job_name: jobName,
+        locked_at: now.toISOString(),
+        expires_at: expiresAt.toISOString(),
+        locked_by: WORKER_ID,
+        meta: { started_at: now.toISOString() },
+      }, { onConflict: 'job_name' });
+    if (error) throw error;
+  } catch (error) {
+    return failOpen(error);
   }
 
-  // Verify we got the lock by checking locked_by
-  const { data: verifyLock } = await adminClient
-    .from('job_locks')
-    .select('*')
-    .eq('job_name', jobName)
-    .single();
+  try {
+    const { data: verifyLock } = await adminClient
+      .from('job_locks')
+      .select('*')
+      .eq('job_name', jobName)
+      .single();
 
-  if (verifyLock?.locked_by === WORKER_ID) {
-    console.log(`[job-lock] Acquired lock for ${jobName} (expires ${expiresAt.toISOString()})`);
-    return { acquired: true };
+    if (verifyLock?.locked_by === WORKER_ID) {
+      console.log(`[job-lock] INFO lock acquired: key=${jobName} owner=${WORKER_ID} locked_until=${expiresAt.toISOString()}`);
+      return { acquired: true };
+    }
+    return { acquired: false, existingLock: verifyLock };
+  } catch (error) {
+    return failOpen(error);
   }
-
-  return { acquired: false, existingLock: verifyLock };
 }
 
 /**

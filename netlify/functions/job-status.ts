@@ -97,10 +97,26 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
       })
     );
 
+    const locksStatus = {
+      reachable: false,
+      fail_open: false,
+    };
+    try {
+      await client
+        .from('job_locks')
+        .select('key')
+        .limit(1);
+      locksStatus.reachable = true;
+    } catch (err) {
+      locksStatus.fail_open = true;
+      console.warn(`[job-status] job_locks check failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
     return jsonResponse({
       ok: true,
       jobs,
       fetched_at: new Date().toISOString(),
+      locks: locksStatus,
     }, 200);
 
   } catch (error) {
