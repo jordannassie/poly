@@ -7,6 +7,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "ProvePicks - Coming Soon",
   description: "The future of sports betting prediction markets",
+  icons: {
+    icon: "https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/public/SPORTS/logos/ICON%20P.jpg",
+    apple: "https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/public/SPORTS/logos/ICON%20P.jpg",
+  },
 };
 
 export default function RootLayout({
