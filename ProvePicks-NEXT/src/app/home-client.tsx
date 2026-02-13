@@ -8,7 +8,6 @@ import { CategoryTabs } from "@/components/CategoryTabs";
 import { SportsSidebar } from "@/components/SportsSidebar";
 import { Leaderboard } from "@/components/Leaderboard";
 import { MainFooter } from "@/components/MainFooter";
-import { FeaturedGameHero } from "@/components/home/FeaturedGameHero";
 import { Button } from "@/components/ui/button";
 import {
   Flame,
@@ -169,22 +168,12 @@ export default function HomeClient() {
         {/* Main Content */}
         <main className="flex-1 p-4 md:p-6">
           <div className="max-w-5xl mx-auto">
-            {/* Hero Section */}
-            <div className="mb-6 md:mb-8 p-4 md:p-6 rounded-2xl bg-gradient-to-r from-[color:var(--surface)] to-[color:var(--surface-2)] border border-[color:var(--border-soft)]">
-              <div className="flex items-center gap-3 md:gap-4">
-                <div className="h-12 w-12 md:h-16 md:w-16 rounded-xl md:rounded-2xl overflow-hidden flex-shrink-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/public/SPORTS/logos/ICON%20P.jpg"
-                    alt="ProvePicks Logo"
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-                <div>
-                  <h1 className="text-xl md:text-3xl font-bold">ProvePicks</h1>
-                  <p className="text-sm md:text-base text-[color:var(--text-muted)]">
-                    The social prediction market. Follow traders. Track picks. Prove performance.
-                  </p>
+            {/* Featured Matchup Hero */}
+            <div className="mb-6 md:mb-8">
+              <div className="rounded-xl border border-white/10 bg-black/20 p-6">
+                <div className="text-lg font-semibold">Featured Matchup</div>
+                <div className="mt-2 text-sm text-white/60">
+                  Featured matchup temporarily disabled while rebuilding.
                 </div>
               </div>
             </div>
@@ -235,11 +224,6 @@ export default function HomeClient() {
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Featured Game Hero - Real SportsDataIO Data */}
-            <div className="mb-8">
-              <FeaturedGameHero league="nfl" />
             </div>
 
             {/* View Title */}

@@ -8,7 +8,6 @@ import { CategoryTabs } from "@/components/CategoryTabs";
 import { SportsSidebar } from "@/components/SportsSidebar";
 import { Leaderboard } from "@/components/Leaderboard";
 import { MainFooter } from "@/components/MainFooter";
-import FeaturedGameHero, { type FeaturedItem } from "@/components/home/FeaturedGameHero";
 import { Button } from "@/components/ui/button";
 import {
   Flame,
@@ -50,6 +49,28 @@ interface HotGame {
   activeBettors: number;
 }
 
+interface Team {
+  teamId: number;
+  name: string;
+  city: string;
+  abbreviation: string;
+  fullName: string;
+  logoUrl: string | null;
+  primaryColor: string | null;
+}
+
+interface FeaturedItem {
+  league: string;
+  gameId: string;
+  startsAt: string;
+  status: "scheduled" | "in_progress" | "final" | "canceled";
+  homeTeam: Team;
+  awayTeam: Team;
+  homeScore: number | null;
+  awayScore: number | null;
+  channel: string | null;
+  volume?: number;
+}
 
 type FeaturedSource = "featured-api" | "hot-fallback";
 
@@ -431,7 +452,12 @@ export default function HomeClient() {
           <div className="max-w-5xl mx-auto">
             {/* Featured Matchup Hero */}
             <div className="mb-6 md:mb-8">
-              <FeaturedGameHero items={heroItems} />
+              <div className="rounded-xl border border-white/10 bg-black/20 p-6">
+                <div className="text-lg font-semibold">Featured Matchup</div>
+                <div className="mt-2 text-sm text-white/60">
+                  Featured matchup temporarily disabled while rebuilding.
+                </div>
+              </div>
             </div>
 
             {/* Promo Section */}
