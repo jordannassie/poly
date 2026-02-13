@@ -240,35 +240,31 @@ export function TopNav() {
             >
               How it works
             </button>
-            <div className="hidden md:flex items-center rounded-full border border-black/40 bg-black px-1.5 py-1.5 text-[11px] font-semibold tracking-wider shadow-[0_20px_45px_rgba(0,0,0,0.6)]">
+            <div className="hidden md:flex items-center rounded-full border border-white/10 bg-black/40 px-1.5 py-1.5 text-[11px] font-semibold tracking-wider">
               <button
                 type="button"
                 onClick={() => setMode("coin")}
                 aria-pressed={mode === "coin"}
-                className={`flex items-center gap-2 rounded-full border border-transparent px-4 py-1.5 transition duration-200 ${
+                className={`flex items-center gap-2 rounded-full px-4 py-1.5 transition duration-200 ${
                   mode === "coin"
-                    ? "bg-white text-black shadow-[0_8px_30px_rgba(255,255,255,0.35)]"
-                    : "bg-transparent text-white/60 hover:text-white"
+                    ? "bg-white text-black"
+                    : "bg-transparent text-white/60 hover:text-white hover:bg-white/10"
                 }`}
               >
-                <span className="rounded-full border border-black/20 bg-white/60 p-0.5 shadow-sm">
-                  <Coins className={`h-3 w-3 ${mode === "coin" ? "text-black" : "text-orange-400"}`} />
-                </span>
+                <Coins className={`h-3 w-3 ${mode === "coin" ? "text-black" : "text-orange-400"}`} />
                 Coin
               </button>
               <button
                 type="button"
                 onClick={() => setMode("cash")}
                 aria-pressed={mode === "cash"}
-                className={`flex items-center gap-2 rounded-full border border-transparent px-4 py-1.5 transition duration-200 ${
+                className={`flex items-center gap-2 rounded-full px-4 py-1.5 transition duration-200 ${
                   mode === "cash"
-                    ? "bg-white text-black shadow-[0_8px_30px_rgba(255,255,255,0.35)]"
-                    : "bg-transparent text-white/60 hover:text-white"
+                    ? "bg-white text-black"
+                    : "bg-transparent text-white/60 hover:text-white hover:bg-white/10"
                 }`}
               >
-                <span className="rounded-full border border-black/20 bg-white/60 p-0.5 shadow-sm">
-                  <DollarSign className={`h-3 w-3 ${mode === "cash" ? "text-black" : "text-orange-400"}`} />
-                </span>
+                <DollarSign className={`h-3 w-3 ${mode === "cash" ? "text-black" : "text-orange-400"}`} />
                 Cash
               </button>
             </div>
