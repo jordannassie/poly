@@ -17,6 +17,7 @@ import {
   SheetTrigger,
 } from "./ui/sheet";
 import { sportsMenu } from "@/config/sports";
+import AppIcon from "@/components/ui/AppIcon";
 
 const topMenu = [
   { id: "live", label: "Live", icon: <Radio className="h-4 w-4" />, href: "/?view=live" },
@@ -81,7 +82,13 @@ function SidebarContent({
                       : "text-[color:var(--text-muted)] hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-strong)]"
                   }`}
                 >
-                  <span className="text-sm">{sport.icon}</span>
+                  {sport.icon && (
+                    <AppIcon
+                      name={sport.icon}
+                      className="mr-2 text-[color:var(--text-muted)]"
+                      size={16}
+                    />
+                  )}
                   <span className="flex-1 font-medium text-sm">{sport.label}</span>
                   {sport.count !== undefined && (
                     <span className="text-xs text-[color:var(--text-subtle)]">{sport.count}</span>
@@ -184,7 +191,13 @@ export function SportsSidebar({ activeSport = "nfl", activeGame }: { activeSport
                     }`}
                     title={sport.label}
                   >
-                    <span className="text-sm">{sport.icon}</span>
+                    {sport.icon && (
+                      <AppIcon
+                        name={sport.icon}
+                        className="text-[color:var(--text-muted)]"
+                        size={18}
+                      />
+                    )}
                   </Link>
                 );
               })}

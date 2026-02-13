@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Badge } from "./ui/badge";
 import { categoryTabs } from "@/config/sports";
+import AppIcon from "@/components/ui/AppIcon";
 
 type CategoryTabsProps = {
   activeLabel?: string;
@@ -25,7 +26,10 @@ export function CategoryTabs({ activeLabel }: CategoryTabsProps) {
                         : "bg-transparent text-[color:var(--text-muted)] border-[color:var(--border-soft)] hover:text-[color:var(--text-strong)] hover:border-[color:var(--border-strong)]"
                     }`}
                   >
-                    {category.label}
+                  {category.icon && (
+                    <AppIcon name={category.icon} className="mr-2 opacity-80" size={16} />
+                  )}
+                  {category.label}
                   </Badge>
                 </Link>
               );
