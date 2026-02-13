@@ -1,18 +1,4 @@
-/**
- * GET /api/sports/teams
- * Returns teams for a league with logo URLs.
- * 
- * Query params:
- * - league: "nfl" | "nba" | "mlb" | "nhl" | "soccer" (required)
- * 
- * Response: { league, count, teams: [{teamId, name, city, abbreviation, logoUrl, primaryColor, secondaryColor}] }
- * 
- * Data sources:
- * - NFL: API-Sports cache (api_sports_nfl_teams table)
- * - NBA, MLB, NHL, Soccer: Sports teams cache (sports_teams table)
- * 
- * All leagues use cached Supabase data - no live API calls.
- */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { usesApiSportsCache, usesSportsTeamsCache, isValidFrontendLeague, ALL_FRONTEND_LEAGUES } from "@/lib/sports/providers";
@@ -21,6 +7,11 @@ import { getSimplifiedTeamsFromCache } from "@/lib/sports/sports-teams-cache";
 
 export async function GET(request: NextRequest) {
   try {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const msg = "Service role key not configured";
+      console.error("[/api/sports/teams] ERROR:", msg);
+      return NextResponse.json({ error: msg }, { status: 500 });
+    }
     const url = new URL(request.url);
     const leagueParam = url.searchParams.get("league")?.toLowerCase() || "nfl";
 

@@ -1,23 +1,4 @@
-/**
- * GET /api/sports/game
- * Returns a single game by ID with team data.
- * 
- * Query params:
- * - league: "nfl" | "nba" | "mlb" | "nhl" | "soccer" (required)
- * - gameId: string (required) - The external game ID
- * 
- * Response:
- * {
- *   game: {
- *     gameId, name, startTime, status,
- *     homeTeam: { name, city, abbreviation, logoUrl, primaryColor },
- *     awayTeam: { name, city, abbreviation, logoUrl, primaryColor },
- *     homeScore, awayScore, venue, week, channel
- *   } | null
- * }
- * 
- * All leagues use sports_games table (v2 schema).
- */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -27,11 +8,13 @@ import { getGameFromCache, getTeamMapFromCache } from "@/lib/sports/games-cache"
 import { getLogoUrl } from "@/lib/images/getLogoUrl";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
 function getSupabaseClient() {
-  if (!supabaseUrl || !supabaseAnonKey) return null;
-  return createClient(supabaseUrl, supabaseAnonKey);
+  if (!supabaseUrl || !supabaseServiceKey) return null;
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 }
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -82,6 +65,12 @@ export async function GET(request: NextRequest) {
         { error: "Missing required parameter: gameId" },
         { status: 400 }
       );
+    }
+
+    if (!supabaseServiceKey) {
+      const msg = "Service role key not configured";
+      console.error("[/api/sports/game] ERROR:", msg);
+      return NextResponse.json({ error: msg, game: null }, { status: 500 });
     }
 
     const league = leagueParam;
@@ -227,7 +216,9 @@ export async function GET(request: NextRequest) {
     const response = { game: gameDetails };
     setInCache(cacheKey, response, CACHE_TTL);
 
-    console.log(`[/api/sports/game] ${league.toUpperCase()} game ${gameId} found`);
+    console.log(
+      `[/api/sports/game] ${league.toUpperCase()} game ${gameId} found starts_at=${cachedGame.starts_at}`,
+    );
 
     return NextResponse.json(response);
   } catch (error) {
