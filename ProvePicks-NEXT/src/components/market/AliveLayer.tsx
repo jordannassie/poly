@@ -117,19 +117,21 @@ export default function AliveLayer({
   ];
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/60 p-4 mb-6 text-white/90 space-y-4 shadow-[0_10px_60px_rgba(0,0,0,0.45)]">
-      <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-white/60">
+    <div className="rounded-2xl border border-[color:var(--border-soft)] bg-[color:var(--app-bg)] p-5 mb-6 text-[color:var(--text-strong)] space-y-4">
+      <div className="flex flex-col gap-1 text-xs uppercase tracking-[0.3em] text-[color:var(--text-muted)] sm:flex-row sm:items-center sm:justify-between">
         <span className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-lime-400 animate-pulse" />
           Live
         </span>
-        <span>{isRefreshing ? "Refreshing odds…" : "Updating every few seconds"}</span>
+        <span className="text-[10px] text-[color:var(--text-strong)]">
+          {isRefreshing ? "Refreshing odds…" : "Updating every few seconds"}
+        </span>
       </div>
       <div className="space-y-3">
         {sides.map((side) => (
           <div
             key={side.label}
-            className={`space-y-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 transition-transform duration-300 ${
+            className={`space-y-1 rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface-2)] px-4 py-3 transition-transform duration-300 ${
               side.pulse ? "scale-[1.01] shadow-[0_0_20px_rgba(255,255,255,0.25)]" : ""
             }`}
           >
