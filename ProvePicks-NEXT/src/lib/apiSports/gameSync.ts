@@ -451,6 +451,10 @@ export async function syncGamesForDateRange(
       };
     }
     
+    // Log how many payload rows include a starts_at value
+    const startsAtCount = normalizedGames.filter(g => !!g.starts_at).length;
+    console.log(`[games-sync] payload starts_at count: ${startsAtCount} / ${normalizedGames.length} league=${leagueNormalized}`);
+
     // Get existing games to track inserted vs updated
     const gameIds = normalizedGames.map(g => g.external_game_id);
     const { data: existingGames } = await adminClient
