@@ -97,10 +97,10 @@
 }
 
 .dark {
-  --app-bg: #0b1320;
-  --surface: #111a27;
-  --surface-2: #0b1320;
-  --surface-3: #1e2a3d;
+  --app-bg: #141414;
+  --surface: #1a1a1a;
+  --surface-2: #141414;
+  --surface-3: #242424;
   --border-strong: rgba(255, 255, 255, 0.2);
   --border-soft: rgba(255, 255, 255, 0.08);
   --text-strong: #ffffff;

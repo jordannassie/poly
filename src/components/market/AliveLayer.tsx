@@ -131,7 +131,7 @@ export default function AliveLayer({
   const gridLines = [20, 40, 60, 80];
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#111318] p-4 md:p-5 mb-6 overflow-hidden">
+    <div className="rounded-2xl border border-white/10 bg-[#1a1a1a] p-4 md:p-5 mb-6 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between mb-3 text-xs uppercase tracking-[0.3em]">
         <span className="flex items-center gap-2 text-white/50">
