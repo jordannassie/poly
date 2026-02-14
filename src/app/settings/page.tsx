@@ -14,6 +14,7 @@ import { LightningLoader } from "@/components/ui/LightningLoader";
 const sidebarItems = [
   { id: "profile", label: "Profile" },
   { id: "account", label: "Account" },
+  { id: "wallet", label: "Wallet" },
   { id: "notifications", label: "Notifications" },
 ];
 
@@ -51,13 +52,12 @@ interface CurrentUser {
   wallet_address?: string;
 }
 
-// Phantom wallet connection component
-function AccountSection() {
+// Wallet Section - shows 3 wallet providers
+function WalletSection() {
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [walletStatus, setWalletStatus] = useState<"idle" | "connecting" | "signing" | "verifying" | "success" | "error">("idle");
   const [walletError, setWalletError] = useState<string | null>(null);
   const [hasPhantom, setHasPhantom] = useState<boolean | null>(null);
-  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   
   // Real user and wallet data
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -212,14 +212,9 @@ function AccountSection() {
   // Show loading state
   if (loadingUser) {
     return (
-      <div className="space-y-8">
-        <h1 className="text-2xl font-bold">Account Settings</h1>
-        <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-[color:var(--surface-2)] rounded w-1/3"></div>
-            <div className="h-10 bg-[color:var(--surface-2)] rounded"></div>
-          </div>
-        </div>
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold">Wallet</h1>
+        <div className="animate-pulse h-32 bg-[color:var(--surface)] rounded-xl"></div>
       </div>
     );
   }
@@ -227,13 +222,13 @@ function AccountSection() {
   // Show sign-in prompt if not logged in
   if (!currentUser) {
     return (
-      <div className="space-y-8">
-        <h1 className="text-2xl font-bold">Account Settings</h1>
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold">Wallet</h1>
         <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-6 text-center space-y-4">
           <Wallet className="h-12 w-12 mx-auto text-[color:var(--text-muted)]" />
-          <h3 className="font-semibold">Sign in to manage wallets</h3>
+          <h3 className="font-semibold">Sign in to connect wallets</h3>
           <p className="text-sm text-[color:var(--text-muted)]">
-            Connect your account to manage wallet connections and settings.
+            Connect your crypto wallet to manage your account.
           </p>
           <Button 
             className="bg-purple-600 hover:bg-purple-700 text-white"
@@ -246,85 +241,99 @@ function AccountSection() {
     );
   }
 
+  // Find connected Phantom wallet
+  const phantomWallet = wallets.find((w) => w.chain === "solana");
+
   return (
-    <div className="space-y-8">
-      <h1 className="text-2xl font-bold">Account Settings</h1>
-      
-      {/* User Info */}
-      <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-6 space-y-4">
-        <h3 className="font-semibold">Account</h3>
-        <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded-full bg-gradient-to-br from-purple-600 to-blue-500 flex items-center justify-center">
-            <span className="text-white font-bold">
-              {(currentUser.display_name || currentUser.username || "U").slice(0, 2).toUpperCase()}
-            </span>
-          </div>
-          <div>
-            <div className="font-medium">{currentUser.display_name || currentUser.username || "User"}</div>
-            {currentUser.wallet_address && (
-              <div className="text-sm text-[color:var(--text-muted)] font-mono">
-                {formatAddress(currentUser.wallet_address)}
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">Wallet Connections</h1>
+      <p className="text-sm text-[color:var(--text-muted)]">
+        Connect your crypto wallet to verify ownership and manage your account.
+      </p>
+
+      {/* Wallet Provider Cards */}
+      <div className="space-y-3">
+        {/* Phantom (Solana) */}
+        <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-5">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3 flex-1">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-600 to-purple-400 flex items-center justify-center flex-shrink-0">
+                <Wallet className="h-6 w-6 text-white" />
               </div>
-            )}
-          </div>
-        </div>
-      </div>
-      
-      {/* Wallet Connections */}
-      <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-6 space-y-4">
-        <h3 className="font-semibold">Wallet Connections</h3>
-        <p className="text-sm text-[color:var(--text-muted)]">
-          Connect your crypto wallet to deposit, withdraw, and verify ownership of your trading account.
-        </p>
-        
-        {/* Loading wallets */}
-        {loadingWallets && (
-          <div className="animate-pulse h-16 bg-[color:var(--surface-2)] rounded-lg"></div>
-        )}
-        
-        {/* Show connected wallets from database */}
-        {!loadingWallets && wallets.map((wallet) => (
-          <div key={wallet.id} className="flex items-center justify-between p-4 rounded-lg bg-[color:var(--surface-2)]">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-600 to-blue-500 flex items-center justify-center">
-                <span className="text-white font-bold text-xs">{wallet.chain.toUpperCase().slice(0, 3)}</span>
-              </div>
-              <div>
-                <div className="font-mono text-sm">{formatAddress(wallet.wallet_address)}</div>
-                <div className="flex items-center gap-2 text-xs">
-                  {wallet.verified && <span className="text-green-500">Verified</span>}
-                  {wallet.is_primary && <span className="text-purple-500">• Primary</span>}
-                  <span className="text-[color:var(--text-muted)]">
-                    • Connected {new Date(wallet.connected_at).toLocaleDateString()}
-                  </span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <h3 className="font-semibold">Phantom</h3>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400">Solana</span>
                 </div>
+                {phantomWallet ? (
+                  <>
+                    <div className="flex items-center gap-2 text-xs text-[color:var(--text-muted)] mb-1">
+                      <span className="px-1.5 py-0.5 rounded bg-green-500/20 text-green-500 font-medium">Connected</span>
+                      {phantomWallet.is_primary && (
+                        <span className="px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 font-medium">Primary</span>
+                      )}
+                    </div>
+                    <div className="font-mono text-sm text-[color:var(--text-strong)]">
+                      {formatAddress(phantomWallet.wallet_address)}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-sm text-[color:var(--text-muted)]">Not connected</div>
+                )}
               </div>
             </div>
-            <Button variant="outline" size="sm" className="border-[color:var(--border-soft)]">
-              Disconnect
+            <Button
+              onClick={() => setShowWalletModal(true)}
+              size="sm"
+              className={phantomWallet ? "border-[color:var(--border-soft)]" : "bg-purple-600 hover:bg-purple-700 text-white"}
+              variant={phantomWallet ? "outline" : "default"}
+            >
+              {phantomWallet ? "Manage" : "Connect"}
             </Button>
           </div>
-        ))}
+        </div>
 
-        {/* Connect Phantom Button - show different text if wallets exist */}
-        <Button 
-          onClick={() => setShowWalletModal(true)}
-          className="gap-2 bg-purple-600 hover:bg-purple-700 text-white"
-        >
-          <Wallet className="h-4 w-4" />
-          {wallets.length > 0 ? "Connect Another Wallet" : "Connect Phantom Wallet"}
-        </Button>
-      </div>
-      
-      {/* Danger Zone */}
-      <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6 space-y-4">
-        <h3 className="font-semibold text-red-500">Danger Zone</h3>
-        <p className="text-sm text-[color:var(--text-muted)]">
-          Once you delete your account, there is no going back.
-        </p>
-        <Button variant="outline" className="border-red-500 text-red-500 hover:bg-red-500/10">
-          Delete Account
-        </Button>
+        {/* MetaMask (EVM) - Coming Soon */}
+        <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-5 opacity-60">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3 flex-1">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-orange-500 to-orange-400 flex items-center justify-center flex-shrink-0">
+                <Wallet className="h-6 w-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <h3 className="font-semibold">MetaMask</h3>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400">EVM</span>
+                </div>
+                <div className="text-sm text-[color:var(--text-muted)]">Coming soon</div>
+              </div>
+            </div>
+            <Button size="sm" variant="outline" className="border-[color:var(--border-soft)]" disabled>
+              Coming Soon
+            </Button>
+          </div>
+        </div>
+
+        {/* Coinbase Wallet (EVM) - Coming Soon */}
+        <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-5 opacity-60">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3 flex-1">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center flex-shrink-0">
+                <Wallet className="h-6 w-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <h3 className="font-semibold">Coinbase Wallet</h3>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400">EVM</span>
+                </div>
+                <div className="text-sm text-[color:var(--text-muted)]">Coming soon</div>
+              </div>
+            </div>
+            <Button size="sm" variant="outline" className="border-[color:var(--border-soft)]" disabled>
+              Coming Soon
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Phantom Wallet Modal */}
@@ -463,6 +472,115 @@ function AccountSection() {
     </div>
   );
 }
+
+// Simplified Account Section - auth/login info only
+function AccountSection() {
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  // Fetch current user on mount
+  useEffect(() => {
+    const fetchMe = async () => {
+      try {
+        const res = await fetch("/api/me");
+        const data = await res.json();
+        if (data.user) {
+          setCurrentUser(data.user);
+        } else {
+          setCurrentUser(null);
+        }
+      } catch {
+        setCurrentUser(null);
+      } finally {
+        setLoadingUser(false);
+      }
+    };
+    fetchMe();
+  }, []);
+
+  const formatAddress = (address: string) => {
+    return `${address.slice(0, 4)}...${address.slice(-4)}`;
+  };
+
+  // Show loading state
+  if (loadingUser) {
+    return (
+      <div className="space-y-8">
+        <h1 className="text-2xl font-bold">Account Settings</h1>
+        <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-6">
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-[color:var(--surface-2)] rounded w-1/3"></div>
+            <div className="h-10 bg-[color:var(--surface-2)] rounded"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show sign-in prompt if not logged in
+  if (!currentUser) {
+    return (
+      <div className="space-y-8">
+        <h1 className="text-2xl font-bold">Account Settings</h1>
+        <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-6 text-center space-y-4">
+          <Wallet className="h-12 w-12 mx-auto text-[color:var(--text-muted)]" />
+          <h3 className="font-semibold">Sign in to manage wallets</h3>
+          <p className="text-sm text-[color:var(--text-muted)]">
+            Connect your account to manage wallet connections and settings.
+          </p>
+          <Button 
+            className="bg-purple-600 hover:bg-purple-700 text-white"
+            onClick={() => window.location.href = "/"}
+          >
+            Go to Home to Sign In
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <h1 className="text-2xl font-bold">Account Settings</h1>
+      
+      {/* User Info */}
+      <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-6 space-y-4">
+        <h3 className="font-semibold">Account</h3>
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 rounded-full bg-gradient-to-br from-purple-600 to-blue-500 flex items-center justify-center">
+            <span className="text-white font-bold">
+              {(currentUser.display_name || currentUser.username || "U").slice(0, 2).toUpperCase()}
+            </span>
+          </div>
+          <div>
+            <div className="font-medium">{currentUser.display_name || currentUser.username || "User"}</div>
+            {currentUser.wallet_address && (
+              <div className="text-sm text-[color:var(--text-muted)] font-mono">
+                {formatAddress(currentUser.wallet_address)}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      {/* Login Method */}
+      <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-6">
+        <h3 className="font-semibold mb-4">Login Method</h3>
+        <div className="text-sm text-[color:var(--text-muted)]">
+          {currentUser.wallet_address ? (
+            <div className="flex items-center gap-2">
+              <span>Connected via Wallet</span>
+              <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 text-xs font-medium">Phantom</span>
+            </div>
+          ) : (
+            "Email / Social login"
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState("profile");
@@ -877,6 +995,10 @@ export default function SettingsPage() {
 
                 {activeSection === "account" && (
                   <AccountSection />
+                )}
+
+                {activeSection === "wallet" && (
+                  <WalletSection />
                 )}
 
                 {/* Trading section removed - hidden from sidebar */}
