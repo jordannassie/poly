@@ -1021,20 +1021,20 @@ export default function HomeClient() {
             {/* Quick Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mt-6 md:mt-8">
               <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-3 md:p-4 text-center">
-                <div className="text-xl md:text-2xl font-bold text-green-500">$48M</div>
-                <div className="text-xs md:text-sm text-[color:var(--text-muted)]">Daily Volume</div>
+                <div className="text-xl md:text-2xl font-bold text-green-500">5</div>
+                <div className="text-xs md:text-sm text-[color:var(--text-muted)]">Sports Live</div>
               </div>
               <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-3 md:p-4 text-center">
-                <div className="text-xl md:text-2xl font-bold">1,200+</div>
-                <div className="text-xs md:text-sm text-[color:var(--text-muted)]">Live Markets</div>
+                <div className="text-xl md:text-2xl font-bold">195</div>
+                <div className="text-xs md:text-sm text-[color:var(--text-muted)]">Countries Ready</div>
               </div>
               <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-3 md:p-4 text-center">
-                <div className="text-xl md:text-2xl font-bold text-orange-500">18</div>
-                <div className="text-xs md:text-sm text-[color:var(--text-muted)]">Sports</div>
+                <div className="text-xl md:text-2xl font-bold text-orange-500">24</div>
+                <div className="text-xs md:text-sm text-[color:var(--text-muted)]">Hour Access</div>
               </div>
               <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-3 md:p-4 text-center">
-                <div className="text-xl md:text-2xl font-bold">2.4M</div>
-                <div className="text-xs md:text-sm text-[color:var(--text-muted)]">Users</div>
+                <div className="text-xl md:text-2xl font-bold">1,000</div>
+                <div className="text-xs md:text-sm text-[color:var(--text-muted)]">Free Coins</div>
               </div>
             </div>
           </div>
