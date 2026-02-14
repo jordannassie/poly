@@ -15,7 +15,10 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  const origin = requestUrl.origin;
+  // Use host header to determine origin (works in production + local dev)
+  const host = request.headers.get("host") || "";
+  const protocol = host.includes("localhost") ? "http" : "https";
+  const origin = `${protocol}://${host}`;
 
   if (!code) {
     // No code - redirect to home with error
@@ -103,6 +106,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Redirect to home page
-  return NextResponse.redirect(origin);
+  // Redirect to portfolio page after successful login
+  return NextResponse.redirect(`${origin}/portfolio`);
 }
