@@ -488,17 +488,12 @@ export default function PortfolioPage() {
                   })}
                 </div>
               )
+            ) : mode === "cash" ? (
+              <div className="text-center py-8 md:py-12 text-[color:var(--text-muted)] text-sm">
+                Cash mode coming soon.
+              </div>
             ) : (
-              mode === "cash" ? (
-                <div className="text-center py-8 md:py-12 text-[color:var(--text-muted)] text-sm">
-                  Cash mode coming soon.
-                </div>
-              ) : mode === "cash" ? (
-                <div className="text-center py-8 md:py-12 text-[color:var(--text-muted)] text-sm">
-                  Cash mode coming soon.
-                </div>
-              ) : (
-                <>
+              <>
                 {positionsLoading && bets.length === 0 && coinPositions.length === 0 ? (
                   <div className="text-center py-8 md:py-12 text-[color:var(--text-muted)] text-sm">
                     Loading positions...
@@ -600,8 +595,7 @@ export default function PortfolioPage() {
                     })}
                   </div>
                 )}
-                </>
-              )
+              </>
             )}
           </div>
         </div>
