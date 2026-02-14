@@ -585,7 +585,16 @@ export default function AdminLifecyclePage() {
     setTeamSyncLoading("all");
     setTeamSyncResult(null);
 
-    const allResults: typeof teamSyncResult extends { results?: infer R } ? NonNullable<R> : never = [];
+    const allResults: Array<{
+      league: string;
+      success: boolean;
+      totalTeams: number;
+      inserted: number;
+      updated: number;
+      logosUploaded: number;
+      logosFailed: number;
+      error?: string;
+    }> = [];
     const totals = { totalTeams: 0, inserted: 0, updated: 0, logosUploaded: 0, logosFailed: 0 };
     let hasErrors = false;
 
