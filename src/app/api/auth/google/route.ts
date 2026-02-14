@@ -21,9 +21,16 @@ export async function GET(request: NextRequest) {
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
   
-  // Get the origin for redirect URL
-  const origin = request.headers.get("origin") || request.nextUrl.origin;
+  // Build origin from host header (works in prod + dev, never localhost in prod)
+  const host = request.headers.get("host") || "";
+  const protocol = host.includes("localhost") ? "http" : "https";
+  const origin = `${protocol}://${host}`;
   const redirectTo = `${origin}/api/auth/callback`;
+
+  // Dev-only logging
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[google oauth redirectTo]", redirectTo);
+  }
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
