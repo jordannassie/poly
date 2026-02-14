@@ -318,7 +318,10 @@ function locksInLabel(startTime: string): string {
 
 export default function HomeClient() {
   const searchParams = useSearchParams();
-  const view = searchParams?.get("view") || "hot";
+  const urlView = searchParams?.get("view");
+  const [homeFeedMode, setHomeFeedMode] = useState<"hot" | "live" | "soon">(
+    urlView === "live" ? "live" : urlView === "starting-soon" ? "soon" : "hot"
+  );
 
   const [games, setGames] = useState<HotGame[]>([]);
   const [loading, setLoading] = useState(true);
@@ -427,13 +430,11 @@ export default function HomeClient() {
   }, [heroItems.length, heroSource, heroPickedId, heroFeaturedLen, heroHotLen, sampleHotKeys]);
 
   const getViewTitle = () => {
-    switch (view) {
+    switch (homeFeedMode) {
       case "live":
         return { icon: <Radio className="h-5 w-5 text-red-500" />, text: "Live Now" };
-      case "starting-soon":
+      case "soon":
         return { icon: <Clock className="h-5 w-5 text-blue-500" />, text: "Starting Soon" };
-      case "big-volume":
-        return { icon: <TrendingUp className="h-5 w-5 text-green-500" />, text: "Big Volume" };
       default:
         return { icon: <Flame className="h-5 w-5 text-orange-500" />, text: "Hot Right Now" };
     }
@@ -491,7 +492,7 @@ export default function HomeClient() {
   })();
 
   const displayGames = useMemo(() => {
-    switch (view) {
+    switch (homeFeedMode) {
       case "live": {
         const live = liveGames.map((x) => x.game);
         // Fallback: show starting-soon games when no live games
@@ -500,15 +501,15 @@ export default function HomeClient() {
         }
         return live;
       }
-      case "starting-soon":
+      case "soon":
         return startingSoonGames.map((x) => x.game);
       default:
         return hotGames.map((x) => x.game);
     }
-  }, [view, liveGames, startingSoonGames, hotGames]);
+  }, [homeFeedMode, liveGames, startingSoonGames, hotGames]);
 
   // Whether we're showing fallback content on the live tab
-  const liveShowingFallback = view === "live" && liveGames.length === 0 && displayGames.length > 0;
+  const liveShowingFallback = homeFeedMode === "live" && liveGames.length === 0 && displayGames.length > 0;
 
   const hotList = useMemo(() => hotGames.map((x) => x.game), [hotGames]);
   const liveList = useMemo(() => liveGames.map((x) => x.game), [liveGames]);
@@ -576,7 +577,7 @@ export default function HomeClient() {
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
       <TopNav />
-      <CategoryTabs activeLabel={view === "hot" ? "Hot Right Now" : view === "live" ? "Live" : view === "starting-soon" ? "Starting Soon" : view === "big-volume" ? "Big Volume" : "Hot Right Now"} />
+      <CategoryTabs activeLabel="Trending" />
 
       <div className="flex">
         {/* Sidebar */}
@@ -718,12 +719,48 @@ export default function HomeClient() {
               </div>
             </div>
 
-            {/* View Title */}
+            {/* Tabs */}
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                {viewInfo.icon}
-                {liveShowingFallback ? "Starting Soon" : viewInfo.text}
-              </h2>
+              <div className="flex gap-1 border-b border-[color:var(--border-soft)]">
+                <button
+                  onClick={() => setHomeFeedMode("hot")}
+                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition -mb-px ${
+                    homeFeedMode === "hot"
+                      ? "border-orange-500 text-orange-500"
+                      : "border-transparent text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
+                  }`}
+                >
+                  <Flame className="h-4 w-4" />
+                  Hot
+                </button>
+                <button
+                  onClick={() => setHomeFeedMode("live")}
+                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition -mb-px ${
+                    homeFeedMode === "live"
+                      ? "border-orange-500 text-orange-500"
+                      : "border-transparent text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
+                  }`}
+                >
+                  <Radio className="h-4 w-4" />
+                  Live
+                  {liveList.length > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold">
+                      {liveList.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setHomeFeedMode("soon")}
+                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition -mb-px ${
+                    homeFeedMode === "soon"
+                      ? "border-orange-500 text-orange-500"
+                      : "border-transparent text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
+                  }`}
+                >
+                  <Clock className="h-4 w-4" />
+                  Starting Soon
+                </button>
+              </div>
               <span className="text-sm text-[color:var(--text-muted)]">
                 {displayGames.length} games
               </span>
