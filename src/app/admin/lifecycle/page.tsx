@@ -187,7 +187,7 @@ export default function AdminLifecyclePage() {
   const [lockCleared, setLockCleared] = useState(false);
   
   // Team sync state
-  const [teamSyncLoading, setTeamSyncLoading] = useState(false);
+  const [teamSyncLoading, setTeamSyncLoading] = useState<string | null>(null); // null | "all" | league name
   const [teamSyncResult, setTeamSyncResult] = useState<{
     ok: boolean;
     message: string;
@@ -548,61 +548,102 @@ export default function AdminLifecyclePage() {
     setShowClearLockConfirm(false);
   };
 
-  const syncAllTeams = async () => {
-    setTeamSyncLoading(true);
-    setTeamSyncResult(null);
-
-    const { data, error } = await safeFetchJson<any>("/api/admin/api-sports/teams/sync-all", {
-      method: "POST",
-    });
-
-    if (error) {
-      setTeamSyncResult({ ok: false, message: error });
-    } else if (data) {
-      setTeamSyncResult({
-        ok: data.ok,
-        message: data.message,
-        results: data.results,
-        totals: data.totals,
-      });
-    }
-    setTeamSyncLoading(false);
-  };
-
-  const syncLeagueTeams = async (league: string) => {
-    setTeamSyncLoading(true);
-    setTeamSyncResult(null);
-
+  // Sync a single league and return the result
+  const syncOneLeague = async (league: string): Promise<{
+    league: string;
+    success: boolean;
+    totalTeams: number;
+    inserted: number;
+    updated: number;
+    logosUploaded: number;
+    logosFailed: number;
+    error?: string;
+  }> => {
     const { data, error } = await safeFetchJson<any>(`/api/admin/api-sports/${league}/teams/sync`, {
       method: "POST",
     });
 
     if (error) {
-      setTeamSyncResult({ ok: false, message: error });
-    } else if (data) {
-      setTeamSyncResult({
-        ok: data.ok,
-        message: data.message || `${league.toUpperCase()}: ${data.totalTeams} teams, ${data.logosUploaded} logos uploaded`,
-        results: [{
-          league: data.league || league.toUpperCase(),
-          success: data.ok,
-          totalTeams: data.totalTeams || 0,
-          inserted: data.inserted || 0,
-          updated: data.updated || 0,
-          logosUploaded: data.logosUploaded || 0,
-          logosFailed: data.logosFailed || 0,
-          error: data.error,
-        }],
-        totals: {
-          totalTeams: data.totalTeams || 0,
-          inserted: data.inserted || 0,
-          updated: data.updated || 0,
-          logosUploaded: data.logosUploaded || 0,
-          logosFailed: data.logosFailed || 0,
-        },
-      });
+      return { league: league.toUpperCase(), success: false, totalTeams: 0, inserted: 0, updated: 0, logosUploaded: 0, logosFailed: 0, error };
     }
-    setTeamSyncLoading(false);
+
+    return {
+      league: data?.league || league.toUpperCase(),
+      success: data?.ok ?? false,
+      totalTeams: data?.totalTeams || 0,
+      inserted: data?.inserted || 0,
+      updated: data?.updated || 0,
+      logosUploaded: data?.logosUploaded || 0,
+      logosFailed: data?.logosFailed || 0,
+      error: data?.error,
+    };
+  };
+
+  // Sync all leagues one at a time to avoid serverless timeout
+  const syncAllTeams = async () => {
+    const leagues = ["nfl", "nba", "mlb", "nhl", "soccer"];
+    setTeamSyncLoading("all");
+    setTeamSyncResult(null);
+
+    const allResults: typeof teamSyncResult extends { results?: infer R } ? NonNullable<R> : never = [];
+    const totals = { totalTeams: 0, inserted: 0, updated: 0, logosUploaded: 0, logosFailed: 0 };
+    let hasErrors = false;
+
+    for (const league of leagues) {
+      // Show progress as we go
+      setTeamSyncResult({
+        ok: true,
+        message: `Syncing ${league.toUpperCase()}... (${allResults.length}/${leagues.length} done)`,
+        results: [...allResults],
+        totals: { ...totals },
+      });
+
+      const res = await syncOneLeague(league);
+      allResults.push(res);
+
+      totals.totalTeams += res.totalTeams;
+      totals.inserted += res.inserted;
+      totals.updated += res.updated;
+      totals.logosUploaded += res.logosUploaded;
+      totals.logosFailed += res.logosFailed;
+
+      if (!res.success) hasErrors = true;
+    }
+
+    const successCount = allResults.filter(r => r.success).length;
+    setTeamSyncResult({
+      ok: !hasErrors,
+      message: hasErrors
+        ? `Synced ${successCount}/${leagues.length} leagues with some errors`
+        : `Successfully synced all ${leagues.length} leagues — ${totals.totalTeams} teams, ${totals.logosUploaded} logos`,
+      results: allResults,
+      totals,
+    });
+    setTeamSyncLoading(null);
+  };
+
+  // Sync a single league
+  const syncLeagueTeams = async (league: string) => {
+    setTeamSyncLoading(league);
+    setTeamSyncResult(null);
+
+    const res = await syncOneLeague(league);
+
+    setTeamSyncResult({
+      ok: res.success,
+      message: res.success
+        ? `${res.league}: ${res.totalTeams} teams, ${res.logosUploaded} logos uploaded`
+        : res.error || "Sync failed",
+      results: [res],
+      totals: {
+        totalTeams: res.totalTeams,
+        inserted: res.inserted,
+        updated: res.updated,
+        logosUploaded: res.logosUploaded,
+        logosFailed: res.logosFailed,
+      },
+    });
+    setTeamSyncLoading(null);
   };
 
   const fetchFinalizeDebug = async () => {
@@ -955,10 +996,10 @@ export default function AdminLifecyclePage() {
         <div className="flex flex-wrap gap-3">
           <Button
             onClick={syncAllTeams}
-            disabled={teamSyncLoading}
+            disabled={teamSyncLoading !== null}
             className="bg-blue-600 hover:bg-blue-700"
           >
-            {teamSyncLoading ? "Syncing..." : "Sync All Leagues"}
+            {teamSyncLoading === "all" ? "Syncing..." : "Sync All Leagues"}
           </Button>
 
           <div className="h-8 w-px bg-slate-700" />
@@ -967,12 +1008,12 @@ export default function AdminLifecyclePage() {
             <Button
               key={league}
               onClick={() => syncLeagueTeams(league)}
-              disabled={teamSyncLoading}
+              disabled={teamSyncLoading !== null}
               variant="outline"
               size="sm"
-              className="text-slate-100 border-slate-700 hover:bg-slate-700"
+              className={`text-slate-100 border-slate-700 hover:bg-slate-700 ${teamSyncLoading === league ? 'animate-pulse' : ''}`}
             >
-              {league.toUpperCase()}
+              {teamSyncLoading === league ? `${league.toUpperCase()}...` : league.toUpperCase()}
             </Button>
           ))}
         </div>
@@ -980,7 +1021,9 @@ export default function AdminLifecyclePage() {
         {teamSyncLoading && (
           <div className="text-sm text-blue-400 bg-blue-900/20 border border-blue-800/50 rounded p-2 flex items-center gap-2">
             <div className="animate-spin h-4 w-4 border-2 border-blue-400 border-t-transparent rounded-full" />
-            Syncing teams and downloading logos... This may take 30–60 seconds.
+            {teamSyncLoading === "all"
+              ? "Syncing leagues one at a time to avoid timeouts..."
+              : `Syncing ${teamSyncLoading.toUpperCase()} teams and logos...`}
           </div>
         )}
 
