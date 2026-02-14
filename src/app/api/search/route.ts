@@ -37,32 +37,38 @@ export async function GET(request: NextRequest) {
       href: `/teams/${t.league}/${t.slug}`,
     }));
 
-    // Search upcoming games: home_team or away_team matches query
-    const now = new Date().toISOString();
+    // Search games: upcoming first, plus recent past games
+    const now = new Date();
+    const recentPast = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { data: gameData } = await client
       .from("sports_games")
       .select("id, external_game_id, league, home_team, away_team, starts_at, status, status_norm")
       .or(`home_team.ilike.%${query}%,away_team.ilike.%${query}%`)
-      .gte("starts_at", now)
+      .gte("starts_at", recentPast)
       .order("starts_at", { ascending: true })
-      .limit(5);
+      .limit(8);
 
-    // Build a quick team map for logos
-    const teamNames = new Set<string>();
-    (gameData || []).forEach((g) => {
-      if (g.home_team) teamNames.add(g.home_team);
-      if (g.away_team) teamNames.add(g.away_team);
-    });
-
+    // Build logo map for all game teams
     const logoMap = new Map<string, string | null>();
-    if (teamNames.size > 0) {
-      // Get logos for teams appearing in games
-      for (const t of teams) {
+    // Seed from team search results
+    if (teamData) {
+      for (const t of teamData) {
         logoMap.set(t.name.toLowerCase(), t.logo);
       }
-      // Also check the team results we already have
-      if (teamData) {
-        for (const t of teamData) {
+    }
+    // Fetch logos for any game teams not already in the map
+    const missingTeamNames: string[] = [];
+    (gameData || []).forEach((g) => {
+      if (g.home_team && !logoMap.has(g.home_team.toLowerCase())) missingTeamNames.push(g.home_team);
+      if (g.away_team && !logoMap.has(g.away_team.toLowerCase())) missingTeamNames.push(g.away_team);
+    });
+    if (missingTeamNames.length > 0) {
+      const { data: extraTeams } = await client
+        .from("sports_teams")
+        .select("name, logo")
+        .in("name", [...new Set(missingTeamNames)]);
+      if (extraTeams) {
+        for (const t of extraTeams) {
           logoMap.set(t.name.toLowerCase(), t.logo);
         }
       }
