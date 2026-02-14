@@ -14,7 +14,6 @@ import { LightningLoader } from "@/components/ui/LightningLoader";
 const sidebarItems = [
   { id: "profile", label: "Profile" },
   { id: "account", label: "Account" },
-  { id: "trading", label: "Trading" },
   { id: "notifications", label: "Notifications" },
 ];
 
@@ -723,161 +722,135 @@ export default function SettingsPage() {
             ) : (
               <>
                 {activeSection === "profile" && (
-                  <div className="space-y-8">
+                  <div className="space-y-5">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                       <h1 className="text-2xl font-bold">Profile Settings</h1>
                       {username && (
                         <a
                           href={`/u/${username}`}
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white text-sm font-medium shadow-lg shadow-purple-500/25 transition-all hover:shadow-purple-500/40 hover:scale-105"
+                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white text-xs font-medium transition"
                         >
-                          <User className="h-4 w-4" />
-                          View Profile
-                          <span className="text-white/70">@{username}</span>
+                          <User className="h-3.5 w-3.5" />
+                          View Profile @{username}
                         </a>
                       )}
                     </div>
 
                     {/* Profile Photo */}
-                    <div className="flex flex-col items-center gap-4">
+                    <div className="flex items-center gap-5 p-5 rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)]">
                       {avatarUrl ? (
                         <img
                           src={avatarUrl}
                           alt="Avatar"
-                          className="h-32 w-32 rounded-full object-cover border-4 border-[color:var(--border-soft)] shadow-xl"
+                          className="h-24 w-24 rounded-full object-cover border-2 border-[color:var(--border-soft)]"
                         />
                       ) : (
-                        <div className="h-32 w-32 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-yellow-500 flex items-center justify-center text-white font-bold text-4xl border-4 border-[color:var(--border-soft)] shadow-xl">
+                        <div className="h-24 w-24 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-yellow-500 flex items-center justify-center text-white font-bold text-3xl border-2 border-[color:var(--border-soft)]">
                           {(displayName || username || "U").slice(0, 2).toUpperCase()}
                         </div>
                       )}
-                      <label className="cursor-pointer">
-                        <Button
-                          variant="outline"
-                          className="gap-2 border-[color:var(--border-soft)]"
-                          disabled={uploadingAvatar}
-                          asChild
-                        >
-                          <span>
-                            {uploadingAvatar ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Upload className="h-4 w-4" />
-                            )}
-                            {uploadingAvatar ? "Uploading..." : "Upload Avatar"}
-                          </span>
-                        </Button>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleAvatarUpload}
-                          disabled={uploadingAvatar}
-                        />
-                      </label>
+                      <div className="flex-1">
+                        <h3 className="font-semibold mb-1">Profile Photo</h3>
+                        <p className="text-xs text-[color:var(--text-muted)] mb-3">
+                          Upload a profile picture to personalize your account
+                        </p>
+                        <label className="cursor-pointer">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-2 border-[color:var(--border-soft)]"
+                            disabled={uploadingAvatar}
+                            asChild
+                          >
+                            <span>
+                              {uploadingAvatar ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Upload className="h-3.5 w-3.5" />
+                              )}
+                              {uploadingAvatar ? "Uploading..." : "Change Photo"}
+                            </span>
+                          </Button>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleAvatarUpload}
+                            disabled={uploadingAvatar}
+                          />
+                        </label>
+                      </div>
                     </div>
 
                     {/* Upload Error */}
                     {uploadError && (
-                      <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-sm flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 shrink-0" />
+                      <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-xs flex items-center gap-2">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                         {uploadError}
                       </div>
                     )}
 
-                    {/* Name */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Name</label>
-                      <Input
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                        placeholder="Your display name"
-                        maxLength={50}
-                        className="bg-[color:var(--surface-2)] border-[color:var(--border-soft)]"
-                      />
-                      <p className="text-xs text-[color:var(--text-muted)]">
-                        This is how your name will appear on your profile
-                      </p>
-                    </div>
-
-                    {/* Email - Hidden for wallet users */}
-                    {authProvider !== "wallet" && emailVisible && (
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Email</label>
+                    {/* Name & Username - 2 column grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-medium">Name</label>
                         <Input
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
+                          value={displayName}
+                          onChange={(e) => setDisplayName(e.target.value)}
+                          placeholder="Your display name"
+                          maxLength={50}
                           className="bg-[color:var(--surface-2)] border-[color:var(--border-soft)]"
                         />
-                        <div className="flex items-center gap-2 text-sm">
-                          <span className="text-[color:var(--text-muted)]">Not verified</span>
-                          <button className="text-blue-500 hover:underline">Resend</button>
-                        </div>
                       </div>
-                    )}
-                    
-                    {/* Wallet login indicator */}
-                    {authProvider === "wallet" && (
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Email</label>
-                        <div className="text-sm text-[color:var(--text-muted)] py-2">
-                          — (wallet login)
-                        </div>
-                      </div>
-                    )}
 
-                    {/* Username */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Username</label>
-                      <Input
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
-                        placeholder="username"
-                        maxLength={20}
-                        className={`bg-[color:var(--surface-2)] border-[color:var(--border-soft)] ${
-                          usernameError ? "border-red-500" : ""
-                        }`}
-                      />
-                      {usernameError ? (
-                        <p className="text-xs text-red-500 flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          {usernameError}
-                        </p>
-                      ) : (
-                        <p className="text-xs text-[color:var(--text-muted)]">
-                          3-20 characters, lowercase letters, numbers, and underscores only
-                        </p>
-                      )}
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-medium">Username</label>
+                        <Input
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                          placeholder="username"
+                          maxLength={20}
+                          className={`bg-[color:var(--surface-2)] border-[color:var(--border-soft)] ${
+                            usernameError ? "border-red-500" : ""
+                          }`}
+                        />
+                        {usernameError && (
+                          <p className="text-xs text-red-500 flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" />
+                            {usernameError}
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     {/* Bio */}
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <label className="text-sm font-medium">Bio</label>
                       <textarea
                         value={bio}
                         onChange={(e) => setBio(e.target.value)}
                         placeholder="Tell others about yourself"
-                        rows={4}
-                        className="w-full rounded-lg bg-[color:var(--surface-2)] border border-[color:var(--border-soft)] p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        maxLength={160}
+                        rows={2}
+                        className="w-full rounded-lg bg-[color:var(--surface-2)] border border-[color:var(--border-soft)] p-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
+                      <p className="text-xs text-[color:var(--text-muted)]">{bio.length}/160</p>
                     </div>
 
                     {/* Website */}
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <label className="text-sm font-medium">Website</label>
                       <Input
                         value={website}
                         onChange={(e) => setWebsite(e.target.value)}
                         placeholder="provepicks.com"
+                        maxLength={100}
                         className="bg-[color:var(--surface-2)] border-[color:var(--border-soft)]"
                       />
-                      <p className="text-xs text-[color:var(--text-muted)]">
-                        Your website or social profile link
-                      </p>
                     </div>
 
                     {/* Save */}
-                    <div className="flex items-center gap-4">
+                    <div className="pt-2">
                       <Button 
                         onClick={handleSave}
                         disabled={saving || !!usernameError}
@@ -894,7 +867,7 @@ export default function SettingsPage() {
                             Saved
                           </>
                         ) : (
-                          "Save changes"
+                          "Save Changes"
                         )}
                       </Button>
                     </div>
@@ -906,7 +879,9 @@ export default function SettingsPage() {
                   <AccountSection />
                 )}
 
-                {activeSection === "trading" && (
+                {/* Trading section removed - hidden from sidebar */}
+                {activeSection === "trading" && null}
+                {false && activeSection === "trading" && (
                   <div className="space-y-8">
                     <h1 className="text-2xl font-bold">Trading Settings</h1>
                     <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-6 space-y-4">
