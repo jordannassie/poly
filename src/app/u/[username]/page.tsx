@@ -9,20 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/Avatar";
 import { getDemoUser } from "@/lib/demoAuth";
 import { 
-  Globe, 
-  Trophy, 
-  Target, 
   TrendingUp, 
-  BarChart3, 
-  Calendar,
-  Flame,
-  CheckCircle,
-  Clock,
-  ArrowUpRight,
-  ArrowDownRight,
   Share2,
   Camera,
-  ImageIcon,
   MessageCircle,
   Heart,
   MoreHorizontal,
@@ -206,7 +195,7 @@ interface UserPost {
 export default function PublicProfilePage({ params }: Props) {
   const { username } = params;
   const [isOwnProfile, setIsOwnProfile] = useState(false);
-  const [activeTab, setActiveTab] = useState<"picks" | "activity" | "stats" | "achievements" | "teams">("picks");
+  const [activeTab, setActiveTab] = useState<"picks" | "activity">("picks");
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
@@ -434,338 +423,215 @@ export default function PublicProfilePage({ params }: Props) {
       <TopNav />
       <CategoryTabs activeLabel="Trending" />
       <main className="mx-auto w-full max-w-4xl px-4 py-6">
-        {/* Profile Header Card */}
-        <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] overflow-hidden mb-6">
-          {/* Banner */}
-          <div className="h-32 relative group overflow-hidden">
-            {profile.bannerUrl ? (
-              <img 
-                src={profile.bannerUrl} 
-                alt="Profile banner" 
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-r from-neutral-700 via-neutral-600 to-neutral-500" />
-            )}
-            <div className="absolute inset-0 bg-black/20" />
-            {/* Rank Badge */}
-            <div className="absolute top-4 right-4 bg-black/40 backdrop-blur-sm rounded-full px-3 py-1 flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-yellow-400" />
-              <span className="text-white text-sm font-semibold">Rank #{profile.stats.rank}</span>
-            </div>
-            {/* Edit Banner Button */}
-            {isOwnProfile && (
-              <button className="absolute bottom-3 right-3 bg-black/50 hover:bg-black/70 backdrop-blur-sm rounded-lg px-3 py-1.5 flex items-center gap-2 text-white text-sm opacity-0 group-hover:opacity-100 transition">
-                <ImageIcon className="h-4 w-4" />
-                Edit Banner
-              </button>
-            )}
-          </div>
-          
-          <CardContent className="p-6 -mt-16 relative">
-            <div className="flex flex-col sm:flex-row gap-4">
-              {/* Avatar with Edit Button */}
-              <div className="relative group">
-                <Avatar 
-                  src={profile.avatarUrl}
-                  name={profile.displayName || profile.username || undefined}
-                  size="xl"
-                  className="border-4 border-[color:var(--surface)] shadow-xl"
-                />
-                {/* Online indicator */}
-                <div className="absolute bottom-2 right-2 h-5 w-5 rounded-full bg-green-500 border-4 border-[color:var(--surface)]" />
-                {/* Edit Photo Button */}
-                {isOwnProfile && (
-                  <button className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                    <Camera className="h-6 w-6 text-white" />
-                  </button>
-                )}
-              </div>
-              
-              <div className="flex-1 sm:pt-16">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h1 className="text-2xl font-bold">{profile.displayName || `@${profile.username}`}</h1>
+        {/* Polymarket-style Header: Two columns */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          {/* Left: Profile Info */}
+          <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)]">
+            <CardContent className="p-5">
+              <div className="flex items-start gap-4">
+                {/* Avatar */}
+                <div className="relative group flex-shrink-0">
+                  <Avatar 
+                    src={profile.avatarUrl}
+                    name={profile.displayName || profile.username || undefined}
+                    size="xl"
+                  />
+                  {isOwnProfile && (
+                    <button className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                      <Camera className="h-5 w-5 text-white" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Name + Meta */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h1 className="text-xl font-bold truncate">{profile.displayName || `@${profile.username}`}</h1>
+                    {/* Action icons */}
+                    <div className="flex items-center gap-1 ml-auto">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-[color:var(--text-muted)]">
+                        <Share2 className="h-4 w-4" />
+                      </Button>
+                      {isOwnProfile ? (
+                        <Button asChild size="sm" variant="outline" className="h-8 text-xs border-[color:var(--border-soft)]">
+                          <Link href="/settings">Edit</Link>
+                        </Button>
+                      ) : (
+                        <Button 
+                          size="sm" 
+                          className={`h-8 text-xs ${isFollowing 
+                            ? "bg-[color:var(--surface-2)] text-[color:var(--text-strong)] border border-[color:var(--border-soft)]" 
+                            : "bg-orange-500 hover:bg-orange-600 text-white"
+                          }`}
+                          onClick={handleFollow}
+                          disabled={followLoading}
+                        >
+                          {followLoading ? "..." : isFollowing ? "Following" : "Follow"}
+                        </Button>
+                      )}
                     </div>
-                    <p className="text-[color:var(--text-muted)]">@{username}</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" className="border-[color:var(--border-soft)]">
-                      <Share2 className="h-4 w-4" />
-                    </Button>
-                    {isOwnProfile ? (
-                      <Button asChild size="sm" className="bg-orange-500 hover:bg-orange-600 text-white">
-                        <Link href="/settings">Edit Profile</Link>
-                      </Button>
-                    ) : (
-                      <Button 
-                        size="sm" 
-                        className={isFollowing 
-                          ? "bg-[color:var(--surface-2)] hover:bg-red-500/20 text-[color:var(--text-strong)] hover:text-red-500 border border-[color:var(--border-soft)]" 
-                          : "bg-orange-500 hover:bg-orange-600 text-white"
-                        }
-                        onClick={handleFollow}
-                        disabled={followLoading}
-                      >
-                        {followLoading ? "..." : isFollowing ? "Following" : "Follow"}
-                      </Button>
-                    )}
-                  </div>
+                  <p className="text-sm text-[color:var(--text-muted)]">
+                    Joined {profile.joinedDate} &bull; {followersCount} followers
+                  </p>
+                  {profile.bio && (
+                    <p className="text-sm text-[color:var(--text-strong)] mt-2 line-clamp-2">{profile.bio}</p>
+                  )}
                 </div>
               </div>
-            </div>
 
-            {/* Bio */}
-            <p className="mt-4 text-[color:var(--text-strong)] leading-relaxed">
-              {profile.bio}
-            </p>
-
-            {/* Meta info */}
-            <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-[color:var(--text-muted)]">
-              {profile.website && (
-                <a
-                  href={`https://${profile.website}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-white/60 hover:underline"
-                >
-                  <Globe className="h-4 w-4" />
-                  {profile.website}
-                </a>
-              )}
-              <div className="flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
-                Joined {profile.joinedDate}
-              </div>
-              <div className="flex items-center gap-1">
-                <Flame className="h-4 w-4 text-orange-500" />
-                {profile.stats.streak} win streak
-              </div>
-            </div>
-            
-            {/* Follower Stats */}
-            <div className="flex items-center gap-4 mt-4 pt-4 border-t border-[color:var(--border-soft)]">
-              <div className="text-center">
-                <div className="font-bold text-lg">{followersCount}</div>
-                <div className="text-xs text-[color:var(--text-muted)]">Followers</div>
-              </div>
-              <div className="text-center">
-                <div className="font-bold text-lg">{followingCount}</div>
-                <div className="text-xs text-[color:var(--text-muted)]">Following</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Quick Stats Row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] hover:border-white/20 transition">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-white/10 flex items-center justify-center">
-                  <Target className="h-5 w-5 text-white/60" />
-                </div>
+              {/* Stats row */}
+              <div className="flex items-center gap-6 mt-4 pt-4 border-t border-[color:var(--border-soft)]">
                 <div>
-                  <div className="text-2xl font-bold">{profile.stats.totalPicks}</div>
-                  <div className="text-xs text-[color:var(--text-muted)]">Total Picks</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] hover:border-yellow-500/50 transition">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-yellow-500/10 flex items-center justify-center">
-                  <Trophy className="h-5 w-5 text-yellow-500" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{profile.stats.winRate}%</div>
-                  <div className="text-xs text-[color:var(--text-muted)]">Win Rate</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] hover:border-white/20 transition">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-white/10 flex items-center justify-center">
-                  <BarChart3 className="h-5 w-5 text-white/60" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{profile.stats.totalVolume}</div>
+                  <div className="text-lg font-bold">{profile.stats.totalVolume}</div>
                   <div className="text-xs text-[color:var(--text-muted)]">Volume</div>
                 </div>
+                <div>
+                  <div className="text-lg font-bold">{profile.stats.bestWin}</div>
+                  <div className="text-xs text-[color:var(--text-muted)]">Biggest Win</div>
+                </div>
+                <div>
+                  <div className="text-lg font-bold">{profile.stats.totalPicks}</div>
+                  <div className="text-xs text-[color:var(--text-muted)]">Predictions</div>
+                </div>
               </div>
             </CardContent>
           </Card>
-          
-          <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] hover:border-green-500/50 transition">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <TrendingUp className="h-5 w-5 text-green-500" />
+
+          {/* Right: P/L Card */}
+          <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)]">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-green-500" />
+                  <span className="text-sm font-medium text-[color:var(--text-muted)]">Profit/Loss</span>
                 </div>
-                <div>
-                  <div className="text-2xl font-bold text-green-500">{profile.stats.profitLoss}</div>
-                  <div className="text-xs text-[color:var(--text-muted)]">Profit/Loss</div>
+                <div className="flex items-center gap-1 text-xs">
+                  {["1D", "1W", "1M", "ALL"].map((period) => (
+                    <button
+                      key={period}
+                      className={`px-2 py-1 rounded ${
+                        period === "ALL"
+                          ? "bg-orange-500/20 text-orange-400"
+                          : "text-[color:var(--text-muted)] hover:bg-white/5"
+                      }`}
+                    >
+                      {period}
+                    </button>
+                  ))}
                 </div>
+              </div>
+              <div className={`text-3xl font-bold mt-2 ${
+                profile.stats.profitLoss.startsWith("+") ? "text-green-500" : "text-red-500"
+              }`}>
+                {profile.stats.profitLoss}
+              </div>
+              <div className="text-xs text-[color:var(--text-muted)] mt-1">All Time</div>
+
+              {/* Mini chart placeholder */}
+              <div className="mt-4 h-20 flex items-end gap-0.5">
+                {[35, 28, 45, 55, 40, 65, 50, 70, 60, 75, 68, 80, 72, 85, 78, 90, 82, 88, 75, 92].map((h, i) => (
+                  <div
+                    key={i}
+                    className="flex-1 rounded-t bg-green-500/40"
+                    style={{ height: `${h}%` }}
+                  />
+                ))}
+              </div>
+
+              {/* Win rate bar */}
+              <div className="mt-4 flex items-center gap-3">
+                <span className="text-sm text-[color:var(--text-muted)]">Win Rate</span>
+                <div className="flex-1 bg-[color:var(--surface-2)] rounded-full h-2">
+                  <div 
+                    className="bg-green-500 h-2 rounded-full" 
+                    style={{ width: `${profile.stats.winRate}%` }}
+                  />
+                </div>
+                <span className="text-sm font-bold">{profile.stats.winRate}%</span>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6 border-b border-[color:var(--border-soft)] overflow-x-auto">
+        {/* Tabs: Positions + Activity */}
+        <div className="flex gap-1 mb-4 border-b border-[color:var(--border-soft)]">
           <button
             onClick={() => setActiveTab("picks")}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition -mb-px whitespace-nowrap ${
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition -mb-px ${
               activeTab === "picks"
-                ? "border-orange-500 text-orange-500"
+                ? "border-orange-500 text-[color:var(--text-strong)]"
                 : "border-transparent text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
             }`}
           >
-            Recent Picks
+            Positions
           </button>
           <button
             onClick={() => setActiveTab("activity")}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition -mb-px whitespace-nowrap ${
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition -mb-px ${
               activeTab === "activity"
-                ? "border-orange-500 text-orange-500"
+                ? "border-orange-500 text-[color:var(--text-strong)]"
                 : "border-transparent text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
             }`}
           >
             Activity
-            {userPosts.length > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 bg-orange-500/20 text-orange-500 text-xs rounded-full">
-                {userPosts.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab("teams")}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition -mb-px whitespace-nowrap ${
-              activeTab === "teams"
-                ? "border-orange-500 text-orange-500"
-                : "border-transparent text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
-            }`}
-          >
-            Teams
-            {followedTeams.length > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 bg-orange-500/20 text-orange-500 text-xs rounded-full">
-                {followedTeams.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab("stats")}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition -mb-px whitespace-nowrap ${
-              activeTab === "stats"
-                ? "border-orange-500 text-orange-500"
-                : "border-transparent text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
-            }`}
-          >
-            Detailed Stats
-          </button>
-          <button
-            onClick={() => setActiveTab("achievements")}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition -mb-px whitespace-nowrap ${
-              activeTab === "achievements"
-                ? "border-orange-500 text-orange-500"
-                : "border-transparent text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
-            }`}
-          >
-            Achievements
           </button>
         </div>
 
         {/* Tab Content */}
         {activeTab === "picks" && (
-          <div className="space-y-3">
-            {profile.recentPicks.map((pick) => (
-              <Card 
-                key={pick.id} 
-                className={`bg-[color:var(--surface)] border-[color:var(--border-soft)] overflow-hidden ${
-                  pick.result === "won" ? "border-l-4 border-l-green-500" :
-                  pick.result === "lost" ? "border-l-4 border-l-red-500" :
-                  "border-l-4 border-l-yellow-500"
-                }`}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      {/* League Badge */}
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className={`px-2 py-0.5 text-xs font-semibold rounded ${
-                          pick.league === "NFL" ? "bg-white/10 text-white/70" : "bg-orange-500/20 text-orange-400"
-                        }`}>
-                          {pick.league}
-                        </span>
-                        <span className="text-sm text-[color:var(--text-muted)]">{pick.market}</span>
-                        {pick.result === "pending" && (
-                          <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-500/10 text-yellow-500 flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            Pending
-                          </span>
-                        )}
+          <div>
+            {/* Positions table */}
+            <div className="rounded-xl border border-[color:var(--border-soft)] overflow-hidden">
+              {/* Table header */}
+              <div className="grid grid-cols-12 gap-2 px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-[color:var(--text-muted)] bg-[color:var(--surface)] border-b border-[color:var(--border-soft)]">
+                <div className="col-span-5">Market</div>
+                <div className="col-span-2 text-right">Avg</div>
+                <div className="col-span-2 text-right">Current</div>
+                <div className="col-span-3 text-right">Value</div>
+              </div>
+
+              {/* Table rows */}
+              {profile.recentPicks.map((pick) => (
+                <div
+                  key={pick.id}
+                  className="grid grid-cols-12 gap-2 px-4 py-3 items-center border-b border-[color:var(--border-soft)] last:border-b-0 hover:bg-white/[0.02] transition"
+                >
+                  {/* Market info */}
+                  <div className="col-span-5 flex items-center gap-3 min-w-0">
+                    <TeamLogo teamKey={pick.pickTeam} size="md" />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{pick.market}</div>
+                      <div className="text-xs text-[color:var(--text-muted)]">
+                        {pick.pick} &bull; {pick.amount}
                       </div>
-                      
-                      {/* Teams */}
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="flex items-center gap-2">
-                          <TeamLogo teamKey={pick.team1} size="md" />
-                          <span className="text-sm font-medium">{teams[pick.team1]?.abbr}</span>
-                        </div>
-                        <span className="text-[color:var(--text-muted)] text-sm">vs</span>
-                        <div className="flex items-center gap-2">
-                          <TeamLogo teamKey={pick.team2} size="md" />
-                          <span className="text-sm font-medium">{teams[pick.team2]?.abbr}</span>
-                        </div>
-                      </div>
-                      
-                      {/* Pick Details */}
-                      <div className="flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[color:var(--text-muted)]">Pick:</span>
-                          <span 
-                            className="font-semibold px-2 py-0.5 rounded"
-                            style={{ 
-                              backgroundColor: `${teams[pick.pickTeam]?.color}20`,
-                              color: teams[pick.pickTeam]?.color 
-                            }}
-                          >
-                            {pick.pick}
-                          </span>
-                        </div>
-                        <span className="text-[color:var(--text-muted)]">@ {pick.odds}¢</span>
-                        <span className="text-[color:var(--text-muted)]">{pick.amount}</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      {pick.profit && (
-                        <div className={`text-lg font-bold flex items-center gap-1 ${
-                          pick.profit.startsWith("+") ? "text-green-500" : "text-red-500"
-                        }`}>
-                          {pick.profit.startsWith("+") ? (
-                            <ArrowUpRight className="h-4 w-4" />
-                          ) : (
-                            <ArrowDownRight className="h-4 w-4" />
-                          )}
-                          {pick.profit}
-                        </div>
-                      )}
-                      <div className="text-xs text-[color:var(--text-muted)]">{pick.date}</div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-            
-            <Button variant="outline" className="w-full border-[color:var(--border-soft)]">
-              Load More
-            </Button>
+
+                  {/* Avg price */}
+                  <div className="col-span-2 text-right text-sm">{pick.odds}¢</div>
+
+                  {/* Current price */}
+                  <div className="col-span-2 text-right text-sm">
+                    {pick.result === "won" ? "100¢" : pick.result === "lost" ? "0¢" : `${pick.odds}¢`}
+                  </div>
+
+                  {/* Value + P/L */}
+                  <div className="col-span-3 text-right">
+                    <div className="text-sm font-medium">
+                      {pick.result === "won" ? pick.profit : pick.result === "lost" ? "$0.00" : pick.amount}
+                    </div>
+                    {pick.profit && (
+                      <div className={`text-xs font-medium ${
+                        pick.profit.startsWith("+") ? "text-green-500" : "text-red-500"
+                      }`}>
+                        {pick.profit}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -867,183 +733,7 @@ export default function PublicProfilePage({ params }: Props) {
           </div>
         )}
 
-        {activeTab === "teams" && (
-          <div>
-            {teamsLoading ? (
-              <LightningLoader size="md" text="Loading..." />
-            ) : followedTeams.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {followedTeams.map((team) => (
-                  <Link
-                    key={team.team_id}
-                    href={`/teams/${team.league}/${team.slug}`}
-                    className="block"
-                  >
-                    <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] hover:border-white/20 transition">
-                      <CardContent className="p-4 flex flex-col items-center text-center">
-                        {team.logo ? (
-                          <img 
-                            src={team.logo} 
-                            alt={team.team_name}
-                            className="w-16 h-16 object-contain mb-3"
-                          />
-                        ) : (
-                          <div className="w-16 h-16 rounded-full bg-[color:var(--surface-2)] flex items-center justify-center mb-3">
-                            <span className="text-2xl font-bold text-[color:var(--text-muted)]">
-                              {team.team_name.charAt(0)}
-                            </span>
-                          </div>
-                        )}
-                        <div className="font-medium text-sm">{team.team_name}</div>
-                        <div className="text-xs text-[color:var(--text-muted)] uppercase mt-1">
-                          {team.league}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)]">
-                <CardContent className="p-8 text-center">
-                  <div className="text-4xl mb-4">🏟️</div>
-                  <h3 className="text-lg font-semibold mb-2">No teams followed yet</h3>
-                  <p className="text-[color:var(--text-muted)] text-sm mb-4">
-                    {isOwnProfile 
-                      ? "Follow your favorite teams to see them here!"
-                      : `${profile.displayName || profile.username} hasn't followed any teams yet.`
-                    }
-                  </p>
-                  {isOwnProfile && (
-                    <Link href="/sports?league=nfl">
-                      <Button className="bg-orange-500 hover:bg-orange-600 text-white">
-                        Browse Teams
-                      </Button>
-                    </Link>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        )}
-
-        {activeTab === "stats" && (
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)]">
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Performance</h3>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[color:var(--text-muted)]">Win Rate</span>
-                    <span className="font-semibold">{profile.stats.winRate}%</span>
-                  </div>
-                  <div className="w-full bg-[color:var(--surface-2)] rounded-full h-2">
-                    <div 
-                      className="bg-green-500 h-2 rounded-full" 
-                      style={{ width: `${profile.stats.winRate}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-[color:var(--text-muted)]">Current Streak</span>
-                    <span className="font-semibold text-orange-500">{profile.stats.streak} wins</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-[color:var(--text-muted)]">Best Single Win</span>
-                    <span className="font-semibold text-green-500">{profile.stats.bestWin}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-[color:var(--text-muted)]">Leaderboard Rank</span>
-                    <span className="font-semibold">#{profile.stats.rank}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)]">
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Favorite Leagues</h3>
-                <div className="space-y-3">
-                  {[
-                    { name: "NFL", percentage: 55, color: "bg-neutral-500", icon: "🏈" },
-                    { name: "NBA", percentage: 45, color: "bg-orange-500", icon: "🏀" },
-                  ].map((league) => (
-                    <div key={league.name}>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-[color:var(--text-muted)] flex items-center gap-2">
-                          <span>{league.icon}</span>
-                          {league.name}
-                        </span>
-                        <span className="font-medium">{league.percentage}%</span>
-                      </div>
-                      <div className="w-full bg-[color:var(--surface-2)] rounded-full h-2">
-                        <div 
-                          className={`${league.color} h-2 rounded-full`}
-                          style={{ width: `${league.percentage}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] md:col-span-2">
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Monthly Performance</h3>
-                <div className="grid grid-cols-6 gap-2">
-                  {["Aug", "Sep", "Oct", "Nov", "Dec", "Jan"].map((month, i) => {
-                    const profits = [12500, -3200, 28400, 45600, 18900, 32800];
-                    const profit = profits[i];
-                    const isPositive = profit > 0;
-                    const height = Math.abs(profit) / 500;
-                    return (
-                      <div key={month} className="text-center">
-                        <div className="h-24 flex items-end justify-center mb-2">
-                          <div 
-                            className={`w-full max-w-8 rounded-t ${isPositive ? 'bg-green-500' : 'bg-red-500'}`}
-                            style={{ height: `${Math.min(height, 100)}%` }}
-                          />
-                        </div>
-                        <div className="text-xs text-[color:var(--text-muted)]">{month}</div>
-                        <div className={`text-xs font-medium ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
-                          {isPositive ? '+' : ''}{(profit / 1000).toFixed(1)}k
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {activeTab === "achievements" && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {profile.achievements.map((achievement) => (
-              <Card 
-                key={achievement.id} 
-                className={`bg-[color:var(--surface)] border-[color:var(--border-soft)] ${
-                  !achievement.unlocked ? 'opacity-50' : ''
-                }`}
-              >
-                <CardContent className="p-6 text-center">
-                  <div className="text-4xl mb-2">{achievement.icon}</div>
-                  <div className="font-semibold">{achievement.name}</div>
-                  <div className="text-xs text-[color:var(--text-muted)] mt-1">
-                    {achievement.unlocked ? (
-                      <span className="text-green-500 flex items-center justify-center gap-1">
-                        <CheckCircle className="h-3 w-3" />
-                        Unlocked
-                      </span>
-                    ) : (
-                      "Locked"
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+        {/* Teams, stats, achievements tabs removed - Polymarket-style keeps it clean */}
       </main>
       <MainFooter />
     </div>
