@@ -60,9 +60,14 @@ export default function PortfolioPage() {
   const [positionsLoading, setPositionsLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [mode, setMode] = useState<"coin" | "cash">(getStoredMode());
+  const [mode, setMode] = useState<"coin" | "cash">("coin");
   const positionsController = useRef<AbortController | null>(null);
   const historyController = useRef<AbortController | null>(null);
+
+  // Load stored mode preference on mount
+  useEffect(() => {
+    setMode(getStoredMode());
+  }, []);
 
   const fetchPositions = useCallback(async () => {
     if (!isLoggedIn || mode !== "coin") {
