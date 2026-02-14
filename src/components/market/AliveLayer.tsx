@@ -58,8 +58,29 @@ export default function AliveLayer({
   rightPriceCents,
   onTickRefresh,
 }: AliveLayerProps) {
-  const [leftHistory, setLeftHistory] = useState<number[]>(() => Array(HISTORY_LEN).fill(leftPct));
-  const [rightHistory, setRightHistory] = useState<number[]>(() => Array(HISTORY_LEN).fill(rightPct));
+  // Seed history with organic movement so lines look alive on load
+  const [leftHistory, setLeftHistory] = useState<number[]>(() => {
+    const h: number[] = [];
+    let v = leftPct + (Math.random() - 0.5) * 8;
+    for (let i = 0; i < HISTORY_LEN; i++) {
+      v += (Math.random() - 0.5) * 3;
+      v = clamp(v, Math.max(leftPct - 12, 2), Math.min(leftPct + 12, 98));
+      h.push(v);
+    }
+    h[h.length - 1] = leftPct; // land on current value
+    return h;
+  });
+  const [rightHistory, setRightHistory] = useState<number[]>(() => {
+    const h: number[] = [];
+    let v = rightPct + (Math.random() - 0.5) * 8;
+    for (let i = 0; i < HISTORY_LEN; i++) {
+      v += (Math.random() - 0.5) * 3;
+      v = clamp(v, Math.max(rightPct - 12, 2), Math.min(rightPct + 12, 98));
+      h.push(v);
+    }
+    h[h.length - 1] = rightPct;
+    return h;
+  });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [leftPulse, setLeftPulse] = useState(false);
   const [rightPulse, setRightPulse] = useState(false);
@@ -133,36 +154,19 @@ export default function AliveLayer({
           preserveAspectRatio="none"
         >
           <defs>
-            {/* Left team gradient */}
-            <linearGradient id="leftGlow" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#34d399" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
-            </linearGradient>
-            {/* Right team gradient */}
-            <linearGradient id="rightGlow" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#f87171" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="#f87171" stopOpacity="0" />
-            </linearGradient>
-            {/* Glow filters */}
-            <filter id="lineGlowLeft">
-              <feGaussianBlur stdDeviation="3" result="blur" />
+            <filter id="glowGreen">
+              <feGaussianBlur stdDeviation="4" result="blur" />
               <feMerge>
                 <feMergeNode in="blur" />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
-            <filter id="lineGlowRight">
-              <feGaussianBlur stdDeviation="3" result="blur" />
+            <filter id="glowRed">
+              <feGaussianBlur stdDeviation="4" result="blur" />
               <feMerge>
                 <feMergeNode in="blur" />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
-            </filter>
-            <filter id="circleShadow">
-              <feDropShadow dx="0" dy="0" stdDeviation="6" floodColor="#34d399" floodOpacity="0.6" />
-            </filter>
-            <filter id="circleShadowRight">
-              <feDropShadow dx="0" dy="0" stdDeviation="6" floodColor="#f87171" floodOpacity="0.6" />
             </filter>
           </defs>
 
@@ -195,22 +199,6 @@ export default function AliveLayer({
             );
           })}
 
-          {/* Left team area fill */}
-          {leftPath && (
-            <path
-              d={`${leftPath} L${lastX},${CHART_H - PAD_BOT} L0,${CHART_H - PAD_BOT} Z`}
-              fill="url(#leftGlow)"
-            />
-          )}
-
-          {/* Right team area fill */}
-          {rightPath && (
-            <path
-              d={`${rightPath} L${lastX},${CHART_H - PAD_BOT} L0,${CHART_H - PAD_BOT} Z`}
-              fill="url(#rightGlow)"
-            />
-          )}
-
           {/* Left line */}
           {leftPath && (
             <path
@@ -220,7 +208,7 @@ export default function AliveLayer({
               strokeWidth={2.5}
               strokeLinecap="round"
               strokeLinejoin="round"
-              filter="url(#lineGlowLeft)"
+              filter="url(#glowGreen)"
               className="transition-all duration-700"
             />
           )}
@@ -234,7 +222,7 @@ export default function AliveLayer({
               strokeWidth={2.5}
               strokeLinecap="round"
               strokeLinejoin="round"
-              filter="url(#lineGlowRight)"
+              filter="url(#glowRed)"
               className="transition-all duration-700"
             />
           )}
