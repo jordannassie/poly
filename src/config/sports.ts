@@ -15,7 +15,7 @@ export interface SportConfig {
 }
 
 // List of currently enabled sports
-export const ENABLED_SPORTS = ["nfl", "nba", "mlb", "nhl", "soccer"] as const;
+export const ENABLED_SPORTS = ["nfl", "nba", "mlb", "nhl"] as const;
 export type EnabledSport = typeof ENABLED_SPORTS[number];
 
 // Check if a sport is enabled
@@ -30,7 +30,7 @@ export const sportsMenu: SportConfig[] = [
   { key: "nba", label: "NBA", enabled: true, route: "/sports?league=nba", icon: "nba" },
   { key: "mlb", label: "MLB", enabled: true, route: "/sports?league=mlb", icon: "mlb" },
   { key: "nhl", label: "NHL", enabled: true, route: "/sports?league=nhl", icon: "nhl" },
-  { key: "soccer", label: "Soccer", enabled: true, route: "/sports?league=soccer", icon: "soccer" },
+  { key: "soccer", label: "Soccer", enabled: false, route: "/sports?league=soccer", icon: "soccer" },
 ];
 
 // Category tabs configuration (top nav chips)
@@ -54,7 +54,7 @@ export const categoryTabs: CategoryConfig[] = [
   { label: "NBA", href: "/sports?league=nba", enabled: true, isSport: true, icon: "nba" },
   { label: "MLB", href: "/sports?league=mlb", enabled: true, isSport: true, icon: "mlb" },
   { label: "NHL", href: "/sports?league=nhl", enabled: true, isSport: true, icon: "nhl" },
-  { label: "Soccer", href: "/sports?league=soccer", enabled: true, isSport: true, icon: "soccer" },
+  { label: "Soccer", href: "/sports?league=soccer", enabled: false, isSport: true, icon: "soccer" },
 ];
 
 // Get enabled sports only

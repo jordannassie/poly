@@ -34,7 +34,7 @@ import {
 const CACHE_KEY = getCacheKey("global", "featured", "all");
 const CACHE_TTL_ACTIVE = 5 * 60 * 1000;
 const CACHE_TTL_IDLE = 30 * 60 * 1000;
-const FEATURED_LEAGUES = ["nfl", "nba", "mlb", "nhl", "soccer"];
+const FEATURED_LEAGUES = ["nfl", "nba", "mlb", "nhl"];
 
 interface TeamMeta {
   teamId: number;
