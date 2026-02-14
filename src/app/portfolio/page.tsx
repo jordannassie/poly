@@ -308,14 +308,23 @@ export default function PortfolioPage() {
           </div>
         </div>
 
-        {/* Cash Mode Coming Soon */}
+        {/* Cash Mode - Wallet Connection */}
         {mode === "cash" && (
-          <div className="mb-6 rounded-xl border border-orange-500/30 bg-orange-500/10 p-4 text-center">
-            <DollarSign className="h-8 w-8 mx-auto mb-2 text-orange-400" />
-            <h3 className="font-semibold text-orange-400 mb-1">Cash Mode Coming Soon</h3>
-            <p className="text-sm text-[color:var(--text-muted)]">
-              Real money trading will be available soon. Switch to Coin mode to practice with free coins.
+          <div className="mb-6 rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-5">
+            <h3 className="font-semibold mb-2 flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-orange-400" />
+              Cash Mode
+            </h3>
+            <p className="text-sm text-[color:var(--text-muted)] mb-4">
+              Connect a wallet to enable real money trading.
             </p>
+            <Button
+              asChild
+              size="sm"
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              <Link href="/settings?tab=wallet">Connect Wallet</Link>
+            </Button>
           </div>
         )}
 
