@@ -418,6 +418,37 @@ export default function PublicProfilePage({ params }: Props) {
     );
   }
 
+  // Profit/Loss chart config (static demo data)
+  const rangeConfig: Record<"1D" | "1W" | "1M" | "ALL", { label: string; value: string; bars: number[]; winRate: number }> = {
+    "1D": {
+      label: "Past Day",
+      value: "+$3,420",
+      bars: [15, 22, 18, 30, 28, 35, 26, 24, 32, 38, 36, 40, 34, 44, 42, 46, 48, 52, 55, 58],
+      winRate: 62.1,
+    },
+    "1W": {
+      label: "Past Week",
+      value: "+$18,750",
+      bars: [20, 24, 28, 26, 34, 36, 38, 32, 30, 42, 45, 48, 44, 50, 52, 56, 60, 62, 65, 70],
+      winRate: 63.4,
+    },
+    "1M": {
+      label: "Past Month",
+      value: "+$58,320",
+      bars: [22, 25, 28, 30, 35, 38, 42, 40, 45, 50, 48, 52, 56, 60, 64, 62, 66, 70, 72, 74],
+      winRate: 64.1,
+    },
+    ALL: {
+      label: "All Time",
+      value: profile.stats.profitLoss,
+      bars: [25, 28, 30, 34, 38, 40, 42, 44, 46, 48, 50, 54, 56, 58, 60, 62, 64, 68, 66, 74],
+      winRate: profile.stats.winRate,
+    },
+  };
+
+  const [range, setRange] = useState<"1D" | "1W" | "1M" | "ALL">("ALL");
+  const currentRange = rangeConfig[range];
+
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
       <TopNav />
@@ -510,6 +541,7 @@ export default function PublicProfilePage({ params }: Props) {
                   {["1D", "1W", "1M", "ALL"].map((period) => (
                     <button
                       key={period}
+                      onClick={() => setRange(period as any)}
                       className={`px-2 py-1 rounded ${
                         period === "ALL"
                           ? "bg-orange-500/20 text-orange-400"
@@ -522,18 +554,18 @@ export default function PublicProfilePage({ params }: Props) {
                 </div>
               </div>
               <div className={`text-3xl font-bold mt-2 ${
-                profile.stats.profitLoss.startsWith("+") ? "text-green-500" : "text-red-500"
+                currentRange.value.startsWith("+") ? "text-green-500" : "text-red-500"
               }`}>
-                {profile.stats.profitLoss}
+                {currentRange.value}
               </div>
-              <div className="text-xs text-[color:var(--text-muted)] mt-1">All Time</div>
+              <div className="text-xs text-[color:var(--text-muted)] mt-1">{currentRange.label}</div>
 
-              {/* Mini chart placeholder */}
-              <div className="mt-4 h-20 flex items-end gap-0.5">
-                {[35, 28, 45, 55, 40, 65, 50, 70, 60, 75, 68, 80, 72, 85, 78, 90, 82, 88, 75, 92].map((h, i) => (
+              {/* Mini chart with animated bars */}
+              <div className="mt-4 h-24 flex items-end gap-0.5">
+                {currentRange.bars.map((h, i) => (
                   <div
-                    key={i}
-                    className="flex-1 rounded-t bg-green-500/40"
+                    key={`${range}-${i}`}
+                    className="flex-1 rounded-t bg-green-500/60 transition-[height] duration-400 ease-out"
                     style={{ height: `${h}%` }}
                   />
                 ))}
@@ -545,10 +577,10 @@ export default function PublicProfilePage({ params }: Props) {
                 <div className="flex-1 bg-[color:var(--surface-2)] rounded-full h-2">
                   <div 
                     className="bg-green-500 h-2 rounded-full" 
-                    style={{ width: `${profile.stats.winRate}%` }}
+                    style={{ width: `${currentRange.winRate}%` }}
                   />
                 </div>
-                <span className="text-sm font-bold">{profile.stats.winRate}%</span>
+                <span className="text-sm font-bold">{currentRange.winRate}%</span>
               </div>
             </CardContent>
           </Card>
