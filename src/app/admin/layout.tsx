@@ -81,8 +81,8 @@ export default function AdminLayout({
         href={item.href}
         className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition ${
           isActive
-            ? "bg-blue-600 text-white"
-            : "text-gray-400 hover:text-white hover:bg-[#21262d]"
+            ? "bg-orange-500 text-white"
+            : "text-gray-400 hover:text-white hover:bg-[#242424]"
         }`}
       >
         <Icon className="h-4 w-4" />
@@ -92,11 +92,11 @@ export default function AdminLayout({
   };
 
   return (
-    <div className="min-h-screen bg-[#0d1117] flex">
+    <div className="min-h-screen bg-[#141414] flex">
       {/* Sidebar */}
-      <aside className="w-64 bg-[#161b22] border-r border-[#30363d] flex flex-col">
+      <aside className="w-64 bg-[#1a1a1a] border-r border-[#2a2a2a] flex flex-col">
         {/* Logo */}
-        <div className="p-4 border-b border-[#30363d]">
+        <div className="p-4 border-b border-[#2a2a2a]">
           <Link href="/admin" className="flex items-center gap-2 text-white">
             <Image
               src={LOGO_URL}
@@ -144,10 +144,10 @@ export default function AdminLayout({
         </nav>
         
         {/* Footer */}
-        <div className="p-4 border-t border-[#30363d]">
+        <div className="p-4 border-t border-[#2a2a2a]">
           <Link
             href="/"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-[#21262d] transition"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-[#242424] transition"
           >
             <LogOut className="h-4 w-4" />
             Back to Site

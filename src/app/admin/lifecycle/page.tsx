@@ -583,7 +583,7 @@ export default function AdminLifecyclePage() {
       case 'ok':
         return 'bg-green-600 text-white';
       case 'running':
-        return 'bg-blue-600 text-white animate-pulse';
+        return 'bg-orange-500 text-white animate-pulse';
       case 'error':
         return 'bg-red-600 text-white';
       case 'never':
@@ -789,7 +789,7 @@ export default function AdminLifecyclePage() {
                 onClick={() => runHealthRemediation("enqueue-orphaned")}
                 disabled={loading !== null}
                 size="sm"
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-orange-500 hover:bg-orange-600"
               >
                 Enqueue Orphaned Games
               </Button>
@@ -817,7 +817,7 @@ export default function AdminLifecyclePage() {
           <Button
             onClick={() => runJob("discover")}
             disabled={loading !== null}
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-orange-500 hover:bg-orange-600"
           >
             {loading === "discover" ? "Running..." : "1. Discover Games"}
           </Button>
@@ -1042,7 +1042,7 @@ export default function AdminLifecyclePage() {
                   <div className="flex items-center gap-2">
                     <span className={`px-2 py-0.5 rounded text-xs text-white ${
                       item.status === 'QUEUED' ? 'bg-yellow-600' :
-                      item.status === 'PROCESSING' ? 'bg-blue-600' :
+                      item.status === 'PROCESSING' ? 'bg-orange-500' :
                       item.status === 'DONE' ? 'bg-green-600' :
                       item.status === 'FAILED' ? 'bg-red-600' :
                       'bg-slate-600'
@@ -1135,7 +1135,7 @@ export default function AdminLifecyclePage() {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-slate-300">Game {settlementPreview.gameId}</span>
                 <span className={`px-2 py-0.5 rounded text-xs text-white ${
-                  settlementPreview.outcome === 'HOME' ? 'bg-blue-600' :
+                  settlementPreview.outcome === 'HOME' ? 'bg-orange-500' :
                   settlementPreview.outcome === 'AWAY' ? 'bg-red-600' :
                   'bg-slate-600'
                 }`}>
@@ -1478,7 +1478,7 @@ export default function AdminLifecyclePage() {
                         <td className="p-2">
                           <span className={`px-1 rounded text-xs text-white ${
                             c.status_norm === 'FINAL' ? 'bg-green-600' :
-                            c.status_norm === 'LIVE' ? 'bg-blue-600' :
+                            c.status_norm === 'LIVE' ? 'bg-orange-500' :
                             'bg-slate-600'
                           }`}>
                             {c.status_norm || c.status_raw || '-'}
@@ -1487,7 +1487,7 @@ export default function AdminLifecyclePage() {
                         <td className="p-2">
                           <span className={`px-1 rounded text-xs text-white ${
                             c.provider_status_norm === 'FINAL' ? 'bg-green-600' :
-                            c.provider_status_norm === 'LIVE' ? 'bg-blue-600' :
+                            c.provider_status_norm === 'LIVE' ? 'bg-orange-500' :
                             c.provider_status_norm ? 'bg-slate-600' : 'bg-red-900'
                           }`}>
                             {c.provider_status_norm || 'NOT FOUND'}

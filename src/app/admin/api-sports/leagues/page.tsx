@@ -24,7 +24,7 @@ export default function AdminLeagueSyncPage() {
       </div>
 
       {/* Instructions */}
-      <div className="bg-[#21262d] border border-[#30363d] rounded-xl p-4">
+      <div className="bg-[#242424] border border-[#2a2a2a] rounded-xl p-4">
         <h4 className="text-white font-medium mb-2">How to Use</h4>
         <ol className="text-sm text-gray-400 space-y-1 list-decimal list-inside">
           <li>Select a league from the tabs above</li>

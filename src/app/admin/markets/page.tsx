@@ -157,7 +157,7 @@ export default function AdminMarketsPage() {
       </div>
 
       {/* Import Section */}
-      <Card className="bg-[#161b22] border-[#30363d]">
+      <Card className="bg-[#1a1a1a] border-[#2a2a2a]">
         <CardContent className="p-4">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
@@ -167,7 +167,7 @@ export default function AdminMarketsPage() {
             <select
               value={importLeague}
               onChange={(e) => setImportLeague(e.target.value)}
-              className="px-3 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg text-white"
+              className="px-3 py-2 bg-[#141414] border border-[#2a2a2a] rounded-lg text-white"
             >
               <option value="NFL">NFL</option>
               <option value="NBA">NBA</option>
@@ -177,7 +177,7 @@ export default function AdminMarketsPage() {
             <Button
               onClick={handleImport}
               disabled={importing}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-orange-500 hover:bg-orange-600 text-white"
             >
               {importing ? (
                 <>
@@ -195,7 +195,7 @@ export default function AdminMarketsPage() {
               onClick={() => { setLoading(true); fetchMarkets(); }}
               variant="outline"
               size="sm"
-              className="border-[#30363d] text-gray-400"
+              className="border-[#2a2a2a] text-gray-400"
             >
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -225,7 +225,7 @@ export default function AdminMarketsPage() {
             placeholder="Search by team or slug..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 bg-[#0d1117] border-[#30363d] text-white"
+            className="pl-10 bg-[#141414] border-[#2a2a2a] text-white"
           />
         </div>
         <div className="flex gap-2">
@@ -235,7 +235,7 @@ export default function AdminMarketsPage() {
               variant={statusFilter === status ? "default" : "outline"}
               size="sm"
               onClick={() => setStatusFilter(status)}
-              className={statusFilter === status ? "bg-blue-600" : "border-[#30363d] text-gray-400"}
+              className={statusFilter === status ? "bg-orange-500" : "border-[#2a2a2a] text-gray-400"}
             >
               {status.charAt(0).toUpperCase() + status.slice(1)}
             </Button>
@@ -244,12 +244,12 @@ export default function AdminMarketsPage() {
       </div>
 
       {/* Markets Table */}
-      <Card className="bg-[#161b22] border-[#30363d]">
+      <Card className="bg-[#1a1a1a] border-[#2a2a2a]">
         <CardContent className="p-0">
           {filteredMarkets.length > 0 ? (
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#30363d] text-gray-400 text-sm">
+                <tr className="border-b border-[#2a2a2a] text-gray-400 text-sm">
                   <th className="text-left p-4">League</th>
                   <th className="text-left p-4">Matchup</th>
                   <th className="text-left p-4">Start Time</th>
@@ -260,7 +260,7 @@ export default function AdminMarketsPage() {
               </thead>
               <tbody>
                 {filteredMarkets.map((market) => (
-                  <tr key={market.id} className="border-b border-[#30363d]/50 hover:bg-[#0d1117]/50">
+                  <tr key={market.id} className="border-b border-[#2a2a2a]/50 hover:bg-[#141414]/50">
                     <td className="p-4">
                       <span className={`px-2 py-1 rounded text-xs font-semibold ${
                         market.league === "NFL" ? "bg-blue-500/20 text-blue-400" : 

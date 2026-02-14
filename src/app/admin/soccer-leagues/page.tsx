@@ -202,7 +202,7 @@ export default function AdminSoccerLeaguesPage() {
         <button
           onClick={handleImport}
           disabled={importing}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white rounded-lg transition"
+          className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-blue-800 text-white rounded-lg transition"
         >
           {importing ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -237,22 +237,22 @@ export default function AdminSoccerLeaguesPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-[#21262d] border border-[#30363d] rounded-xl p-4">
+        <div className="bg-[#242424] border border-[#2a2a2a] rounded-xl p-4">
           <div className="text-gray-400 text-sm">Total Leagues</div>
           <div className="text-2xl font-bold text-white">{leagues.length}</div>
         </div>
-        <div className="bg-[#21262d] border border-[#30363d] rounded-xl p-4">
+        <div className="bg-[#242424] border border-[#2a2a2a] rounded-xl p-4">
           <div className="text-gray-400 text-sm">Enabled</div>
           <div className="text-2xl font-bold text-green-400">{enabledCount}</div>
         </div>
-        <div className="bg-[#21262d] border border-[#30363d] rounded-xl p-4">
+        <div className="bg-[#242424] border border-[#2a2a2a] rounded-xl p-4">
           <div className="text-gray-400 text-sm">Disabled</div>
           <div className="text-2xl font-bold text-gray-500">{leagues.length - enabledCount}</div>
         </div>
       </div>
 
       {/* Controls */}
-      <div className="bg-[#21262d] border border-[#30363d] rounded-xl p-4">
+      <div className="bg-[#242424] border border-[#2a2a2a] rounded-xl p-4">
         <div className="flex flex-wrap items-center gap-4">
           {/* Search */}
           <div className="relative flex-1 min-w-[250px]">
@@ -262,7 +262,7 @@ export default function AdminSoccerLeaguesPage() {
               placeholder="Search leagues..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+              className="w-full pl-10 pr-4 py-2 bg-[#141414] border border-[#2a2a2a] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -281,7 +281,7 @@ export default function AdminSoccerLeaguesPage() {
           <button
             onClick={fetchLeagues}
             disabled={loading}
-            className="p-2 text-gray-400 hover:text-white hover:bg-[#30363d] rounded-lg transition"
+            className="p-2 text-gray-400 hover:text-white hover:bg-[#2a2a2a] rounded-lg transition"
             title="Refresh"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
@@ -311,9 +311,9 @@ export default function AdminSoccerLeaguesPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-[#21262d] border border-[#30363d] rounded-xl overflow-hidden">
+      <div className="bg-[#242424] border border-[#2a2a2a] rounded-xl overflow-hidden">
         <table className="w-full">
-          <thead className="bg-[#161b22] border-b border-[#30363d]">
+          <thead className="bg-[#1a1a1a] border-b border-[#2a2a2a]">
             <tr>
               <th className="w-12 px-4 py-3 text-left">
                 <input
@@ -355,7 +355,7 @@ export default function AdminSoccerLeaguesPage() {
               filteredLeagues.map((league) => (
                 <tr
                   key={league.id}
-                  className={`border-b border-[#30363d] hover:bg-[#30363d]/50 transition ${
+                  className={`border-b border-[#2a2a2a] hover:bg-[#2a2a2a]/50 transition ${
                     selectedIds.has(league.id) ? "bg-blue-900/20" : ""
                   }`}
                 >
@@ -417,7 +417,7 @@ export default function AdminSoccerLeaguesPage() {
       </div>
 
       {/* Instructions */}
-      <div className="bg-[#21262d] border border-[#30363d] rounded-xl p-4">
+      <div className="bg-[#242424] border border-[#2a2a2a] rounded-xl p-4">
         <h4 className="text-white font-medium mb-2">How It Works</h4>
         <ul className="text-sm text-gray-400 space-y-1 list-disc list-inside">
           <li>Click <strong className="text-blue-400">Import from API</strong> to fetch all soccer leagues from API-Sports</li>

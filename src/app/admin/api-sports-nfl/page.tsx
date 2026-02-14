@@ -171,7 +171,7 @@ export default function AdminApiSportsNflPage() {
       </div>
 
       {/* Test Controls */}
-      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6 space-y-4">
+      <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-6 space-y-4">
         <h3 className="text-white font-semibold flex items-center gap-2">
           <Zap className="h-4 w-4 text-blue-400" />
           Test API Endpoints
@@ -184,7 +184,7 @@ export default function AdminApiSportsNflPage() {
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="px-3 py-2 bg-[#21262d] border border-[#30363d] rounded-lg text-white focus:outline-none focus:border-blue-500"
+              className="px-3 py-2 bg-[#242424] border border-[#2a2a2a] rounded-lg text-white focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -194,7 +194,7 @@ export default function AdminApiSportsNflPage() {
               type="date"
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
-              className="px-3 py-2 bg-[#21262d] border border-[#30363d] rounded-lg text-white focus:outline-none focus:border-blue-500"
+              className="px-3 py-2 bg-[#242424] border border-[#2a2a2a] rounded-lg text-white focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -202,7 +202,7 @@ export default function AdminApiSportsNflPage() {
           <Button
             onClick={checkStatus}
             disabled={loading !== null}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            className="bg-orange-500 hover:bg-orange-600 text-white"
           >
             {loading === "status" ? (
               <RefreshCw className="h-4 w-4 animate-spin mr-2" />
@@ -228,7 +228,7 @@ export default function AdminApiSportsNflPage() {
       </div>
 
       {/* Sync Controls */}
-      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6 space-y-4">
+      <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-6 space-y-4">
         <h3 className="text-white font-semibold flex items-center gap-2">
           <Database className="h-4 w-4 text-purple-400" />
           Sync to Supabase
@@ -299,9 +299,9 @@ export default function AdminApiSportsNflPage() {
 
       {/* Result */}
       {result && (
-        <div className="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden">
+        <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl overflow-hidden">
           {/* Result Header */}
-          <div className="flex items-center justify-between p-4 border-b border-[#30363d]">
+          <div className="flex items-center justify-between p-4 border-b border-[#2a2a2a]">
             <div className="flex items-center gap-3">
               <span className={`font-medium ${result.ok ? "text-green-400" : "text-red-400"}`}>
                 {result.ok ? "✓ Success" : "✗ Error"}
@@ -317,7 +317,7 @@ export default function AdminApiSportsNflPage() {
 
           {/* Sync Stats */}
           {(result.inserted !== undefined || result.updated !== undefined || result.count !== undefined || result.chunks !== undefined) && (
-            <div className="px-4 py-3 bg-green-500/10 border-b border-[#30363d] flex flex-wrap gap-6">
+            <div className="px-4 py-3 bg-green-500/10 border-b border-[#2a2a2a] flex flex-wrap gap-6">
               {result.chunks !== undefined && (
                 <div>
                   <span className="text-gray-400 text-sm">Chunks: </span>
@@ -353,21 +353,21 @@ export default function AdminApiSportsNflPage() {
 
           {/* Message */}
           {result.message ? (
-            <div className="px-4 py-2 bg-blue-500/10 border-b border-[#30363d]">
+            <div className="px-4 py-2 bg-blue-500/10 border-b border-[#2a2a2a]">
               <span className="text-blue-400 text-sm">{result.message}</span>
             </div>
           ) : null}
 
           {/* Error Message */}
           {result.error && (
-            <div className="px-4 py-3 bg-red-500/10 border-b border-[#30363d]">
+            <div className="px-4 py-3 bg-red-500/10 border-b border-[#2a2a2a]">
               <span className="text-red-400">{result.error}</span>
             </div>
           )}
 
           {/* Endpoint Info */}
           {(result.endpoint || result.endpointUsed) && (
-            <div className="px-4 py-2 bg-[#0d1117] border-b border-[#30363d]">
+            <div className="px-4 py-2 bg-[#141414] border-b border-[#2a2a2a]">
               <span className="text-gray-500 text-sm">Endpoint: </span>
               <code className="text-blue-400 text-sm">{result.endpoint || result.endpointUsed}</code>
             </div>
@@ -386,7 +386,7 @@ export default function AdminApiSportsNflPage() {
 
       {/* Empty State */}
       {!result && !loading && (
-        <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-12 text-center">
+        <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-12 text-center">
           <Zap className="h-12 w-12 mx-auto mb-4 text-gray-600" />
           <p className="text-gray-400">Click a button above to test or sync data</p>
         </div>
@@ -394,7 +394,7 @@ export default function AdminApiSportsNflPage() {
 
       {/* Loading State */}
       {loading && (
-        <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-12 text-center">
+        <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-12 text-center">
           <RefreshCw className="h-12 w-12 mx-auto mb-4 text-blue-500 animate-spin" />
           <p className="text-gray-400">
             {loading === "syncTeams" ? "Syncing teams to database..." :
@@ -407,19 +407,19 @@ export default function AdminApiSportsNflPage() {
       )}
 
       {/* Info */}
-      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6">
+      <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-6">
         <h3 className="text-white font-semibold mb-3">Required Environment Variables</h3>
         <div className="space-y-2 text-sm">
           <div>
-            <code className="bg-[#21262d] px-2 py-1 rounded text-orange-400">API_SPORTS_KEY</code>
+            <code className="bg-[#242424] px-2 py-1 rounded text-orange-400">API_SPORTS_KEY</code>
             <span className="text-gray-400 ml-2">- Your API-Sports API key</span>
           </div>
           <div>
-            <code className="bg-[#21262d] px-2 py-1 rounded text-orange-400">API_SPORTS_BASE_URL</code>
+            <code className="bg-[#242424] px-2 py-1 rounded text-orange-400">API_SPORTS_BASE_URL</code>
             <span className="text-gray-400 ml-2">- Default: https://v1.american-football.api-sports.io</span>
           </div>
           <div>
-            <code className="bg-[#21262d] px-2 py-1 rounded text-orange-400">SUPABASE_SERVICE_ROLE_KEY</code>
+            <code className="bg-[#242424] px-2 py-1 rounded text-orange-400">SUPABASE_SERVICE_ROLE_KEY</code>
             <span className="text-gray-400 ml-2">- Required for syncing to database</span>
           </div>
         </div>

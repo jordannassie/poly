@@ -27,7 +27,7 @@ export default function AdminSettlementsPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-3 gap-4">
-        <Card className="bg-[#161b22] border-[#30363d]">
+        <Card className="bg-[#1a1a1a] border-[#2a2a2a]">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-green-500/20 flex items-center justify-center">
@@ -40,7 +40,7 @@ export default function AdminSettlementsPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-[#161b22] border-[#30363d]">
+        <Card className="bg-[#1a1a1a] border-[#2a2a2a]">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
@@ -55,7 +55,7 @@ export default function AdminSettlementsPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-[#161b22] border-[#30363d]">
+        <Card className="bg-[#1a1a1a] border-[#2a2a2a]">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
@@ -73,11 +73,11 @@ export default function AdminSettlementsPage() {
       </div>
 
       {/* Settlements Table */}
-      <Card className="bg-[#161b22] border-[#30363d]">
+      <Card className="bg-[#1a1a1a] border-[#2a2a2a]">
         <CardContent className="p-0">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-[#30363d] text-gray-400 text-sm">
+              <tr className="border-b border-[#2a2a2a] text-gray-400 text-sm">
                 <th className="text-left p-4">Market</th>
                 <th className="text-left p-4">Outcome</th>
                 <th className="text-left p-4">Settled By</th>
@@ -86,7 +86,7 @@ export default function AdminSettlementsPage() {
             </thead>
             <tbody>
               {demoSettlements.map((settlement) => (
-                <tr key={settlement.id} className="border-b border-[#30363d]/50 hover:bg-[#0d1117]/50">
+                <tr key={settlement.id} className="border-b border-[#2a2a2a]/50 hover:bg-[#141414]/50">
                   <td className="p-4">
                     <p className="text-white font-medium">{settlement.market}</p>
                     <p className="text-gray-400 text-sm">Market ID: {settlement.marketId}</p>

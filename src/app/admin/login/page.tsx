@@ -47,8 +47,8 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0d1117] flex items-center justify-center p-4">
-      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-8 max-w-md w-full">
+    <div className="min-h-screen bg-[#141414] flex items-center justify-center p-4">
+      <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-8 max-w-md w-full">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="mx-auto h-16 w-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center mb-4">
@@ -67,7 +67,7 @@ export default function AdminLoginPage() {
               placeholder="Admin Token"
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              className="pl-10 bg-[#0d1117] border-[#30363d] text-white placeholder-gray-500"
+              className="pl-10 bg-[#141414] border-[#2a2a2a] text-white placeholder-gray-500"
               autoFocus
             />
           </div>
@@ -82,7 +82,7 @@ export default function AdminLoginPage() {
           <Button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white"
           >
             {loading ? "Authenticating..." : "Access Admin Console"}
           </Button>

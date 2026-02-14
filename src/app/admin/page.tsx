@@ -158,7 +158,7 @@ export default function AdminDashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <Link href="/admin/users">
-          <Card className="bg-[#161b22] border-[#30363d] hover:border-blue-500/50 transition cursor-pointer">
+          <Card className="bg-[#1a1a1a] border-[#2a2a2a] hover:border-blue-500/50 transition cursor-pointer">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -174,7 +174,7 @@ export default function AdminDashboard() {
         </Link>
 
         <Link href="/admin/wallets">
-          <Card className="bg-[#161b22] border-[#30363d] hover:border-purple-500/50 transition cursor-pointer">
+          <Card className="bg-[#1a1a1a] border-[#2a2a2a] hover:border-purple-500/50 transition cursor-pointer">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -190,7 +190,7 @@ export default function AdminDashboard() {
         </Link>
 
         <Link href="/admin/markets">
-          <Card className="bg-[#161b22] border-[#30363d] hover:border-green-500/50 transition cursor-pointer">
+          <Card className="bg-[#1a1a1a] border-[#2a2a2a] hover:border-green-500/50 transition cursor-pointer">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -213,7 +213,7 @@ export default function AdminDashboard() {
         </Link>
 
         <Link href="/admin/payouts">
-          <Card className="bg-[#161b22] border-[#30363d] hover:border-yellow-500/50 transition cursor-pointer">
+          <Card className="bg-[#1a1a1a] border-[#2a2a2a] hover:border-yellow-500/50 transition cursor-pointer">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -234,7 +234,7 @@ export default function AdminDashboard() {
         </Link>
 
         <Link href="/admin/waitlist">
-          <Card className="bg-[#161b22] border-[#30363d] hover:border-orange-500/50 transition cursor-pointer">
+          <Card className="bg-[#1a1a1a] border-[#2a2a2a] hover:border-orange-500/50 transition cursor-pointer">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -253,28 +253,28 @@ export default function AdminDashboard() {
       {/* Two Column Layout */}
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Market Status */}
-        <Card className="bg-[#161b22] border-[#30363d]">
+        <Card className="bg-[#1a1a1a] border-[#2a2a2a]">
           <CardContent className="p-6">
             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <Activity className="h-5 w-5" />
               Market Status
             </h2>
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-[#0d1117] rounded-lg">
+              <div className="flex items-center justify-between p-3 bg-[#141414] rounded-lg">
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-green-500" />
                   <span className="text-gray-300">Open</span>
                 </div>
                 <span className="font-semibold text-white">{data?.markets.open || 0}</span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-[#0d1117] rounded-lg">
+              <div className="flex items-center justify-between p-3 bg-[#141414] rounded-lg">
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-purple-500 animate-pulse" />
                   <span className="text-gray-300">Live</span>
                 </div>
                 <span className="font-semibold text-white">{data?.markets.live || 0}</span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-[#0d1117] rounded-lg">
+              <div className="flex items-center justify-between p-3 bg-[#141414] rounded-lg">
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-gray-500" />
                   <span className="text-gray-300">Settled</span>
@@ -286,7 +286,7 @@ export default function AdminDashboard() {
         </Card>
 
         {/* Recent Activity */}
-        <Card className="bg-[#161b22] border-[#30363d]">
+        <Card className="bg-[#1a1a1a] border-[#2a2a2a]">
           <CardContent className="p-6">
             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <Clock className="h-5 w-5" />
@@ -295,7 +295,7 @@ export default function AdminDashboard() {
             <div className="space-y-3">
               {data?.recentLogs && data.recentLogs.length > 0 ? (
                 data.recentLogs.map((log) => (
-                  <div key={log.id} className="flex items-start gap-3 p-3 bg-[#0d1117] rounded-lg">
+                  <div key={log.id} className="flex items-start gap-3 p-3 bg-[#141414] rounded-lg">
                     {log.severity === "error" ? (
                       <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5" />
                     ) : (
@@ -322,7 +322,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* System Status Banner */}
-      <Card className="bg-[#161b22] border-[#30363d]">
+      <Card className="bg-[#1a1a1a] border-[#2a2a2a]">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">

@@ -65,7 +65,7 @@ export default function AdminLogsPage() {
     switch (severity) {
       case "error": return "bg-red-500/10 border-red-500/30";
       case "warn": return "bg-yellow-500/10 border-yellow-500/30";
-      default: return "bg-[#0d1117] border-[#30363d]/50";
+      default: return "bg-[#141414] border-[#2a2a2a]/50";
     }
   };
 
@@ -134,8 +134,8 @@ export default function AdminLogsPage() {
               severityFilter === severity 
                 ? severity === "error" ? "bg-red-600" 
                   : severity === "warn" ? "bg-yellow-600" 
-                  : "bg-blue-600"
-                : "border-[#30363d] text-gray-400"
+                  : "bg-orange-500"
+                : "border-[#2a2a2a] text-gray-400"
             }
           >
             {severity.charAt(0).toUpperCase() + severity.slice(1)}
@@ -153,7 +153,7 @@ export default function AdminLogsPage() {
                   {getSeverityIcon(log.severity)}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-mono text-gray-400 bg-[#161b22] px-2 py-0.5 rounded">
+                      <span className="text-xs font-mono text-gray-400 bg-[#1a1a1a] px-2 py-0.5 rounded">
                         {log.event_type}
                       </span>
                       {log.entity_type && (
@@ -172,7 +172,7 @@ export default function AdminLogsPage() {
             </Card>
           ))
         ) : (
-          <Card className="bg-[#161b22] border-[#30363d]">
+          <Card className="bg-[#1a1a1a] border-[#2a2a2a]">
             <CardContent className="p-8 text-center text-gray-400">
               No logs found. Events will appear here as they occur.
             </CardContent>

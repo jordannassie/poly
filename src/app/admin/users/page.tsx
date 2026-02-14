@@ -114,17 +114,17 @@ export default function AdminUsersPage() {
           placeholder="Search by username or name..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="pl-10 bg-[#0d1117] border-[#30363d] text-white"
+          className="pl-10 bg-[#141414] border-[#2a2a2a] text-white"
         />
       </div>
 
       {/* Users Table */}
-      <Card className="bg-[#161b22] border-[#30363d]">
+      <Card className="bg-[#1a1a1a] border-[#2a2a2a]">
         <CardContent className="p-0">
           {filteredUsers.length > 0 ? (
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#30363d] text-gray-400 text-sm">
+                <tr className="border-b border-[#2a2a2a] text-gray-400 text-sm">
                   <th className="text-left p-4">User</th>
                   <th className="text-left p-4">Wallets</th>
                   <th className="text-left p-4">Joined</th>
@@ -133,7 +133,7 @@ export default function AdminUsersPage() {
               </thead>
               <tbody>
                 {filteredUsers.map((user) => (
-                  <tr key={user.id} className="border-b border-[#30363d]/50 hover:bg-[#0d1117]/50">
+                  <tr key={user.id} className="border-b border-[#2a2a2a]/50 hover:bg-[#141414]/50">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         {user.avatar_url ? (

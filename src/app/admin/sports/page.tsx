@@ -200,7 +200,7 @@ export default function AdminSportsPage() {
   // Note: Login is handled by middleware - if user reaches here, they are authenticated
 
   return (
-    <div className="min-h-screen bg-[#0d1117] text-white p-6">
+    <div className="min-h-screen bg-[#141414] text-white p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -215,7 +215,7 @@ export default function AdminSportsPage() {
               size="sm"
               onClick={fetchStatus}
               disabled={loading}
-              className="border-[#30363d] text-gray-300"
+              className="border-[#2a2a2a] text-gray-300"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
               Refresh
@@ -234,7 +234,7 @@ export default function AdminSportsPage() {
 
         {/* League Status Overview */}
         {status?.leagues?.status && (
-          <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6">
+          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-6">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Activity className="h-5 w-5" />
               League Status
@@ -275,7 +275,7 @@ export default function AdminSportsPage() {
         )}
 
         {/* Quick Actions */}
-        <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6">
+        <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-6">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Zap className="h-5 w-5" />
             Quick Actions
@@ -284,7 +284,7 @@ export default function AdminSportsPage() {
             <select
               value={selectedLeague}
               onChange={(e) => setSelectedLeague(e.target.value)}
-              className="px-4 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg text-white"
+              className="px-4 py-2 bg-[#141414] border border-[#2a2a2a] rounded-lg text-white"
             >
               <option value="all">⚡ All Enabled Leagues</option>
               <optgroup label="Enabled">
@@ -306,7 +306,7 @@ export default function AdminSportsPage() {
             <Button
               onClick={() => performAction("teams", selectedLeague)}
               disabled={actionLoading !== null}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-orange-500 hover:bg-orange-600"
             >
               {actionLoading?.startsWith("teams") ? (
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -319,7 +319,7 @@ export default function AdminSportsPage() {
             <Button
               onClick={() => performAction("games", selectedLeague)}
               disabled={actionLoading !== null}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-orange-500 hover:bg-orange-600"
             >
               {actionLoading?.startsWith("games") ? (
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -365,7 +365,7 @@ export default function AdminSportsPage() {
         </div>
 
         {/* Endpoint Status Table */}
-        <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6">
+        <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-6">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Clock className="h-5 w-5" />
             Endpoint Status
@@ -375,7 +375,7 @@ export default function AdminSportsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[#30363d] text-gray-400">
+                  <tr className="border-b border-[#2a2a2a] text-gray-400">
                     <th className="text-left py-3 px-4">Endpoint</th>
                     <th className="text-left py-3 px-4">Last Success</th>
                     <th className="text-left py-3 px-4">Latency</th>
@@ -386,7 +386,7 @@ export default function AdminSportsPage() {
                 </thead>
                 <tbody>
                   {status.statuses.map((s) => (
-                    <tr key={s.key} className={`border-b border-[#30363d]/50 hover:bg-[#0d1117]/50 ${s.lastErrorMessage ? "bg-red-500/5" : ""}`}>
+                    <tr key={s.key} className={`border-b border-[#2a2a2a]/50 hover:bg-[#141414]/50 ${s.lastErrorMessage ? "bg-red-500/5" : ""}`}>
                       <td className="py-3 px-4 font-mono text-blue-400">{s.key}</td>
                       <td className="py-3 px-4">
                         {s.lastSuccessAt ? (
@@ -435,7 +435,7 @@ export default function AdminSportsPage() {
         </div>
 
         {/* Cache Entries */}
-        <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6">
+        <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-6">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Database className="h-5 w-5" />
             Cache Entries
@@ -450,7 +450,7 @@ export default function AdminSportsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[#30363d] text-gray-400">
+                  <tr className="border-b border-[#2a2a2a] text-gray-400">
                     <th className="text-left py-3 px-4">Cache Key</th>
                     <th className="text-left py-3 px-4">Age</th>
                     <th className="text-left py-3 px-4">TTL Remaining</th>
@@ -459,7 +459,7 @@ export default function AdminSportsPage() {
                 </thead>
                 <tbody>
                   {status.cache.entries.map((entry) => (
-                    <tr key={entry.key} className="border-b border-[#30363d]/50 hover:bg-[#0d1117]/50">
+                    <tr key={entry.key} className="border-b border-[#2a2a2a]/50 hover:bg-[#141414]/50">
                       <td className="py-3 px-4 font-mono text-blue-400 text-xs">{entry.key}</td>
                       <td className="py-3 px-4">{formatMs(entry.ageMs)}</td>
                       <td className="py-3 px-4">

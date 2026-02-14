@@ -78,7 +78,7 @@ export default function AdminApiSportsPage() {
       </div>
 
       {/* Controls */}
-      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6 space-y-4">
+      <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-6 space-y-4">
         <div className="flex flex-wrap gap-4 items-end">
           {/* Sport Selector */}
           <div>
@@ -89,7 +89,7 @@ export default function AdminApiSportsPage() {
                 className={`px-4 py-2 rounded-lg font-medium transition ${
                   sport === "nfl"
                     ? "bg-orange-500 text-white"
-                    : "bg-[#21262d] text-gray-400 hover:text-white"
+                    : "bg-[#242424] text-gray-400 hover:text-white"
                 }`}
               >
                 NFL
@@ -99,7 +99,7 @@ export default function AdminApiSportsPage() {
                 className={`px-4 py-2 rounded-lg font-medium transition ${
                   sport === "nba"
                     ? "bg-orange-500 text-white"
-                    : "bg-[#21262d] text-gray-400 hover:text-white"
+                    : "bg-[#242424] text-gray-400 hover:text-white"
                 }`}
               >
                 NBA
@@ -114,7 +114,7 @@ export default function AdminApiSportsPage() {
               type="date"
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
-              className="px-3 py-2 bg-[#21262d] border border-[#30363d] rounded-lg text-white focus:outline-none focus:border-blue-500"
+              className="px-3 py-2 bg-[#242424] border border-[#2a2a2a] rounded-lg text-white focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -125,17 +125,17 @@ export default function AdminApiSportsPage() {
               type="date"
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
-              className="px-3 py-2 bg-[#21262d] border border-[#30363d] rounded-lg text-white focus:outline-none focus:border-blue-500"
+              className="px-3 py-2 bg-[#242424] border border-[#2a2a2a] rounded-lg text-white focus:outline-none focus:border-blue-500"
             />
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap gap-3 pt-4 border-t border-[#30363d]">
+        <div className="flex flex-wrap gap-3 pt-4 border-t border-[#2a2a2a]">
           <Button
             onClick={() => fetchEndpoint("test")}
             disabled={loading !== null}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            className="bg-orange-500 hover:bg-orange-600 text-white"
           >
             {loading === "test" ? (
               <RefreshCw className="h-4 w-4 animate-spin mr-2" />
@@ -193,9 +193,9 @@ export default function AdminApiSportsPage() {
 
       {/* Result */}
       {result && (
-        <div className="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden">
+        <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl overflow-hidden">
           {/* Result Header */}
-          <div className="flex items-center justify-between p-4 border-b border-[#30363d]">
+          <div className="flex items-center justify-between p-4 border-b border-[#2a2a2a]">
             <div className="flex items-center gap-3">
               {result.ok ? (
                 <div className="flex items-center gap-2 text-green-400">
@@ -219,7 +219,7 @@ export default function AdminApiSportsPage() {
 
           {/* Endpoint Info */}
           {result.endpoint && (
-            <div className="px-4 py-2 bg-[#0d1117] border-b border-[#30363d]">
+            <div className="px-4 py-2 bg-[#141414] border-b border-[#2a2a2a]">
               <span className="text-gray-500 text-sm">Endpoint: </span>
               <code className="text-blue-400 text-sm break-all">{result.endpoint}</code>
             </div>
@@ -227,7 +227,7 @@ export default function AdminApiSportsPage() {
 
           {/* Tried Endpoints (for debugging) */}
           {result.triedEndpoints && result.triedEndpoints.length > 1 && (
-            <div className="px-4 py-2 bg-[#0d1117] border-b border-[#30363d]">
+            <div className="px-4 py-2 bg-[#141414] border-b border-[#2a2a2a]">
               <span className="text-gray-500 text-sm">Tried endpoints: </span>
               <div className="mt-1 space-y-1">
                 {result.triedEndpoints.map((ep, i) => (
@@ -239,14 +239,14 @@ export default function AdminApiSportsPage() {
 
           {/* Note */}
           {result.note && (
-            <div className="px-4 py-2 bg-yellow-500/10 border-b border-[#30363d]">
+            <div className="px-4 py-2 bg-yellow-500/10 border-b border-[#2a2a2a]">
               <span className="text-yellow-400 text-sm">{result.note}</span>
             </div>
           )}
 
           {/* Error Message */}
           {result.error && (
-            <div className="px-4 py-3 bg-red-500/10 border-b border-[#30363d]">
+            <div className="px-4 py-3 bg-red-500/10 border-b border-[#2a2a2a]">
               <span className="text-red-400">{result.error}</span>
             </div>
           )}
@@ -262,7 +262,7 @@ export default function AdminApiSportsPage() {
 
       {/* Empty State */}
       {!result && !loading && (
-        <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-12 text-center">
+        <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-12 text-center">
           <Zap className="h-12 w-12 mx-auto mb-4 text-gray-600" />
           <p className="text-gray-400">Select an action above to test the API-Sports endpoints</p>
           <p className="text-gray-500 text-sm mt-2">
@@ -273,26 +273,26 @@ export default function AdminApiSportsPage() {
 
       {/* Loading State */}
       {loading && (
-        <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-12 text-center">
+        <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-12 text-center">
           <RefreshCw className="h-12 w-12 mx-auto mb-4 text-blue-500 animate-spin" />
           <p className="text-gray-400">Fetching {lastEndpoint} for {sport.toUpperCase()}...</p>
         </div>
       )}
 
       {/* Info Panel */}
-      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6">
+      <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-6">
         <h3 className="text-white font-semibold mb-3">Required Environment Variables</h3>
         <div className="space-y-2 text-sm">
           <div className="flex items-center gap-2">
-            <code className="bg-[#21262d] px-2 py-1 rounded text-orange-400">API_SPORTS_KEY</code>
+            <code className="bg-[#242424] px-2 py-1 rounded text-orange-400">API_SPORTS_KEY</code>
             <span className="text-gray-400">- Your API-Sports API key</span>
           </div>
           <div className="flex items-center gap-2">
-            <code className="bg-[#21262d] px-2 py-1 rounded text-orange-400">API_SPORTS_BASE_URL</code>
+            <code className="bg-[#242424] px-2 py-1 rounded text-orange-400">API_SPORTS_BASE_URL</code>
             <span className="text-gray-400">- (Optional) Custom base URL</span>
           </div>
         </div>
-        <div className="mt-4 pt-4 border-t border-[#30363d]">
+        <div className="mt-4 pt-4 border-t border-[#2a2a2a]">
           <h4 className="text-white font-medium mb-2">API-Sports Endpoints</h4>
           <ul className="text-sm text-gray-400 space-y-1">
             <li>• NFL: <code className="text-blue-400">v1.american-football.api-sports.io</code></li>

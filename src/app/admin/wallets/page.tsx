@@ -130,7 +130,7 @@ export default function AdminWalletsPage() {
             placeholder="Search by address or username..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 bg-[#0d1117] border-[#30363d] text-white"
+            className="pl-10 bg-[#141414] border-[#2a2a2a] text-white"
           />
         </div>
         <div className="flex gap-2">
@@ -140,7 +140,7 @@ export default function AdminWalletsPage() {
               variant={filter === f ? "default" : "outline"}
               size="sm"
               onClick={() => setFilter(f)}
-              className={filter === f ? "bg-blue-600" : "border-[#30363d] text-gray-400"}
+              className={filter === f ? "bg-orange-500" : "border-[#2a2a2a] text-gray-400"}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)}
             </Button>
@@ -149,12 +149,12 @@ export default function AdminWalletsPage() {
       </div>
 
       {/* Wallets Table */}
-      <Card className="bg-[#161b22] border-[#30363d]">
+      <Card className="bg-[#1a1a1a] border-[#2a2a2a]">
         <CardContent className="p-0">
           {filteredWallets.length > 0 ? (
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#30363d] text-gray-400 text-sm">
+                <tr className="border-b border-[#2a2a2a] text-gray-400 text-sm">
                   <th className="text-left p-4">Wallet Address</th>
                   <th className="text-left p-4">User</th>
                   <th className="text-left p-4">Chain</th>
@@ -165,7 +165,7 @@ export default function AdminWalletsPage() {
               </thead>
               <tbody>
                 {filteredWallets.map((wallet) => (
-                  <tr key={wallet.id} className="border-b border-[#30363d]/50 hover:bg-[#0d1117]/50">
+                  <tr key={wallet.id} className="border-b border-[#2a2a2a]/50 hover:bg-[#141414]/50">
                     <td className="p-4">
                       <div className="flex items-center gap-2">
                         <code className="text-blue-400 text-sm">

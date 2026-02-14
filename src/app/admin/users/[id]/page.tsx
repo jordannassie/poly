@@ -47,7 +47,7 @@ export default function AdminUserDetailPage({ params }: { params: { id: string }
       </div>
 
       {/* User Profile Header */}
-      <Card className="bg-[#161b22] border-[#30363d]">
+      <Card className="bg-[#1a1a1a] border-[#2a2a2a]">
         <CardContent className="p-6">
           <div className="flex items-start gap-6">
             <div className="h-20 w-20 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
@@ -85,25 +85,25 @@ export default function AdminUserDetailPage({ params }: { params: { id: string }
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
-        <Card className="bg-[#161b22] border-[#30363d]">
+        <Card className="bg-[#1a1a1a] border-[#2a2a2a]">
           <CardContent className="p-4">
             <p className="text-gray-400 text-sm">Total Picks</p>
             <p className="text-2xl font-bold text-white">{user.stats.totalPicks}</p>
           </CardContent>
         </Card>
-        <Card className="bg-[#161b22] border-[#30363d]">
+        <Card className="bg-[#1a1a1a] border-[#2a2a2a]">
           <CardContent className="p-4">
             <p className="text-gray-400 text-sm">Win Rate</p>
             <p className="text-2xl font-bold text-green-400">{user.stats.winRate}%</p>
           </CardContent>
         </Card>
-        <Card className="bg-[#161b22] border-[#30363d]">
+        <Card className="bg-[#1a1a1a] border-[#2a2a2a]">
           <CardContent className="p-4">
             <p className="text-gray-400 text-sm">Total Volume</p>
             <p className="text-2xl font-bold text-white">{user.stats.totalVolume}</p>
           </CardContent>
         </Card>
-        <Card className="bg-[#161b22] border-[#30363d]">
+        <Card className="bg-[#1a1a1a] border-[#2a2a2a]">
           <CardContent className="p-4">
             <p className="text-gray-400 text-sm">Profit/Loss</p>
             <p className="text-2xl font-bold text-green-400">{user.stats.profitLoss}</p>
@@ -113,7 +113,7 @@ export default function AdminUserDetailPage({ params }: { params: { id: string }
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Wallets */}
-        <Card className="bg-[#161b22] border-[#30363d]">
+        <Card className="bg-[#1a1a1a] border-[#2a2a2a]">
           <CardContent className="p-6">
             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <Wallet className="h-5 w-5" />
@@ -121,7 +121,7 @@ export default function AdminUserDetailPage({ params }: { params: { id: string }
             </h2>
             <div className="space-y-3">
               {user.wallets.map((wallet, i) => (
-                <div key={i} className="flex items-center justify-between p-3 bg-[#0d1117] rounded-lg">
+                <div key={i} className="flex items-center justify-between p-3 bg-[#141414] rounded-lg">
                   <div>
                     <p className="font-mono text-white">{wallet.address}</p>
                     <div className="flex items-center gap-2 mt-1">
@@ -142,7 +142,7 @@ export default function AdminUserDetailPage({ params }: { params: { id: string }
         </Card>
 
         {/* Recent Payouts */}
-        <Card className="bg-[#161b22] border-[#30363d]">
+        <Card className="bg-[#1a1a1a] border-[#2a2a2a]">
           <CardContent className="p-6">
             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <CreditCard className="h-5 w-5" />
@@ -150,7 +150,7 @@ export default function AdminUserDetailPage({ params }: { params: { id: string }
             </h2>
             <div className="space-y-3">
               {user.recentPayouts.map((payout) => (
-                <div key={payout.id} className="flex items-center justify-between p-3 bg-[#0d1117] rounded-lg">
+                <div key={payout.id} className="flex items-center justify-between p-3 bg-[#141414] rounded-lg">
                   <div>
                     <p className="font-semibold text-white">{payout.amount}</p>
                     <p className="text-xs text-gray-400">{payout.date}</p>
