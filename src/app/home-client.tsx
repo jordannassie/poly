@@ -501,6 +501,16 @@ export default function HomeClient() {
     }
   }, [view, liveGames, startingSoonGames, hotGames]);
 
+  const hotList = useMemo(() => hotGames.map((x) => x.game), [hotGames]);
+  const liveList = useMemo(() => liveGames.map((x) => x.game), [liveGames]);
+  const startingSoonList = useMemo(() => startingSoonGames.map((x) => x.game), [startingSoonGames]);
+  const hasAnyGames = Array.isArray(games) && games.length > 0;
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    console.log("[HOME] allGames=", games.length);
+  }, [games.length]);
+
   const featuredCandidates = (() => {
     const primary = dedupeById([...liveGames, ...upcomingAny]).slice(0, 3);
     if (primary.length > 0) return primary;
@@ -525,6 +535,9 @@ export default function HomeClient() {
     featuredCandidates.length === 0
       ? null
       : featuredCandidates[featuredIndex % featuredCandidates.length].game;
+  const homeWouldBeEmpty =
+    hotList.length === 0 && liveList.length === 0 && startingSoonList.length === 0 && !featuredGame;
+  const fallbackGames = hasAnyGames && homeWouldBeEmpty ? games.slice(0, 10) : [];
   const featuredAny = featuredGame as any;
   const featuredStartsAtText = (
     featuredAny?.startsAtText ??
@@ -807,6 +820,124 @@ export default function HomeClient() {
                     </Link>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Fallback Inventory */}
+            {!loading && !error && fallbackGames.length > 0 && (
+              <div className="mt-8">
+                <h3 className="text-lg font-semibold mb-3 text-[color:var(--text-strong)]">Games (Fallback)</h3>
+                <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
+                  {fallbackGames.map((game) => {
+                    const isLive = isLiveStatus(game.status);
+
+                    return (
+                      <Link
+                        key={game.id}
+                        href={getGameHref(game)}
+                        className="block bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-xl p-4 hover:border-[color:var(--border-strong)] transition group relative"
+                      >
+                        {/* Badge */}
+                        {isLive ? (
+                          <div className="absolute -top-2 -right-2 px-2 py-1 rounded-full text-xs font-bold text-white flex items-center gap-1 bg-red-500 animate-pulse">
+                            <Radio className="h-3 w-3" />
+                            LIVE
+                          </div>
+                        ) : (
+                          <div className="absolute -top-2 -right-2 px-2 py-1 rounded-full text-xs font-bold text-white flex items-center gap-1 bg-gradient-to-r from-orange-500 to-red-500">
+                            <Flame className="h-3 w-3" />
+                            HOT
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-xs px-2 py-1 rounded bg-[color:var(--surface-2)] text-[color:var(--text-muted)]">
+                            {game.league}
+                          </span>
+                          <div className="flex items-center gap-3 text-xs text-[color:var(--text-subtle)]">
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {isLive ? "LIVE" : `Locks in ${locksInLabel(game.startTime)}`}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          {/* Team 1 */}
+                          <div className="flex items-center gap-2 flex-1">
+                            <div
+                              className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm overflow-hidden"
+                              style={{ backgroundColor: game.team1.color }}
+                            >
+                              {game.team1.logoUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={game.team1.logoUrl} alt={game.team1.abbr} className="w-full h-full object-cover" />
+                              ) : (
+                                game.team1.abbr
+                              )}
+                            </div>
+                            <div>
+                              <div className="font-semibold text-[color:var(--text-strong)]">
+                                {game.team1.name}
+                              </div>
+                              <div className="text-xs text-[color:var(--text-muted)]">
+                                {game.team1.abbr}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-center">
+                            <div className="text-xs text-[color:var(--text-muted)] uppercase tracking-[0.2em]">
+                              vs
+                            </div>
+                            <div className="text-sm font-semibold text-[color:var(--text-strong)]">
+                              {game.team1.odds ?? "-"} / {game.team2.odds ?? "-"}
+                            </div>
+                          </div>
+
+                          {/* Team 2 */}
+                          <div className="flex items-center gap-2 flex-1 justify-end">
+                            <div className="text-right">
+                              <div className="font-semibold text-[color:var(--text-strong)]">
+                                {game.team2.name}
+                              </div>
+                              <div className="text-xs text-[color:var(--text-muted)]">
+                                {game.team2.abbr}
+                              </div>
+                            </div>
+                            <div
+                              className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm overflow-hidden"
+                              style={{ backgroundColor: game.team2.color }}
+                            >
+                              {game.team2.logoUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={game.team2.logoUrl} alt={game.team2.abbr} className="w-full h-full object-cover" />
+                              ) : (
+                                game.team2.abbr
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="mt-4 flex items-center justify-between text-[color:var(--text-subtle)] text-xs">
+                          <div className="flex items-center gap-2">
+                            <Users className="h-3 w-3" />
+                            <span>Top picks</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Zap className="h-3 w-3 text-yellow-400" />
+                            <span>Sharp edge</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Trophy className="h-3 w-3 text-orange-400" />
+                            <span>Leaderboard points</span>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
             )}
 

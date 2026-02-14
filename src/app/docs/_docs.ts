@@ -54,5 +54,5 @@ Every Cursor prompt MUST:
 4) LAST STEP: append to Change Log with files + verify steps + commit hash.
 
 CHANGE LOG
-- (append new entries here)
+- 2026-02-12: Updated home fallback logic to ensure games display when tabs would be empty; file: src/app/home-client.tsx; verify: Home shows fallback list when Hot/Live/Starting Soon are empty, featured hides only when no games exist; commit: (this change)
 `;
