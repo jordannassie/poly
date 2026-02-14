@@ -16,6 +16,7 @@ import { getServiceClient } from "@/lib/supabase/serverServiceClient";
 import { PAST_DAYS, FUTURE_DAYS } from "@/lib/sports/window";
 import { getLogoUrl } from "@/lib/images/getLogoUrl";
 import { isRealGame } from "@/lib/sports/placeholderTeams";
+import { ENABLED_SPORTS } from "@/config/sports";
 
 export const dynamic = "force-dynamic";
 
@@ -109,8 +110,11 @@ export async function GET(request: NextRequest) {
 
     const allRows = rawGames || [];
 
-    // Filter out placeholder teams
-    const realGames = allRows.filter((g) => isRealGame(g.home_team, g.away_team));
+    // Filter out placeholder teams and disabled sports
+    const realGames = allRows.filter((g) => 
+      isRealGame(g.home_team, g.away_team) && 
+      ENABLED_SPORTS.includes(g.league?.toLowerCase() as any)
+    );
 
     // Load team map (service role)
     const { data: teamsData } = await client

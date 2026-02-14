@@ -23,6 +23,7 @@ import {
 import { LightningLoader } from "@/components/ui/LightningLoader";
 import FeaturedMatchupHero from "@/components/home/FeaturedMatchupHero";
 import { isLiveStatus, isUpcomingStatus } from "@/lib/sports/normalizeGameStatus";
+import { ENABLED_SPORTS } from "@/config/sports";
 
 // Hot game type from API
 interface HotGame {
@@ -337,7 +338,10 @@ export default function HomeClient() {
         if (!res.ok) throw new Error("Failed to fetch games");
         const data = await res.json();
         
-        const fetchedGames = data.games || [];
+        // Defensive filter: only show enabled sports (NFL/NBA/MLB/NHL)
+        const fetchedGames = (data.games || []).filter((g: HotGame) =>
+          ENABLED_SPORTS.includes(g.league?.toLowerCase() as any)
+        );
         setGames(fetchedGames);
       } catch (err) {
         console.error("Failed to fetch hot games:", err);
