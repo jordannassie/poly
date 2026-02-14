@@ -8,8 +8,8 @@ export const metadata: Metadata = {
   title: "ProvePicks - Coming Soon",
   description: "The future of sports betting prediction markets",
   icons: {
-    icon: "https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/public/SPORTS/logos/ICON%20P.jpg",
-    apple: "https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/public/SPORTS/logos/ICON%20P.jpg",
+    icon: "https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/public/SPORTS/logos/Logo.jpg",
+    apple: "https://qiodxdkcvewvappuzuud.supabase.co/storage/v1/object/public/SPORTS/logos/Logo.jpg",
   },
 };
 
