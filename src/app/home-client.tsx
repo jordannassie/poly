@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { TopNav } from "@/components/TopNav";
@@ -512,24 +512,38 @@ export default function HomeClient() {
   }, [games.length]);
 
   const featuredCandidates = (() => {
-    const primary = dedupeById([...liveGames, ...upcomingAny]).slice(0, 3);
+    const primary = dedupeById([...liveGames, ...upcomingAny]).slice(0, 10);
     if (primary.length > 0) return primary;
-    if (recentPast.length > 0) return recentPast.slice(0, 1);
+    if (recentPast.length > 0) return recentPast.slice(0, 5);
     return [];
   })();
 
   const [featuredIndex, setFeaturedIndex] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Auto-advance every 8s, pause when user manually scrolls
+  const autoPlayRef = useRef(true);
   useEffect(() => {
     if (featuredCandidates.length <= 1) {
       setFeaturedIndex(0);
       return;
     }
     const id = window.setInterval(() => {
-      setFeaturedIndex((prev) => prev + 1);
+      if (!autoPlayRef.current) return;
+      setFeaturedIndex((prev) => (prev + 1) % featuredCandidates.length);
     }, 8000);
     return () => window.clearInterval(id);
   }, [featuredCandidates.length]);
+
+  // Scroll to active card when featuredIndex changes
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    const container = scrollRef.current;
+    const card = container.children[featuredIndex] as HTMLElement | undefined;
+    if (card) {
+      card.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    }
+  }, [featuredIndex]);
 
   const featuredGame =
     featuredCandidates.length === 0
@@ -566,50 +580,88 @@ export default function HomeClient() {
         {/* Main Content */}
         <main className="flex-1 p-4 md:p-6">
           <div className="max-w-5xl mx-auto">
-            {/* Featured Matchup Hero */}
-            {featuredGame ? (
+            {/* Featured Matchups Carousel */}
+            {featuredCandidates.length > 0 ? (
               <div className="mb-6 md:mb-8">
-                <FeaturedMatchupHero
-                  league={(featuredGame?.league ?? featuredAny?.sport ?? null) as any}
-                  awayName={
-                    (featuredGame?.team1?.name ??
-                      featuredAny?.awayTeam?.name ??
-                      featuredAny?.awayTeamName ??
-                      null) as any
-                  }
-                  homeName={
-                    (featuredGame?.team2?.name ??
-                      featuredAny?.homeTeam?.name ??
-                      featuredAny?.homeTeamName ??
-                      null) as any
-                  }
-                  awayAbbr={
-                    (featuredGame?.team1?.abbr ??
-                      featuredAny?.awayTeam?.abbreviation ??
-                      featuredAny?.awayTeamAbbr ??
-                      null) as any
-                  }
-                  homeAbbr={
-                    (featuredGame?.team2?.abbr ??
-                      featuredAny?.homeTeam?.abbreviation ??
-                      featuredAny?.homeTeamAbbr ??
-                      null) as any
-                  }
-                  awayLogoUrl={
-                    (featuredGame?.team1?.logoUrl ??
-                      featuredAny?.awayTeam?.logoUrl ??
-                      featuredAny?.awayLogoUrl ??
-                      null) as any
-                  }
-                  homeLogoUrl={
-                    (featuredGame?.team2?.logoUrl ??
-                      featuredAny?.homeTeam?.logoUrl ??
-                      featuredAny?.homeLogoUrl ??
-                      null) as any
-                  }
-                  startsAtText={featuredStartsAtText}
-                  ctaHref={featuredCtaHref}
-                />
+                {/* Scrollable row */}
+                <div
+                  ref={scrollRef}
+                  className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-3 scrollbar-thin"
+                  style={{ scrollbarColor: "rgba(255,255,255,0.2) transparent" }}
+                  onTouchStart={() => { autoPlayRef.current = false; }}
+                  onMouseDown={() => { autoPlayRef.current = false; }}
+                >
+                  {featuredCandidates.map((fc, idx) => {
+                    const g = fc.game;
+                    const ga = g as any;
+                    return (
+                      <div
+                        key={g.id}
+                        className={`flex-shrink-0 snap-center transition-all duration-300 ${
+                          featuredCandidates.length === 1 ? "w-full" : "w-[85%] md:w-[70%]"
+                        } ${idx === featuredIndex ? "opacity-100 scale-100" : "opacity-60 scale-[0.97]"}`}
+                      >
+                        <FeaturedMatchupHero
+                          league={(g.league ?? ga?.sport ?? null) as any}
+                          awayName={(g.team1?.name ?? ga?.awayTeam?.name ?? null) as any}
+                          homeName={(g.team2?.name ?? ga?.homeTeam?.name ?? null) as any}
+                          awayAbbr={(g.team1?.abbr ?? ga?.awayTeam?.abbreviation ?? null) as any}
+                          homeAbbr={(g.team2?.abbr ?? ga?.homeTeam?.abbreviation ?? null) as any}
+                          awayLogoUrl={(g.team1?.logoUrl ?? ga?.awayTeam?.logoUrl ?? null) as any}
+                          homeLogoUrl={(g.team2?.logoUrl ?? ga?.homeTeam?.logoUrl ?? null) as any}
+                          startsAtText={ga?.startsAtText ?? (g.startTime ? locksInLabel(ga?.starts_at ?? g.startTime) : null)}
+                          ctaHref={ga?.href ?? ga?.marketHref ?? ga?.url ?? getGameHref(g)}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Dot indicators + arrows */}
+                {featuredCandidates.length > 1 && (
+                  <div className="flex items-center justify-center gap-3 mt-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        autoPlayRef.current = false;
+                        setFeaturedIndex((prev) => (prev - 1 + featuredCandidates.length) % featuredCandidates.length);
+                      }}
+                      className="h-7 w-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/60 hover:text-white transition"
+                      aria-label="Previous matchup"
+                    >
+                      <ChevronRight className="h-4 w-4 rotate-180" />
+                    </button>
+                    <div className="flex gap-1.5">
+                      {featuredCandidates.map((_, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => {
+                            autoPlayRef.current = false;
+                            setFeaturedIndex(i);
+                          }}
+                          className={`rounded-full transition-all duration-300 ${
+                            i === featuredIndex
+                              ? "w-6 h-2 bg-orange-500"
+                              : "w-2 h-2 bg-white/25 hover:bg-white/40"
+                          }`}
+                          aria-label={`Go to matchup ${i + 1}`}
+                        />
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        autoPlayRef.current = false;
+                        setFeaturedIndex((prev) => (prev + 1) % featuredCandidates.length);
+                      }}
+                      className="h-7 w-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/60 hover:text-white transition"
+                      aria-label="Next matchup"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
               </div>
             ) : null}
 
