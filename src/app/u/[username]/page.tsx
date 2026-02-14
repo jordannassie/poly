@@ -213,6 +213,9 @@ export default function PublicProfilePage({ params }: Props) {
   // User posts (activity)
   const [userPosts, setUserPosts] = useState<UserPost[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
+  
+  // P/L chart range
+  const [range, setRange] = useState<"1D" | "1W" | "1M" | "ALL">("ALL");
 
   useEffect(() => {
     // Check if this is the current user's profile
@@ -446,7 +449,6 @@ export default function PublicProfilePage({ params }: Props) {
     },
   };
 
-  const [range, setRange] = useState<"1D" | "1W" | "1M" | "ALL">("ALL");
   const currentRange = rangeConfig[range];
 
   return (
