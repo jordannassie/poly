@@ -471,7 +471,7 @@ export function TopNav() {
           </div>
         </div>
       </div>
-      <div className="border-b border-white/10 bg-[color:var(--app-bg)]">
+      <div className="border-b border-white/10 bg-[#1a1a1a]">
         <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-center gap-3 px-4 py-3 text-white md:flex-row md:gap-6">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/70">
             <span>Prove it:</span>

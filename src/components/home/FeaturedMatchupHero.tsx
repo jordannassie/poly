@@ -24,7 +24,7 @@ export default function FeaturedMatchupHero(p: Props) {
   return (
     <div
       data-featured-hero="v2"
-      className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/30 p-8"
+      className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#1a1a1a] p-8 text-white"
     >
       <div
         className="pointer-events-none absolute inset-0 opacity-60"
