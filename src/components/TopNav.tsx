@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
-import { ChevronDown, Moon, Sun, Bell, Coins, DollarSign, Menu, X, Home, Trophy, Settings, Wallet, Radio, BarChart3 } from "lucide-react";
+import { ChevronDown, Moon, Sun, Bell, Coins, DollarSign, Menu, X, Home, Trophy, Settings, Wallet, Radio, BarChart3, Briefcase } from "lucide-react";
 import { ProvePicksLogo } from "./ui/ProvePicksLogo";
+import { SearchBar } from "./SearchBar";
 import { Button } from "./ui/button";
 import { Avatar } from "./ui/Avatar";
 import { AuthModal } from "./AuthModal";
@@ -221,13 +222,19 @@ export function TopNav() {
     <>
       <div className="bg-gradient-to-r from-orange-500 to-amber-500">
         <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-4 py-4">
-          <Link href="/" className="flex items-center gap-2 text-white">
+          <Link href="/" className="flex items-center gap-2 text-white flex-shrink-0">
             <ProvePicksLogo size="lg" glow />
-            <span className="text-lg font-bold text-white">
+            <span className="text-lg font-bold text-white hidden sm:inline">
               ProvePicks
             </span>
           </Link>
-          <div className="ml-auto flex items-center gap-2">
+
+          {/* Global Search */}
+          <div className="flex-1 flex justify-center max-w-md mx-2 md:mx-4">
+            <SearchBar />
+          </div>
+
+          <div className="flex items-center gap-2 flex-shrink-0">
             <Button
               variant="ghost"
               className="h-9 w-9 rounded-full p-0 text-white/80 hover:text-white hover:bg-white/20"
@@ -475,38 +482,62 @@ export function TopNav() {
         </div>
       </div>
       <div className="border-b border-white/10 bg-[#1a1a1a]">
-        <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-center gap-3 px-4 py-3 text-white md:flex-row md:gap-6">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/70">
-            <span>Prove it:</span>
-            <span className="text-base font-bold text-white">{proveItAmount}</span>
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 text-white">
+          {/* Left spacer for balance on desktop */}
+          <div className="hidden md:flex items-center gap-1 w-20" />
+
+          {/* Center: Prove It + Coin/Cash toggle */}
+          <div className="flex flex-col items-center gap-3 md:flex-row md:gap-6">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/70">
+              <span>Prove it:</span>
+              <span className="text-base font-bold text-white">{proveItAmount}</span>
+            </div>
+            <div className="flex items-center gap-2 rounded-full border border-white/20 bg-black/40 px-1.5 py-1.5 text-[11px] font-semibold tracking-wider">
+              <button
+                type="button"
+                onClick={() => setMode("coin")}
+                aria-pressed={mode === "coin"}
+                className={`flex items-center gap-2 rounded-full px-4 py-1.5 transition duration-200 ${
+                  mode === "coin"
+                    ? "bg-white text-black"
+                    : "bg-transparent text-white/60 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                <Coins className={`h-3 w-3 ${mode === "coin" ? "text-black" : "text-orange-400"}`} />
+                Coin
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("cash")}
+                aria-pressed={mode === "cash"}
+                className={`flex items-center gap-2 rounded-full px-4 py-1.5 transition duration-200 ${
+                  mode === "cash"
+                    ? "bg-white text-black"
+                    : "bg-transparent text-white/60 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                <DollarSign className={`h-3 w-3 ${mode === "cash" ? "text-black" : "text-orange-400"}`} />
+                Cash
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-white/20 bg-black/40 px-1.5 py-1.5 text-[11px] font-semibold tracking-wider">
-            <button
-              type="button"
-              onClick={() => setMode("coin")}
-              aria-pressed={mode === "coin"}
-              className={`flex items-center gap-2 rounded-full px-4 py-1.5 transition duration-200 ${
-                mode === "coin"
-                  ? "bg-white text-black"
-                  : "bg-transparent text-white/60 hover:text-white hover:bg-white/10"
-              }`}
+
+          {/* Right: Portfolio + Leaderboard icons */}
+          <div className="flex items-center gap-1">
+            <Link
+              href="/portfolio"
+              className="flex items-center justify-center h-8 w-8 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition"
+              title="Portfolio"
             >
-              <Coins className={`h-3 w-3 ${mode === "coin" ? "text-black" : "text-orange-400"}`} />
-              Coin
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("cash")}
-              aria-pressed={mode === "cash"}
-              className={`flex items-center gap-2 rounded-full px-4 py-1.5 transition duration-200 ${
-                mode === "cash"
-                  ? "bg-white text-black"
-                  : "bg-transparent text-white/60 hover:text-white hover:bg-white/10"
-              }`}
+              <Briefcase className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/leaderboard"
+              className="flex items-center justify-center h-8 w-8 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition"
+              title="Leaderboard"
             >
-              <DollarSign className={`h-3 w-3 ${mode === "cash" ? "text-black" : "text-orange-400"}`} />
-              Cash
-            </button>
+              <Trophy className="h-4 w-4" />
+            </Link>
           </div>
         </div>
       </div>
