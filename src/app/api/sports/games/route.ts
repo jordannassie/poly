@@ -95,12 +95,21 @@ export async function GET(request: NextRequest) {
       const teamMap = new Map<string, { id: number; name: string; logo: string | null; slug: string }>();
       (teamData || []).forEach((team) => {
         if (team?.name) {
-          teamMap.set(String(team.name).toLowerCase(), {
+          const entry = {
             id: team.id,
             name: team.name,
             logo: team.logo,
             slug: team.slug,
-          });
+          };
+          const nameLower = String(team.name).toLowerCase();
+          // Store exact name
+          teamMap.set(nameLower, entry);
+          // Also store without common soccer suffixes (FC, CF, SC, AFC)
+          // so "Fulham FC" also matches "Fulham" and vice versa
+          const stripped = nameLower.replace(/\s+(fc|cf|sc|afc|sfc)$/i, "").trim();
+          if (stripped !== nameLower) {
+            teamMap.set(stripped, entry);
+          }
         }
       });
 

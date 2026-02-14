@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Calendar } from "lucide-react";
 import { LightningLoader } from "@/components/ui/LightningLoader";
 import { TeamOutcomeButtonPair } from "@/components/market/TeamOutcomeButton";
+import { getLogoUrl } from "@/lib/images/getLogoUrl";
 
 interface Team {
   TeamID: number;
@@ -245,6 +246,10 @@ function GameCard({ game, league }: { game: Game; league: string }) {
   const awayTeam = game.AwayTeamData;
   const homeTeam = game.HomeTeamData;
 
+  // Resolve logo URLs (handles storage paths, API URLs, etc.)
+  const awayLogoResolved = getLogoUrl(awayTeam?.WikipediaLogoUrl ?? null);
+  const homeLogoResolved = getLogoUrl(homeTeam?.WikipediaLogoUrl ?? null);
+
   // Determine the game detail route based on league
   const getGameHref = () => {
     return `/${league}/game/${game.GameKey}`;
@@ -280,10 +285,10 @@ function GameCard({ game, league }: { game: Game; league: string }) {
               className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden"
               style={{ backgroundColor: awayTeam?.PrimaryColor ? `#${awayTeam.PrimaryColor}` : "var(--surface-2)" }}
             >
-              {awayTeam?.WikipediaLogoUrl && !awayImgError ? (
+              {awayLogoResolved && !awayImgError ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={awayTeam.WikipediaLogoUrl}
+                  src={awayLogoResolved}
                   alt={awayTeam?.Name || game.AwayTeam || "Away"}
                   width={32}
                   height={32}
@@ -330,10 +335,10 @@ function GameCard({ game, league }: { game: Game; league: string }) {
               className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden"
               style={{ backgroundColor: homeTeam?.PrimaryColor ? `#${homeTeam.PrimaryColor}` : "var(--surface-2)" }}
             >
-              {homeTeam?.WikipediaLogoUrl && !homeImgError ? (
+              {homeLogoResolved && !homeImgError ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={homeTeam.WikipediaLogoUrl}
+                  src={homeLogoResolved}
                   alt={homeTeam?.Name || game.HomeTeam || "Home"}
                   width={32}
                   height={32}
@@ -354,13 +359,13 @@ function GameCard({ game, league }: { game: Game; league: string }) {
             teamA={{
               name: awayTeam?.Name || game.AwayTeam || "Away",
               abbr: game.AwayTeam || "AWY",
-              logoUrl: awayTeam?.WikipediaLogoUrl,
+              logoUrl: awayLogoResolved,
               color: awayTeam?.PrimaryColor ? `#${awayTeam.PrimaryColor}` : "#6366f1",
             }}
             teamB={{
               name: homeTeam?.Name || game.HomeTeam || "Home",
               abbr: game.HomeTeam || "HOM",
-              logoUrl: homeTeam?.WikipediaLogoUrl,
+              logoUrl: homeLogoResolved,
               color: homeTeam?.PrimaryColor ? `#${homeTeam.PrimaryColor}` : "#6366f1",
             }}
             priceA={50}

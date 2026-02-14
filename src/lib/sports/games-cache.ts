@@ -297,9 +297,28 @@ export function transformCachedGame(
   game: CachedGame,
   teamMap: Map<string, { id: number; name: string; logo: string | null; slug: string }>
 ): SimplifiedGame {
-  // Look up teams by name (lowercase for matching)
-  const homeTeam = teamMap.get(game.home_team.toLowerCase());
-  const awayTeam = teamMap.get(game.away_team.toLowerCase());
+  // Look up teams by name (lowercase) with fallback for suffix variations
+  const findTeam = (name: string) => {
+    const lower = name.toLowerCase();
+    // Exact match
+    let team = teamMap.get(lower);
+    if (team) return team;
+    // Try stripping common suffixes (e.g., "Fulham FC" → "Fulham")
+    const stripped = lower.replace(/\s+(fc|cf|sc|afc|sfc)$/i, "").trim();
+    if (stripped !== lower) {
+      team = teamMap.get(stripped);
+      if (team) return team;
+    }
+    // Try adding common suffixes (e.g., "Fulham" → "Fulham FC")
+    for (const suffix of [" fc", " cf", " sc", " afc"]) {
+      team = teamMap.get(lower + suffix);
+      if (team) return team;
+    }
+    return undefined;
+  };
+
+  const homeTeam = findTeam(game.home_team);
+  const awayTeam = findTeam(game.away_team);
 
   // Use status_norm from database (source of truth)
   // Fallback to parsing raw status for backwards compatibility
@@ -620,16 +639,25 @@ export async function getAllTeamMapsFromCache(): Promise<Map<string, { id: numbe
   }
 
   // Map by "league:teamname" (lowercase for matching)
+  // Also store without common soccer suffixes so "Fulham FC" matches "Fulham"
   const map = new Map<string, { id: number; name: string; logo: string | null; slug: string }>();
   let teamsWithLogo = 0;
   for (const team of data) {
-    const key = `${team.league.toLowerCase()}:${team.name.toLowerCase()}`;
-    map.set(key, {
+    const entry = {
       id: team.id,
       name: team.name,
       logo: team.logo,
       slug: team.slug,
-    });
+    };
+    const leagueLower = team.league.toLowerCase();
+    const nameLower = team.name.toLowerCase();
+    const key = `${leagueLower}:${nameLower}`;
+    map.set(key, entry);
+    // Also store without common suffixes
+    const stripped = nameLower.replace(/\s+(fc|cf|sc|afc|sfc)$/i, "").trim();
+    if (stripped !== nameLower) {
+      map.set(`${leagueLower}:${stripped}`, entry);
+    }
     if (team.logo) teamsWithLogo++;
   }
 

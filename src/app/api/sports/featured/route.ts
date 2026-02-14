@@ -133,8 +133,20 @@ export async function GET() {
         }
 
         const makeTeam = (teamName?: string) => {
-          const lookupKey = `${league}:${(teamName || "").toLowerCase()}`;
-          const meta = teamMap.get(lookupKey);
+          const nameLower = (teamName || "").toLowerCase();
+          const lookupKey = `${league}:${nameLower}`;
+          let meta = teamMap.get(lookupKey);
+          // Fallback: try stripping/adding common suffixes
+          if (!meta) {
+            const stripped = nameLower.replace(/\s+(fc|cf|sc|afc|sfc)$/i, "").trim();
+            if (stripped !== nameLower) meta = teamMap.get(`${league}:${stripped}`);
+            if (!meta) {
+              for (const suffix of [" fc", " cf", " sc", " afc"]) {
+                meta = teamMap.get(`${league}:${nameLower}${suffix}`);
+                if (meta) break;
+              }
+            }
+          }
           return {
             teamId: meta?.id ?? 0,
             name: teamName || "Team",
