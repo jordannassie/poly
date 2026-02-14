@@ -738,49 +738,16 @@ export default function SettingsPage() {
                       )}
                     </div>
 
-                    {/* Banner */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Banner Image</label>
-                      <div className="relative h-32 rounded-xl overflow-hidden bg-gradient-to-r from-purple-600 to-blue-600">
-                        {bannerUrl && (
-                          <img
-                            src={bannerUrl}
-                            alt="Banner"
-                            className="w-full h-full object-cover"
-                          />
-                        )}
-                        <label className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition cursor-pointer">
-                          <div className="flex items-center gap-2 text-white">
-                            {uploadingBanner ? (
-                              <Loader2 className="h-5 w-5 animate-spin" />
-                            ) : (
-                              <>
-                                <Upload className="h-5 w-5" />
-                                <span>Upload Banner</span>
-                              </>
-                            )}
-                          </div>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={handleBannerUpload}
-                            disabled={uploadingBanner}
-                          />
-                        </label>
-                      </div>
-                    </div>
-
-                    {/* Avatar */}
-                    <div className="flex items-center gap-4">
+                    {/* Profile Photo */}
+                    <div className="flex flex-col items-center gap-4">
                       {avatarUrl ? (
                         <img
                           src={avatarUrl}
                           alt="Avatar"
-                          className="h-16 w-16 rounded-full object-cover"
+                          className="h-32 w-32 rounded-full object-cover border-4 border-[color:var(--border-soft)] shadow-xl"
                         />
                       ) : (
-                        <div className="h-16 w-16 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-yellow-500 flex items-center justify-center text-white font-bold text-xl">
+                        <div className="h-32 w-32 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-yellow-500 flex items-center justify-center text-white font-bold text-4xl border-4 border-[color:var(--border-soft)] shadow-xl">
                           {(displayName || username || "U").slice(0, 2).toUpperCase()}
                         </div>
                       )}

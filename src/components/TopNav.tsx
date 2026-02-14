@@ -272,7 +272,7 @@ export function TopNav() {
                       <Avatar 
                         src={realUser?.avatar_url}
                         name={realUser?.display_name || realUser?.username || undefined}
-                        size="sm"
+                        size="md"
                       />
                       <ChevronDown className="h-3 w-3 md:h-4 md:w-4 text-white/70" />
                     </button>
