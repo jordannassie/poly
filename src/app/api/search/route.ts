@@ -38,15 +38,20 @@ export async function GET(request: NextRequest) {
     }));
 
     // Search games: upcoming first, plus recent past games
+    // Use * wildcard (PostgREST syntax) instead of % in .or() filters
     const now = new Date();
     const recentPast = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: gameData } = await client
+    const { data: gameData, error: gameError } = await client
       .from("sports_games")
       .select("id, external_game_id, league, home_team, away_team, starts_at, status, status_norm")
-      .or(`home_team.ilike.%${query}%,away_team.ilike.%${query}%`)
+      .or(`home_team.ilike.*${query}*,away_team.ilike.*${query}*`)
       .gte("starts_at", recentPast)
       .order("starts_at", { ascending: true })
       .limit(8);
+
+    if (gameError) {
+      console.error("[/api/search] Game query error:", gameError.message);
+    }
 
     // Build logo map for all game teams
     const logoMap = new Map<string, string | null>();
