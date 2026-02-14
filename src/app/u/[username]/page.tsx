@@ -487,13 +487,13 @@ export default function PublicProfilePage({ params }: Props) {
                       </Button>
                       {isOwnProfile ? (
                         <Button asChild size="sm" variant="outline" className="h-8 text-xs border-[color:var(--border-soft)]">
-                          <Link href="/settings">Edit</Link>
+                          <Link href="/settings">Edit Profile</Link>
                         </Button>
                       ) : (
                         <Button 
                           size="sm" 
-                          className={`h-8 text-xs ${isFollowing 
-                            ? "bg-[color:var(--surface-2)] text-[color:var(--text-strong)] border border-[color:var(--border-soft)]" 
+                          className={`h-8 px-4 text-xs font-semibold ${isFollowing 
+                            ? "bg-[color:var(--surface-2)] text-[color:var(--text-strong)] border border-[color:var(--border-soft)] hover:border-red-500/50 hover:text-red-500" 
                             : "bg-orange-500 hover:bg-orange-600 text-white"
                           }`}
                           onClick={handleFollow}
@@ -505,11 +505,23 @@ export default function PublicProfilePage({ params }: Props) {
                     </div>
                   </div>
                   <p className="text-sm text-[color:var(--text-muted)]">
-                    Joined {profile.joinedDate} &bull; {followersCount} followers
+                    Joined {profile.joinedDate}
                   </p>
                   {profile.bio && (
                     <p className="text-sm text-[color:var(--text-strong)] mt-2 line-clamp-2">{profile.bio}</p>
                   )}
+
+                  {/* Followers / Following */}
+                  <div className="flex items-center gap-4 mt-3">
+                    <span className="text-sm">
+                      <span className="font-bold text-[color:var(--text-strong)]">{followersCount}</span>
+                      <span className="text-[color:var(--text-muted)] ml-1">Followers</span>
+                    </span>
+                    <span className="text-sm">
+                      <span className="font-bold text-[color:var(--text-strong)]">{followingCount}</span>
+                      <span className="text-[color:var(--text-muted)] ml-1">Following</span>
+                    </span>
+                  </div>
                 </div>
               </div>
 
