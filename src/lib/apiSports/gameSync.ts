@@ -438,7 +438,56 @@ export async function syncGamesForDateRange(
     }
     
     console.log(`[games-sync] NORMALIZE league=${leagueNormalized} valid=${normalizedGames.length} skippedNull=${skippedNullNormalize} skippedPlaceholders=${skippedPlaceholders}`);
-    
+
+    // Auto-upsert teams from fixture data so every team gets a logo
+    // API-Sports fixture responses include team id, name, and logo for both teams
+    try {
+      const teamsToUpsert = new Map<number, { id: number; league: string; name: string; logo: string | null; slug: string }>();
+      
+      for (const g of games) {
+        // Extract team data from raw API response
+        const rawTeams = league === "SOCCER"
+          ? [g.teams?.home, g.teams?.away]
+          : [g.teams?.home, g.teams?.away];
+        
+        for (const t of rawTeams) {
+          if (t?.id && t?.name && !teamsToUpsert.has(t.id)) {
+            const nameLower = t.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+            teamsToUpsert.set(t.id, {
+              id: t.id,
+              league: leagueNormalized,
+              name: t.name,
+              logo: t.logo || null,
+              slug: `${leagueNormalized}-${t.id}-${nameLower}`,
+            });
+          }
+        }
+      }
+      
+      if (teamsToUpsert.size > 0) {
+        const teamRecords = Array.from(teamsToUpsert.values()).map(t => ({
+          ...t,
+          updated_at: new Date().toISOString(),
+        }));
+        
+        const { error: teamUpsertError } = await adminClient
+          .from("sports_teams")
+          .upsert(teamRecords, {
+            onConflict: "league,id",
+            ignoreDuplicates: false,
+          });
+        
+        if (teamUpsertError) {
+          console.warn(`[games-sync] TEAM_UPSERT_WARN league=${leagueNormalized} error="${teamUpsertError.message}"`);
+        } else {
+          console.log(`[games-sync] TEAM_UPSERT league=${leagueNormalized} teams=${teamRecords.length}`);
+        }
+      }
+    } catch (teamErr) {
+      // Non-fatal: log but don't fail game sync
+      console.warn(`[games-sync] TEAM_UPSERT_EXCEPTION league=${leagueNormalized}`, teamErr instanceof Error ? teamErr.message : teamErr);
+    }
+
     if (normalizedGames.length === 0) {
       console.warn(`[games-sync] WARNING league=${leagueNormalized} all games filtered out!`);
       return {
@@ -612,7 +661,43 @@ export async function syncLiveGames(
     if (skippedPlaceholders > 0) {
       console.log(`[games-sync] live skippedPlaceholders=${skippedPlaceholders} league=${league}`);
     }
-    
+
+    // Auto-upsert teams from fixture data (same as discover)
+    const leagueLower = league.toLowerCase();
+    try {
+      const teamsToUpsert = new Map<number, { id: number; league: string; name: string; logo: string | null; slug: string }>();
+      for (const g of allGames) {
+        for (const t of [g.teams?.home, g.teams?.away]) {
+          if (t?.id && t?.name && !teamsToUpsert.has(t.id)) {
+            const nameLower = t.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+            teamsToUpsert.set(t.id, {
+              id: t.id,
+              league: leagueLower,
+              name: t.name,
+              logo: t.logo || null,
+              slug: `${leagueLower}-${t.id}-${nameLower}`,
+            });
+          }
+        }
+      }
+      if (teamsToUpsert.size > 0) {
+        const teamRecords = Array.from(teamsToUpsert.values()).map(t => ({
+          ...t,
+          updated_at: new Date().toISOString(),
+        }));
+        const { error: teamErr } = await adminClient
+          .from("sports_teams")
+          .upsert(teamRecords, { onConflict: "league,id", ignoreDuplicates: false });
+        if (teamErr) {
+          console.warn(`[games-sync] LIVE_TEAM_UPSERT_WARN league=${leagueLower} error="${teamErr.message}"`);
+        } else {
+          console.log(`[games-sync] LIVE_TEAM_UPSERT league=${leagueLower} teams=${teamRecords.length}`);
+        }
+      }
+    } catch (teamErr) {
+      console.warn(`[games-sync] LIVE_TEAM_UPSERT_EXCEPTION league=${leagueLower}`, teamErr instanceof Error ? teamErr.message : teamErr);
+    }
+
     // Get existing games
     const gameIds = normalizedGames.map(g => g.external_game_id);
     const { data: existingGames } = await adminClient
