@@ -505,7 +505,7 @@ export default function PublicProfilePage({ params }: Props) {
                     </div>
                   </div>
                   <p className="text-sm text-[color:var(--text-muted)]">
-                    Joined {profile.joinedDate}
+                    @{profile.username} &bull; Joined {profile.joinedDate}
                   </p>
                   {profile.bio && (
                     <p className="text-sm text-[color:var(--text-strong)] mt-2 line-clamp-2">{profile.bio}</p>

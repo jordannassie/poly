@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Search, X, Trophy, Calendar, Loader2 } from "lucide-react";
+import { Search, X, Trophy, Calendar, Loader2, User } from "lucide-react";
 import { getLogoUrl } from "@/lib/images/getLogoUrl";
 
 interface SearchTeam {
@@ -27,9 +27,18 @@ interface SearchGame {
   href: string;
 }
 
+interface SearchUser {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  href: string;
+}
+
 interface SearchResults {
   teams: SearchTeam[];
   games: SearchGame[];
+  users: SearchUser[];
 }
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -87,7 +96,7 @@ function TeamLogo({ logo, name, size = 28 }: { logo: string | null; name: string
 export function SearchBar() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResults>({ teams: [], games: [] });
+  const [results, setResults] = useState<SearchResults>({ teams: [], games: [], users: [] });
   const [loading, setLoading] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -98,7 +107,7 @@ export function SearchBar() {
   // Fetch search results
   useEffect(() => {
     if (debouncedQuery.length < 2) {
-      setResults({ teams: [], games: [] });
+      setResults({ teams: [], games: [], users: [] });
       setLoading(false);
       return;
     }
@@ -115,7 +124,7 @@ export function SearchBar() {
         }
       })
       .catch(() => {
-        if (!cancelled) setResults({ teams: [], games: [] });
+        if (!cancelled) setResults({ teams: [], games: [], users: [] });
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -130,7 +139,7 @@ export function SearchBar() {
       setTimeout(() => inputRef.current?.focus(), 50);
     } else {
       setQuery("");
-      setResults({ teams: [], games: [] });
+      setResults({ teams: [], games: [], users: [] });
       setFocusedIndex(-1);
     }
   }, [open]);
@@ -147,8 +156,8 @@ export function SearchBar() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  // Build flat list of navigable results (games first, then teams)
-  const allItems = [...results.games.map((g) => g.href), ...results.teams.map((t) => t.href)];
+  // Build flat list of navigable results (games first, then teams, then users)
+  const allItems = [...results.games.map((g) => g.href), ...results.teams.map((t) => t.href), ...results.users.map((u) => u.href)];
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -185,7 +194,7 @@ export function SearchBar() {
     [router]
   );
 
-  const hasResults = results.teams.length > 0 || results.games.length > 0;
+  const hasResults = results.teams.length > 0 || results.games.length > 0 || results.users.length > 0;
   const showDropdown = open && (query.length >= 2 || hasResults);
 
   return (
@@ -295,6 +304,47 @@ export function SearchBar() {
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-white truncate">{team.name}</div>
                       <div className="text-[11px] text-white/40">{team.league.toUpperCase()}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Users section */}
+          {results.users.length > 0 && (
+            <div>
+              {(results.games.length > 0 || results.teams.length > 0) && <div className="border-t border-white/5 mx-3" />}
+              <div className="px-4 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-white/30">
+                People
+              </div>
+              {results.users.map((user, idx) => {
+                const itemIdx = results.games.length + results.teams.length + idx;
+                return (
+                  <button
+                    key={`u-${user.id}`}
+                    onClick={() => navigate(user.href)}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition ${
+                      focusedIndex === itemIdx ? "bg-white/10" : ""
+                    }`}
+                  >
+                    {user.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={user.avatarUrl}
+                        alt={user.displayName || user.username}
+                        className="w-7 h-7 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center">
+                        <User className="h-3.5 w-3.5 text-white/50" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-white truncate">
+                        {user.displayName || user.username}
+                      </div>
+                      <div className="text-[11px] text-white/40">@{user.username}</div>
                     </div>
                   </button>
                 );
