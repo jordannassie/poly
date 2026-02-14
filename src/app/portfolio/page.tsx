@@ -60,7 +60,7 @@ export default function PortfolioPage() {
   const [positionsLoading, setPositionsLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [mode, setMode] = useState<"coin" | "cash">(getStoredMode);
+  const [mode, setMode] = useState<"coin" | "cash">(getStoredMode());
   const positionsController = useRef<AbortController | null>(null);
   const historyController = useRef<AbortController | null>(null);
 
