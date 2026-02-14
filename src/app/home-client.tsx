@@ -492,14 +492,23 @@ export default function HomeClient() {
 
   const displayGames = useMemo(() => {
     switch (view) {
-      case "live":
-        return liveGames.map((x) => x.game);
+      case "live": {
+        const live = liveGames.map((x) => x.game);
+        // Fallback: show starting-soon games when no live games
+        if (live.length === 0) {
+          return startingSoonGames.map((x) => x.game);
+        }
+        return live;
+      }
       case "starting-soon":
         return startingSoonGames.map((x) => x.game);
       default:
         return hotGames.map((x) => x.game);
     }
   }, [view, liveGames, startingSoonGames, hotGames]);
+
+  // Whether we're showing fallback content on the live tab
+  const liveShowingFallback = view === "live" && liveGames.length === 0 && displayGames.length > 0;
 
   const hotList = useMemo(() => hotGames.map((x) => x.game), [hotGames]);
   const liveList = useMemo(() => liveGames.map((x) => x.game), [liveGames]);
@@ -713,12 +722,20 @@ export default function HomeClient() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold flex items-center gap-2">
                 {viewInfo.icon}
-                {viewInfo.text}
+                {liveShowingFallback ? "Starting Soon" : viewInfo.text}
               </h2>
               <span className="text-sm text-[color:var(--text-muted)]">
                 {displayGames.length} games
               </span>
             </div>
+
+            {/* Live fallback notice */}
+            {liveShowingFallback && (
+              <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg bg-[color:var(--surface)] border border-[color:var(--border-soft)] text-sm text-[color:var(--text-muted)]">
+                <Radio className="h-4 w-4 text-[color:var(--text-subtle)]" />
+                <span>No live games right now — here are games starting soon</span>
+              </div>
+            )}
 
             {/* Loading State */}
             {loading && (

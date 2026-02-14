@@ -173,9 +173,36 @@ export async function GET() {
       })
       .filter(Boolean) as FeaturedItem[];
 
+    // Balanced mix: round-robin across leagues so every sport is represented
+    const MAX_PER_LEAGUE = 3;
+    const MAX_TOTAL = 12;
+    const byLeague = new Map<string, FeaturedItem[]>();
+    for (const item of items) {
+      const bucket = byLeague.get(item.league) || [];
+      if (bucket.length < MAX_PER_LEAGUE) {
+        bucket.push(item);
+        byLeague.set(item.league, bucket);
+      }
+    }
+    // Round-robin: pick 1 from each league in turn
+    const balanced: FeaturedItem[] = [];
+    let added = true;
+    let round = 0;
+    while (added && balanced.length < MAX_TOTAL) {
+      added = false;
+      for (const league of FEATURED_LEAGUES) {
+        const bucket = byLeague.get(league);
+        if (bucket && round < bucket.length && balanced.length < MAX_TOTAL) {
+          balanced.push(bucket[round]);
+          added = true;
+        }
+      }
+      round++;
+    }
+
     const result: FeaturedListResponse = {
       ok: true,
-      items: items.slice(0, 3),
+      items: balanced,
     };
 
     const cacheTtl = items.length > 0 ? CACHE_TTL_ACTIVE : CACHE_TTL_IDLE;
