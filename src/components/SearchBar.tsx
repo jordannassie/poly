@@ -147,8 +147,8 @@ export function SearchBar() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  // Build flat list of navigable results
-  const allItems = [...results.teams.map((t) => t.href), ...results.games.map((g) => g.href)];
+  // Build flat list of navigable results (games first, then teams)
+  const allItems = [...results.games.map((g) => g.href), ...results.teams.map((t) => t.href)];
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -197,7 +197,7 @@ export function SearchBar() {
           className="flex items-center gap-2 rounded-full bg-black/20 hover:bg-black/30 border border-white/10 px-3 py-1.5 text-sm text-white/60 hover:text-white transition"
         >
           <Search className="h-4 w-4" />
-          <span className="hidden md:inline">Trade on anything</span>
+          <span className="hidden md:inline">Search on ProvePicks</span>
         </button>
       ) : (
         <div className="flex items-center gap-2 rounded-full bg-black/30 border border-white/20 px-3 py-1.5 min-w-[240px] md:min-w-[320px]">
@@ -239,62 +239,62 @@ export function SearchBar() {
             </div>
           )}
 
-          {/* Teams section */}
-          {results.teams.length > 0 && (
+          {/* Games section (shown first) */}
+          {results.games.length > 0 && (
             <div>
               <div className="px-4 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-white/30">
-                Teams
+                Games
               </div>
-              {results.teams.map((team, idx) => (
+              {results.games.map((game, idx) => (
                 <button
-                  key={`t-${team.id}-${team.league}`}
-                  onClick={() => navigate(team.href)}
+                  key={`g-${game.id}`}
+                  onClick={() => navigate(game.href)}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition ${
                     focusedIndex === idx ? "bg-white/10" : ""
                   }`}
                 >
-                  <TeamLogo logo={team.logo} name={team.name} />
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <TeamLogo logo={game.awayLogo} name={game.awayTeam} size={22} />
+                    <span className="text-[10px] text-white/30">@</span>
+                    <TeamLogo logo={game.homeLogo} name={game.homeTeam} size={22} />
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-white truncate">{team.name}</div>
-                    <div className="text-[11px] text-white/40">{team.league.toUpperCase()}</div>
+                    <div className="text-sm font-medium text-white truncate">
+                      {game.awayTeam} @ {game.homeTeam}
+                    </div>
+                    <div className="text-[11px] text-white/40 flex items-center gap-1.5">
+                      <span>{game.league.toUpperCase()}</span>
+                      <span>·</span>
+                      <Calendar className="h-3 w-3" />
+                      <span>{formatGameTime(game.startsAt)}</span>
+                    </div>
                   </div>
                 </button>
               ))}
             </div>
           )}
 
-          {/* Games section */}
-          {results.games.length > 0 && (
+          {/* Teams section */}
+          {results.teams.length > 0 && (
             <div>
-              {results.teams.length > 0 && <div className="border-t border-white/5 mx-3" />}
+              {results.games.length > 0 && <div className="border-t border-white/5 mx-3" />}
               <div className="px-4 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-white/30">
-                Upcoming Games
+                Teams
               </div>
-              {results.games.map((game, idx) => {
-                const itemIdx = results.teams.length + idx;
+              {results.teams.map((team, idx) => {
+                const itemIdx = results.games.length + idx;
                 return (
                   <button
-                    key={`g-${game.id}`}
-                    onClick={() => navigate(game.href)}
+                    key={`t-${team.id}-${team.league}`}
+                    onClick={() => navigate(team.href)}
                     className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition ${
                       focusedIndex === itemIdx ? "bg-white/10" : ""
                     }`}
                   >
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <TeamLogo logo={game.awayLogo} name={game.awayTeam} size={22} />
-                      <span className="text-[10px] text-white/30">@</span>
-                      <TeamLogo logo={game.homeLogo} name={game.homeTeam} size={22} />
-                    </div>
+                    <TeamLogo logo={team.logo} name={team.name} />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-white truncate">
-                        {game.awayTeam} @ {game.homeTeam}
-                      </div>
-                      <div className="text-[11px] text-white/40 flex items-center gap-1.5">
-                        <span>{game.league.toUpperCase()}</span>
-                        <span>·</span>
-                        <Calendar className="h-3 w-3" />
-                        <span>{formatGameTime(game.startsAt)}</span>
-                      </div>
+                      <div className="text-sm font-medium text-white truncate">{team.name}</div>
+                      <div className="text-[11px] text-white/40">{team.league.toUpperCase()}</div>
                     </div>
                   </button>
                 );
