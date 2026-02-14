@@ -192,7 +192,7 @@ export default function PortfolioPage() {
     const handler = (event: Event) => {
       const detail = (event as CustomEvent)?.detail;
       const incoming = detail?.mode ?? window.__provepicksMode;
-      if (incoming === "coin" || incoming === "cash") {
+      if ((incoming === "coin" || incoming === "cash") && incoming !== mode) {
         setMode(incoming);
       }
     };
@@ -200,7 +200,7 @@ export default function PortfolioPage() {
     return () => {
       window.removeEventListener("provepicks:mode-change", handler as EventListener);
     };
-  }, []);
+  }, [mode]);
 
   useEffect(() => {
     if (!isLoggedIn || mode !== "coin") {
@@ -376,7 +376,7 @@ export default function PortfolioPage() {
               ) : (
                 <ArrowUpRight className="h-4 w-4" />
               )}
-              {mode === "coin" ? (isRefreshing ? "Adding..." : "Get More Coins") : "Withdraw"}
+              {mode === "coin" ? (isRefreshing ? "Refreshing..." : "Refresh Coins") : "Withdraw"}
             </Button>
           </div>
 

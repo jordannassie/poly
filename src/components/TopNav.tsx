@@ -109,6 +109,22 @@ export function TopNav() {
     };
   }, []);
 
+  // Listen for mode changes from other components (like Portfolio page)
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent)?.detail;
+      const incoming = detail?.mode ?? window.__provepicksMode;
+      if ((incoming === "coin" || incoming === "cash") && incoming !== mode) {
+        setMode(incoming);
+      }
+    };
+    window.addEventListener("provepicks:mode-change", handler as EventListener);
+    return () => {
+      window.removeEventListener("provepicks:mode-change", handler as EventListener);
+    };
+  }, [mode]);
+
   const {
     coinBalance,
     coinLoading,
