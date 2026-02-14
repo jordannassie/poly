@@ -51,7 +51,7 @@ export default function LeaderboardPage() {
       <CategoryTabs activeLabel="Trending" />
       <main className="mx-auto w-full max-w-6xl px-4 py-4 md:py-6">
         <h1 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6 flex items-center gap-2 md:gap-3">
-          <Trophy className="h-6 w-6 md:h-8 md:w-8 text-yellow-500" />
+          <Trophy className="h-6 w-6 md:h-8 md:w-8 text-white/60" />
           Leaderboard
         </h1>
 
@@ -120,11 +120,11 @@ export default function LeaderboardPage() {
                         <span className="w-6 text-center font-bold text-sm text-[color:var(--text-muted)]">
                           {trader.rank}
                         </span>
-                        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm">
+                        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-neutral-500 to-neutral-700 flex items-center justify-center text-sm">
                           {trader.avatar}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <span className="font-semibold text-sm truncate block hover:text-blue-500 transition">
+                          <span className="font-semibold text-sm truncate block hover:text-white transition">
                             {trader.name}
                           </span>
                           <div className="flex items-center gap-3 text-xs">
@@ -140,10 +140,10 @@ export default function LeaderboardPage() {
                         {trader.rank}
                       </span>
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-lg">
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-neutral-500 to-neutral-700 flex items-center justify-center text-lg">
                           {trader.avatar}
                         </div>
-                        <span className="font-semibold hover:text-blue-500 transition">
+                        <span className="font-semibold hover:text-white transition">
                           {trader.name}
                         </span>
                       </div>
@@ -173,7 +173,7 @@ export default function LeaderboardPage() {
                         className="h-8 w-8 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs">
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-neutral-500 to-neutral-700 flex items-center justify-center text-white font-bold text-xs">
                         {getInitials(currentUser.display_name, currentUser.username)}
                       </div>
                     )}
@@ -193,7 +193,7 @@ export default function LeaderboardPage() {
                         className="h-10 w-10 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
+                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-neutral-500 to-neutral-700 flex items-center justify-center text-white font-bold text-sm">
                         {getInitials(currentUser.display_name, currentUser.username)}
                       </div>
                     )}
@@ -209,9 +209,9 @@ export default function LeaderboardPage() {
           {/* Biggest Wins Sidebar */}
           <aside>
             <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] overflow-hidden sticky top-4">
-              <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 p-4 border-b border-[color:var(--border-soft)]">
+              <div className="bg-white/5 p-4 border-b border-[color:var(--border-soft)]">
                 <div className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-green-500" />
+                  <TrendingUp className="h-5 w-5 text-white/60" />
                   <span className="text-lg font-bold">Biggest wins today</span>
                 </div>
               </div>
@@ -225,12 +225,12 @@ export default function LeaderboardPage() {
                     <span className="w-6 text-center text-sm text-[color:var(--text-muted)]">
                       {win.rank}
                     </span>
-                    <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xs">
-                      🟣
+                    <div className="h-8 w-8 rounded-full bg-gradient-to-br from-neutral-500 to-neutral-700 flex items-center justify-center text-xs">
+                      🏆
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-sm truncate">
-                        <span className="hover:text-blue-500 transition">{win.name}</span>{" "}
+                        <span className="hover:text-white transition">{win.name}</span>{" "}
                         <span className="text-[color:var(--text-muted)] font-normal">
                           | {win.market}
                         </span>

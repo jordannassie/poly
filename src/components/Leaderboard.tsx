@@ -8,13 +8,13 @@ import { Trophy } from "lucide-react";
 export function Leaderboard() {
   return (
     <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] overflow-hidden">
-      <div className="bg-gradient-to-r from-yellow-500/20 via-orange-500/20 to-red-500/20 p-4 border-b border-[color:var(--border-soft)]">
+      <div className="bg-white/5 p-4 border-b border-[color:var(--border-soft)]">
         <div className="flex items-center gap-2">
-          <Trophy className="h-5 w-5 text-yellow-500" />
+          <Trophy className="h-5 w-5 text-white/60" />
           <span className="text-lg font-bold">Top Traders</span>
           <Link
             href="/leaderboard"
-            className="ml-auto text-xs bg-yellow-500/20 text-yellow-500 px-2 py-1 rounded-full hover:bg-yellow-500/30 transition"
+            className="ml-auto text-xs bg-white/10 text-white/70 px-2 py-1 rounded-full hover:bg-white/20 transition"
           >
             View All
           </Link>
@@ -43,7 +43,7 @@ export function Leaderboard() {
               {trader.rank}
             </div>
             <div className="flex-1">
-              <div className="font-semibold text-sm hover:text-blue-500 transition">
+              <div className="font-semibold text-sm hover:text-white transition">
                 {trader.name}
               </div>
               <div className="text-xs text-[color:var(--text-subtle)]">
