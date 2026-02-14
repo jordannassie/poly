@@ -136,8 +136,8 @@ export default function AliveLayer({
       <div className="flex items-center justify-between mb-3 text-xs uppercase tracking-[0.3em]">
         <span className="flex items-center gap-2 text-white/50">
           <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-400" />
           </span>
           Live
         </span>
@@ -154,7 +154,7 @@ export default function AliveLayer({
           preserveAspectRatio="none"
         >
           <defs>
-            <filter id="glowGreen">
+            <filter id="glowBlue">
               <feGaussianBlur stdDeviation="4" result="blur" />
               <feMerge>
                 <feMergeNode in="blur" />
@@ -204,11 +204,11 @@ export default function AliveLayer({
             <path
               d={leftPath}
               fill="none"
-              stroke="#34d399"
+              stroke="#60a5fa"
               strokeWidth={2.5}
               strokeLinecap="round"
               strokeLinejoin="round"
-              filter="url(#glowGreen)"
+              filter="url(#glowBlue)"
               className="transition-all duration-700"
             />
           )}
@@ -233,7 +233,7 @@ export default function AliveLayer({
             cy={leftEndY}
             r={leftPulse ? 18 : 14}
             fill="none"
-            stroke="#34d399"
+            stroke="#60a5fa"
             strokeWidth={1.5}
             opacity={leftPulse ? 0.6 : 0.2}
             className="transition-all duration-500"
@@ -244,7 +244,7 @@ export default function AliveLayer({
               cy={leftEndY}
               r={22}
               fill="none"
-              stroke="#34d399"
+              stroke="#60a5fa"
               strokeWidth={1}
               opacity={0.3}
               className="animate-ping"
@@ -288,11 +288,11 @@ export default function AliveLayer({
           <div
             className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold shadow-lg transition-all duration-500 ${
               leftPulse
-                ? "border-emerald-400/80 bg-emerald-500/30 shadow-emerald-500/40 scale-110"
-                : "border-emerald-500/40 bg-emerald-500/20 shadow-emerald-500/20"
+                ? "border-blue-400/80 bg-blue-500/30 shadow-blue-500/40 scale-110"
+                : "border-blue-500/40 bg-blue-500/20 shadow-blue-500/20"
             }`}
           >
-            <span className="text-emerald-300">{leftLabel}</span>
+            <span className="text-blue-300">{leftLabel}</span>
             <span className="text-white font-black text-sm">
               {Math.round(leftPct)}%
             </span>
@@ -327,10 +327,10 @@ export default function AliveLayer({
       <div className="flex items-center justify-between mt-3 px-1">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-emerald-400" />
+            <span className="h-2 w-2 rounded-full bg-blue-400" />
             <span className="text-xs text-white/70 font-medium">{leftLabel}</span>
-            <span className="text-sm font-black text-emerald-400">
-              {leftPriceCents}<span className="text-[10px] text-emerald-400/60">&#162;</span>
+            <span className="text-sm font-black text-blue-400">
+              {leftPriceCents}<span className="text-[10px] text-blue-400/60">&#162;</span>
             </span>
           </div>
           <div className="flex items-center gap-1.5">

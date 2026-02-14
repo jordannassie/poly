@@ -186,6 +186,30 @@ export default function AdminLifecyclePage() {
   const [clearingLock, setClearingLock] = useState(false);
   const [lockCleared, setLockCleared] = useState(false);
   
+  // Team sync state
+  const [teamSyncLoading, setTeamSyncLoading] = useState(false);
+  const [teamSyncResult, setTeamSyncResult] = useState<{
+    ok: boolean;
+    message: string;
+    results?: Array<{
+      league: string;
+      success: boolean;
+      totalTeams: number;
+      inserted: number;
+      updated: number;
+      logosUploaded: number;
+      logosFailed: number;
+      error?: string;
+    }>;
+    totals?: {
+      totalTeams: number;
+      inserted: number;
+      updated: number;
+      logosUploaded: number;
+      logosFailed: number;
+    };
+  } | null>(null);
+
   // Treasury state
   const [treasury, setTreasury] = useState<{
     totalFeesCollected: number;
@@ -524,6 +548,63 @@ export default function AdminLifecyclePage() {
     setShowClearLockConfirm(false);
   };
 
+  const syncAllTeams = async () => {
+    setTeamSyncLoading(true);
+    setTeamSyncResult(null);
+
+    const { data, error } = await safeFetchJson<any>("/api/admin/api-sports/teams/sync-all", {
+      method: "POST",
+    });
+
+    if (error) {
+      setTeamSyncResult({ ok: false, message: error });
+    } else if (data) {
+      setTeamSyncResult({
+        ok: data.ok,
+        message: data.message,
+        results: data.results,
+        totals: data.totals,
+      });
+    }
+    setTeamSyncLoading(false);
+  };
+
+  const syncLeagueTeams = async (league: string) => {
+    setTeamSyncLoading(true);
+    setTeamSyncResult(null);
+
+    const { data, error } = await safeFetchJson<any>(`/api/admin/api-sports/${league}/teams/sync`, {
+      method: "POST",
+    });
+
+    if (error) {
+      setTeamSyncResult({ ok: false, message: error });
+    } else if (data) {
+      setTeamSyncResult({
+        ok: data.ok,
+        message: data.message || `${league.toUpperCase()}: ${data.totalTeams} teams, ${data.logosUploaded} logos uploaded`,
+        results: [{
+          league: data.league || league.toUpperCase(),
+          success: data.ok,
+          totalTeams: data.totalTeams || 0,
+          inserted: data.inserted || 0,
+          updated: data.updated || 0,
+          logosUploaded: data.logosUploaded || 0,
+          logosFailed: data.logosFailed || 0,
+          error: data.error,
+        }],
+        totals: {
+          totalTeams: data.totalTeams || 0,
+          inserted: data.inserted || 0,
+          updated: data.updated || 0,
+          logosUploaded: data.logosUploaded || 0,
+          logosFailed: data.logosFailed || 0,
+        },
+      });
+    }
+    setTeamSyncLoading(false);
+  };
+
   const fetchFinalizeDebug = async () => {
     setLoading("finalize-debug");
 
@@ -860,6 +941,105 @@ export default function AdminLifecyclePage() {
           <p><strong className="text-slate-400">Finalize:</strong> Mark stuck/completed games as FINAL, enqueue for settlement</p>
           <p className="text-slate-600 italic">Jobs run in small batches to prevent timeouts. Click multiple times for large datasets.</p>
         </div>
+      </div>
+
+      {/* Sync Teams & Logos Section */}
+      <div className="bg-slate-800/50 rounded-lg p-4 space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-100">Sync Teams & Logos</h2>
+          <p className="text-sm text-slate-400">
+            Pull teams and logos from API-Sports for all leagues. Logos are uploaded to Supabase Storage.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <Button
+            onClick={syncAllTeams}
+            disabled={teamSyncLoading}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            {teamSyncLoading ? "Syncing..." : "Sync All Leagues"}
+          </Button>
+
+          <div className="h-8 w-px bg-slate-700" />
+
+          {["nfl", "nba", "mlb", "nhl", "soccer"].map((league) => (
+            <Button
+              key={league}
+              onClick={() => syncLeagueTeams(league)}
+              disabled={teamSyncLoading}
+              variant="outline"
+              size="sm"
+              className="text-slate-100 border-slate-700 hover:bg-slate-700"
+            >
+              {league.toUpperCase()}
+            </Button>
+          ))}
+        </div>
+
+        {teamSyncLoading && (
+          <div className="text-sm text-blue-400 bg-blue-900/20 border border-blue-800/50 rounded p-2 flex items-center gap-2">
+            <div className="animate-spin h-4 w-4 border-2 border-blue-400 border-t-transparent rounded-full" />
+            Syncing teams and downloading logos... This may take 30–60 seconds.
+          </div>
+        )}
+
+        {teamSyncResult && (
+          <div className={`rounded-lg p-4 ${teamSyncResult.ok ? 'bg-green-900/30 border border-green-700' : 'bg-red-900/30 border border-red-700'}`}>
+            <h3 className="font-semibold text-slate-100 mb-2">
+              {teamSyncResult.ok ? "✓ Teams Synced" : "✗ Sync Failed"}
+            </h3>
+            <p className="text-sm text-slate-300 mb-3">{teamSyncResult.message}</p>
+
+            {teamSyncResult.totals && (
+              <div className="grid grid-cols-5 gap-3 text-center mb-3">
+                <div className="bg-slate-700/50 rounded p-2">
+                  <div className="text-xl font-bold text-slate-100">{teamSyncResult.totals.totalTeams}</div>
+                  <div className="text-xs text-slate-400">Teams</div>
+                </div>
+                <div className="bg-green-900/30 rounded p-2">
+                  <div className="text-xl font-bold text-green-400">{teamSyncResult.totals.inserted}</div>
+                  <div className="text-xs text-slate-400">New</div>
+                </div>
+                <div className="bg-blue-900/30 rounded p-2">
+                  <div className="text-xl font-bold text-blue-400">{teamSyncResult.totals.updated}</div>
+                  <div className="text-xs text-slate-400">Updated</div>
+                </div>
+                <div className="bg-purple-900/30 rounded p-2">
+                  <div className="text-xl font-bold text-purple-400">{teamSyncResult.totals.logosUploaded}</div>
+                  <div className="text-xs text-slate-400">Logos OK</div>
+                </div>
+                <div className="bg-red-900/30 rounded p-2">
+                  <div className="text-xl font-bold text-red-400">{teamSyncResult.totals.logosFailed}</div>
+                  <div className="text-xs text-slate-400">Logos Failed</div>
+                </div>
+              </div>
+            )}
+
+            {teamSyncResult.results && teamSyncResult.results.length > 1 && (
+              <div className="space-y-1">
+                {teamSyncResult.results.map((r) => (
+                  <div
+                    key={r.league}
+                    className="flex items-center justify-between text-sm bg-slate-700/30 rounded px-3 py-1.5"
+                  >
+                    <span className="font-medium text-slate-100">{r.league}</span>
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="text-slate-400">{r.totalTeams} teams</span>
+                      <span className="text-purple-400">{r.logosUploaded} logos</span>
+                      {r.error && (
+                        <span className="text-red-400 truncate max-w-48" title={r.error}>{r.error}</span>
+                      )}
+                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${r.success ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>
+                        {r.success ? "OK" : "FAIL"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Result Display */}

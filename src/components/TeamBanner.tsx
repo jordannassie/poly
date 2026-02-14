@@ -127,25 +127,17 @@ export function TeamBanner({ teamId, teamName, league, logoUrl, primaryColor }: 
 
   return (
     <div className="relative">
-      {/* Banner Background */}
-      <div 
-        className="h-28 md:h-36 w-full"
-        style={{ 
-          background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%)`,
-        }}
-      />
-
-      {/* Content Container - below the banner */}
-      <div className="max-w-4xl mx-auto px-4 pt-4 pb-4 bg-[color:var(--app-bg)]">
-        <div className="flex items-start gap-4">
-          {/* Logo - positioned at the top */}
+      {/* Content Container - centered layout, no banner */}
+      <div className="max-w-4xl mx-auto px-4 pt-8 pb-4 bg-[color:var(--app-bg)]">
+        <div className="flex flex-col items-center text-center gap-3">
+          {/* Logo - centered and larger */}
           <div 
-            className="w-20 h-20 md:w-24 md:h-24 rounded-full border-4 border-[color:var(--surface)] overflow-hidden flex items-center justify-center shadow-lg flex-shrink-0 -mt-12 md:-mt-14 bg-[color:var(--surface)] relative"
+            className="w-28 h-28 md:w-32 md:h-32 rounded-full border-4 border-[color:var(--surface)] overflow-hidden flex items-center justify-center shadow-lg bg-[color:var(--surface)] relative"
             style={{ backgroundColor: primaryColor }}
           >
             {/* Fallback initials - always rendered, hidden when image loads */}
             <span 
-              className={`text-white font-bold text-xl md:text-2xl ${!showFallback && isLoaded ? 'opacity-0' : 'opacity-100'} transition-opacity`}
+              className={`text-white font-bold text-2xl md:text-3xl ${!showFallback && isLoaded ? 'opacity-0' : 'opacity-100'} transition-opacity`}
               style={{ textShadow: "0 2px 4px rgba(0,0,0,0.3)" }}
             >
               {initials}
@@ -159,7 +151,7 @@ export function TeamBanner({ teamId, teamName, league, logoUrl, primaryColor }: 
                 alt={teamName}
                 data-img-src={resolvedLogoUrl}
                 data-original-logo={logoUrl || "null"}
-                className={`w-16 h-16 md:w-20 md:h-20 object-contain absolute transition-opacity duration-200 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`w-22 h-22 md:w-26 md:h-26 object-contain absolute transition-opacity duration-200 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
                 onLoad={() => setIsLoaded(true)}
                 onError={() => setImgError(true)}
                 loading="lazy"
@@ -170,68 +162,65 @@ export function TeamBanner({ teamId, teamName, league, logoUrl, primaryColor }: 
             )}
           </div>
 
-          {/* Team Info & Actions */}
-          <div className="flex-1 pt-2 flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-            {/* Team Info */}
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold text-[color:var(--text-strong)]">
-                {teamName}
-              </h1>
-              <p className="text-sm text-[color:var(--text-muted)] mt-0.5">
-                r/{teamName.toLowerCase().replace(/\s+/g, "")} • {league.toUpperCase()}
-              </p>
-            </div>
+          {/* Team Info */}
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-[color:var(--text-strong)]">
+              {teamName}
+            </h1>
+            <p className="text-sm text-[color:var(--text-muted)] mt-0.5">
+              r/{teamName.toLowerCase().replace(/\s+/g, "")} • {league.toUpperCase()}
+            </p>
+          </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-2">
-              {/* Follow Button */}
-              <Button
-                onClick={handleFollow}
-                variant={isFollowing ? "outline" : "default"}
-                size="sm"
-                disabled={followLoading}
-                className={`gap-2 ${
-                  isFollowing 
-                    ? "border-[color:var(--border-strong)] text-[color:var(--text-strong)]" 
-                    : "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
-                }`}
-              >
-                {followLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : isFollowing ? (
-                  <>
-                    <BellOff className="h-4 w-4" />
-                    Following
-                  </>
-                ) : (
-                  <>
-                    <Bell className="h-4 w-4" />
-                    Follow
-                  </>
-                )}
-              </Button>
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
+            {/* Follow Button */}
+            <Button
+              onClick={handleFollow}
+              variant={isFollowing ? "outline" : "default"}
+              size="sm"
+              disabled={followLoading}
+              className={`gap-2 ${
+                isFollowing 
+                  ? "border-[color:var(--border-strong)] text-[color:var(--text-strong)]" 
+                  : "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+              }`}
+            >
+              {followLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : isFollowing ? (
+                <>
+                  <BellOff className="h-4 w-4" />
+                  Following
+                </>
+              ) : (
+                <>
+                  <Bell className="h-4 w-4" />
+                  Follow
+                </>
+              )}
+            </Button>
 
-              {/* Share Button */}
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleShare}
-                className="border-[color:var(--border-strong)] h-8 w-8"
-                title="Share"
-              >
-                <Share2 className="h-4 w-4" />
-              </Button>
+            {/* Share Button */}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleShare}
+              className="border-[color:var(--border-strong)] h-8 w-8"
+              title="Share"
+            >
+              <Share2 className="h-4 w-4" />
+            </Button>
 
-              {/* More Options */}
-              <Button
-                variant="outline"
-                size="icon"
-                className="border-[color:var(--border-strong)] h-8 w-8"
-                title="More options"
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </div>
+            {/* More Options */}
+            <Button
+              variant="outline"
+              size="icon"
+              className="border-[color:var(--border-strong)] h-8 w-8"
+              title="More options"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </div>

@@ -563,15 +563,11 @@ export default function HomeClient() {
     featuredAny?.url ??
     (featuredGame ? getGameHref(featuredGame) : "/sports")
   ) as any;
-  const watermarkTimestamp = useMemo(() => new Date().toISOString(), []);
 
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-strong)]">
       <TopNav />
       <CategoryTabs activeLabel={view === "hot" ? "Hot Right Now" : view === "live" ? "Live" : view === "starting-soon" ? "Starting Soon" : view === "big-volume" ? "Big Volume" : "Hot Right Now"} />
-      <div className="pointer-events-none fixed bottom-3 right-3 z-50 rounded-full border border-white/30 bg-black/80 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.2em] text-white shadow-lg shadow-black/50">
-        HOME BUILD CHECK: {watermarkTimestamp}
-      </div>
 
       <div className="flex">
         {/* Sidebar */}
