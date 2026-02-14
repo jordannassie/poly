@@ -31,6 +31,7 @@ const ALL_MAJOR_LEAGUES = [
   SOCCER_LEAGUES.BUNDESLIGA,       // 78 - German Bundesliga
   SOCCER_LEAGUES.LIGUE_1,          // 61 - French Ligue 1
   SOCCER_LEAGUES.MLS,              // 253 - US MLS
+  SOCCER_LEAGUES.CHAMPIONS_LEAGUE, // 2 - UEFA Champions League
 ];
 
 function isAuthorized(request: NextRequest): boolean {
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
       leagueIds = [SOCCER_LEAGUES.PREMIER_LEAGUE];
     }
     
-    const season = seasonParam ? parseInt(seasonParam, 10) : 2024;
+    const season = seasonParam ? parseInt(seasonParam, 10) : 2025;
 
     // Sync Soccer teams with logo storage
     const result = await syncSoccerTeams(adminClient, API_SPORTS_KEY, leagueIds, season);
