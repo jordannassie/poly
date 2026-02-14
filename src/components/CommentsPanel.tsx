@@ -6,6 +6,7 @@ import { Card, CardContent } from "./ui/card";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Heart, MessageCircle, MoreHorizontal, Send, Loader2 } from "lucide-react";
+import { LightningLoader } from "@/components/ui/LightningLoader";
 
 type Comment = {
   id: string;
@@ -232,9 +233,7 @@ export function CommentsPanel({ title = "Discussion", marketSlug }: CommentsPane
 
         {/* Loading State */}
         {loading && (
-          <div className="flex justify-center py-4">
-            <Loader2 className="h-6 w-6 animate-spin text-[color:var(--text-muted)]" />
-          </div>
+          <LightningLoader size="sm" text="Loading..." />
         )}
 
         {/* Comments List */}

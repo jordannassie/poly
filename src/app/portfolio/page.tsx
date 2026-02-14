@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDemoBets, DemoBet } from "@/lib/demoAuth";
 import { Search, ArrowUpRight, ChevronDown, Wallet, Loader2 } from "lucide-react";
+import { LightningLoader } from "@/components/ui/LightningLoader";
 import Link from "next/link";
 import { refreshCoinBalance } from "@/lib/coins/coinBalanceStore";
 
@@ -197,7 +198,7 @@ export default function PortfolioPage() {
         <TopNav />
         <CategoryTabs activeLabel="Trending" />
         <main className="mx-auto w-full max-w-4xl px-4 py-12 text-center">
-          <Loader2 className="h-8 w-8 mx-auto animate-spin text-[color:var(--text-muted)]" />
+          <LightningLoader size="md" text="Loading..." />
         </main>
         <MainFooter />
       </div>

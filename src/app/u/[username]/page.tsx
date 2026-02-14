@@ -26,9 +26,9 @@ import {
   MessageCircle,
   Heart,
   MoreHorizontal,
-  Loader2,
   AlertCircle
 } from "lucide-react";
+import { LightningLoader } from "@/components/ui/LightningLoader";
 import Link from "next/link";
 
 type Props = {
@@ -395,9 +395,7 @@ export default function PublicProfilePage({ params }: Props) {
         <TopNav />
         <CategoryTabs activeLabel="Trending" />
         <main className="mx-auto w-full max-w-4xl px-4 py-6">
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-white/60" />
-          </div>
+          <LightningLoader size="md" text="Loading..." />
         </main>
         <MainFooter />
       </div>
@@ -774,9 +772,7 @@ export default function PublicProfilePage({ params }: Props) {
         {activeTab === "activity" && (
           <div className="space-y-3">
             {postsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-white/60" />
-              </div>
+              <LightningLoader size="md" text="Loading..." />
             ) : userPosts.length > 0 ? (
               <>
                 {userPosts.map((post) => {
@@ -874,9 +870,7 @@ export default function PublicProfilePage({ params }: Props) {
         {activeTab === "teams" && (
           <div>
             {teamsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-white/60" />
-              </div>
+              <LightningLoader size="md" text="Loading..." />
             ) : followedTeams.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {followedTeams.map((team) => (

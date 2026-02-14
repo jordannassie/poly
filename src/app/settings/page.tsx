@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 // Note: getDemoUser is deprecated - using /api/me for real auth
 import { validateUsername } from "@/lib/profiles";
 import { Upload, Check, AlertCircle, Loader2, Wallet, X, User } from "lucide-react";
+import { LightningLoader } from "@/components/ui/LightningLoader";
 
 const sidebarItems = [
   { id: "profile", label: "Profile" },
@@ -718,9 +719,7 @@ export default function SettingsPage() {
           {/* Main Content */}
           <div className="flex-1">
             {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-              </div>
+              <LightningLoader size="md" text="Loading..." />
             ) : (
               <>
                 {activeSection === "profile" && (

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Heart, MessageSquare, MoreHorizontal, Send, Loader2, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { LightningLoader } from "@/components/ui/LightningLoader";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -314,9 +315,7 @@ export function MarketComments({ marketSlug, league }: MarketCommentsProps) {
 
       {/* Posts List */}
       {loading ? (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-[color:var(--text-muted)]" />
-        </div>
+        <LightningLoader size="md" text="Loading..." />
       ) : posts.length === 0 ? (
         <div className="text-center py-8 text-[color:var(--text-muted)]">
           No comments yet. Be the first to share your thoughts!
@@ -438,10 +437,7 @@ export function MarketComments({ marketSlug, league }: MarketCommentsProps) {
                   {expandedReplies.has(post.id) && (
                     <div className="mt-3 space-y-3 pl-4 border-l-2 border-[color:var(--border-soft)]">
                       {loadingReplies[post.id] ? (
-                        <div className="flex items-center gap-2 text-sm text-[color:var(--text-muted)]">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Loading replies...
-                        </div>
+                        <LightningLoader size="sm" text="Loading replies..." />
                       ) : (
                         replies[post.id]?.map((reply) => (
                           <div key={reply.id} className="flex gap-2">
