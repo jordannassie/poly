@@ -941,11 +941,11 @@ export default function HomeClient() {
               </div>
             )}
 
-            {/* Empty State */}
-            {!loading && !error && games.length === 0 && (
+            {/* Empty State - only when no games exist at all */}
+            {!loading && !error && displayGames.length === 0 && fallbackGames.length === 0 && (
               <div className="text-center py-12">
                 <div className="text-[color:var(--text-muted)] mb-4">
-                  No games found for today
+                  No games available right now
                 </div>
                 <Link href="/sports">
                   <Button>Browse Games</Button>

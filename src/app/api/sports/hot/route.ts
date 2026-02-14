@@ -1,25 +1,21 @@
 /**
  * GET /api/sports/hot
- * Returns games for homepage sections:
- * - Hot Right Now: starts_at between now() and now()+24h
- * - Starting Soon: starts_at between now() and now()+7d  
- * - Live: status indicates in-progress
- * 
- * Query params:
- * - view: "hot" | "starting-soon" | "live" (default: "hot")
- * 
- * All data from sports_games table - no external API calls.
+ * Returns games for homepage sections with guaranteed fallback:
+ * - LIVE games (normalized status)
+ * - UPCOMING games (starts_at >= now, not final/cancelled)
+ * - RECENT past games (starts_at < now, sorted desc)
+ *
+ * Uses service-role Supabase client to bypass RLS.
+ * Window: PAST_DAYS back, FUTURE_DAYS forward.
+ *
+ * Home client derives Hot/Live/Starting Soon tabs from this data.
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { 
-  getHotGamesFromCache, 
-  getStartingSoonGamesFromCache, 
-  getLiveGamesFromCache,
-  getAllTeamMapsFromCache,
-  CachedGame
-} from "@/lib/sports/games-cache";
+import { getServiceClient } from "@/lib/supabase/serverServiceClient";
+import { PAST_DAYS, FUTURE_DAYS } from "@/lib/sports/window";
 import { getLogoUrl } from "@/lib/images/getLogoUrl";
+import { isRealGame } from "@/lib/sports/placeholderTeams";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +38,7 @@ interface HotGame {
     logoUrl: string | null;
   };
   startTime: string;
+  starts_at: string;
   status: string;
   isLive: boolean;
   volumeToday: number;
@@ -49,22 +46,6 @@ interface HotGame {
   activeBettors: number;
 }
 
-// Generate mock volume/activity data for now
-function generateMockActivity() {
-  return {
-    volumeToday: Math.floor(Math.random() * 5000000) + 500000,
-    volume10m: Math.floor(Math.random() * 100000) + 10000,
-    activeBettors: Math.floor(Math.random() * 500) + 50,
-  };
-}
-
-// Generate simulated odds (50/50 with some variance)
-function generateOdds(): [number, number] {
-  const team1Odds = Math.floor(Math.random() * 40) + 30; // 30-70%
-  return [team1Odds, 100 - team1Odds];
-}
-
-// Generate abbreviation from team name
 function getAbbr(name: string): string {
   if (!name) return "";
   const words = name.split(" ");
@@ -74,165 +55,175 @@ function getAbbr(name: string): string {
   return name.slice(0, 3).toUpperCase();
 }
 
-// Check if a game is live based on status
 function isGameLive(status: string): boolean {
-  const statusLower = (status || "").toLowerCase();
-  const livePatterns = [
-    "in progress", "inprogress", "live",
-    "1h", "2h", "ht",
-    "q1", "q2", "q3", "q4", "ot",
-    "p1", "p2", "p3",
-  ];
-  return livePatterns.some(pattern => statusLower.includes(pattern));
+  const s = (status || "").toLowerCase();
+  return (
+    s.includes("1h") || s.includes("2h") || s === "ht" ||
+    s.includes("second half") || s.includes("half") ||
+    s.includes("q1") || s.includes("q2") || s.includes("q3") || s.includes("q4") ||
+    s.includes("ot") || s.includes("p1") || s.includes("p2") || s.includes("p3") ||
+    s.includes("in progress") || s.includes("inprogress") || s.includes("live")
+  );
 }
 
-// Transform CachedGame to HotGame
-function transformGame(
-  game: CachedGame, 
-  teamMap: Map<string, { id: number; name: string; logo: string | null; slug: string }>
-): { game: HotGame; missingHomeLogo: boolean; missingAwayLogo: boolean } {
-  const league = game.league.toLowerCase();
-  const homeTeamKey = `${league}:${game.home_team.toLowerCase()}`;
-  const awayTeamKey = `${league}:${game.away_team.toLowerCase()}`;
-  
-  const homeTeam = teamMap.get(homeTeamKey);
-  const awayTeam = teamMap.get(awayTeamKey);
-  
-  const isLive = isGameLive(game.status);
-  const [team1Odds, team2Odds] = generateOdds();
-  const activity = generateMockActivity();
+function isFinalOrCancelled(status: string): boolean {
+  const s = (status || "").toLowerCase();
+  return s.includes("final") || s === "ft" || s.includes("finished") ||
+    s.includes("cancel") || s.includes("postpone");
+}
 
-  // Get logo URLs - use getLogoUrl to convert storage paths to full URLs
-  const homeLogoUrl = getLogoUrl(homeTeam?.logo);
-  const awayLogoUrl = getLogoUrl(awayTeam?.logo);
+function generateOdds(): [number, number] {
+  const t1 = Math.floor(Math.random() * 40) + 30;
+  return [t1, 100 - t1];
+}
 
+function generateMockActivity() {
   return {
-    game: {
-      id: game.external_game_id,
-      title: `${game.away_team} vs ${game.home_team}`,
-      league: league.toUpperCase(),
-      team1: {
-        abbr: getAbbr(game.away_team),
-        name: game.away_team,
-        odds: team1Odds,
-        color: "#6366f1",
-        logoUrl: awayLogoUrl,
-      },
-      team2: {
-        abbr: getAbbr(game.home_team),
-        name: game.home_team,
-        odds: team2Odds,
-        color: "#6366f1",
-        logoUrl: homeLogoUrl,
-      },
-      startTime: game.starts_at,
-      status: isLive ? "in_progress" : "scheduled",
-      isLive,
-      ...activity,
-    },
-    missingHomeLogo: !homeLogoUrl,
-    missingAwayLogo: !awayLogoUrl,
+    volumeToday: Math.floor(Math.random() * 5000000) + 500000,
+    volume10m: Math.floor(Math.random() * 100000) + 10000,
+    activeBettors: Math.floor(Math.random() * 500) + 50,
   };
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const url = new URL(request.url);
-    const view = url.searchParams.get("view") || "hot";
+    const client = getServiceClient();
+    const nowMs = Date.now();
+    const pastIso = new Date(nowMs - PAST_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const futureIso = new Date(nowMs + FUTURE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const nowIso = new Date(nowMs).toISOString();
 
-    // Fetch games based on view
-    let rawGames: CachedGame[];
-    let effectiveView = view;
-    
-    switch (view) {
-      case "live":
-        rawGames = await getLiveGamesFromCache();
-        // Fallback: if no live games, show upcoming 7 days
-        if (rawGames.length === 0) {
-          console.log("[/api/sports/hot] No live games, falling back to starting-soon");
-          rawGames = await getStartingSoonGamesFromCache();
-          effectiveView = "starting-soon-fallback";
-        }
-        break;
-      case "starting-soon":
-        rawGames = await getStartingSoonGamesFromCache();
-        break;
-      case "hot":
-      default:
-        rawGames = await getHotGamesFromCache();
-        // Fallback: if no hot games (next 24h), show upcoming 7 days
-        if (rawGames.length === 0) {
-          console.log("[/api/sports/hot] No hot games in 24h, falling back to starting-soon");
-          rawGames = await getStartingSoonGamesFromCache();
-          effectiveView = "starting-soon-fallback";
-        }
-        break;
+    // Single wide query: past PAST_DAYS to future FUTURE_DAYS
+    const { data: rawGames, error: gamesError } = await client
+      .from("sports_games")
+      .select("*")
+      .gte("starts_at", pastIso)
+      .lt("starts_at", futureIso)
+      .order("starts_at", { ascending: true })
+      .limit(500);
+
+    if (gamesError) {
+      console.error("[/api/sports/hot] games query error:", gamesError.message);
+      return NextResponse.json({ error: gamesError.message, games: [], count: 0 }, { status: 500 });
     }
 
-    // Get team data for logos
-    const teamMap = await getAllTeamMapsFromCache();
+    const allRows = rawGames || [];
 
-    // Filter out completed/canceled games
-    const filteredGames = rawGames.filter(game => {
-      const statusLower = (game.status || "").toLowerCase();
-      const isOver = statusLower.includes("final") || statusLower.includes("finished") || statusLower === "ft";
-      const isCanceled = statusLower.includes("cancel") || statusLower.includes("postpone");
-      return !isOver && !isCanceled;
-    });
+    // Filter out placeholder teams
+    const realGames = allRows.filter((g) => isRealGame(g.home_team, g.away_team));
 
-    // Transform to HotGame format and track missing logos
-    let missingHomeLogos = 0;
-    let missingAwayLogos = 0;
-    const games: HotGame[] = filteredGames.map(game => {
-      const result = transformGame(game, teamMap);
-      if (result.missingHomeLogo) missingHomeLogos++;
-      if (result.missingAwayLogo) missingAwayLogos++;
-      return result.game;
-    });
+    // Load team map (service role)
+    const { data: teamsData } = await client
+      .from("sports_teams")
+      .select("id, name, logo, slug, league");
 
-    // Sort: Live games first, then by start time
-    games.sort((a, b) => {
-      if (a.isLive && !b.isLive) return -1;
-      if (!a.isLive && b.isLive) return 1;
-      return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
-    });
-
-    // Limit results
-    const limit = view === "live" ? 20 : 12;
-    const limitedGames = games.slice(0, limit);
-
-    // Debug logging for logo issues
-    console.log(`[${view}-view] games=${games.length} missingHomeLogos=${missingHomeLogos} missingAwayLogos=${missingAwayLogos} teamMapSize=${teamMap.size}`);
-    
-    // Log sample team keys for debugging name mismatches
-    if (missingHomeLogos > 0 || missingAwayLogos > 0) {
-      const sampleMissingGames = filteredGames.slice(0, 3);
-      for (const game of sampleMissingGames) {
-        const league = game.league.toLowerCase();
-        const homeKey = `${league}:${game.home_team.toLowerCase()}`;
-        const awayKey = `${league}:${game.away_team.toLowerCase()}`;
-        const homeFound = teamMap.has(homeKey);
-        const awayFound = teamMap.has(awayKey);
-        console.log(`[logo-debug] ${game.external_game_id}: homeKey="${homeKey}" found=${homeFound}, awayKey="${awayKey}" found=${awayFound}`);
+    const teamMap = new Map<string, { id: number; name: string; logo: string | null; slug: string }>();
+    for (const t of teamsData || []) {
+      if (t?.name && t?.league) {
+        teamMap.set(`${t.league.toLowerCase()}:${t.name.toLowerCase()}`, {
+          id: t.id, name: t.name, logo: t.logo, slug: t.slug,
+        });
       }
-      // Log a few team map keys for comparison
-      const sampleKeys = Array.from(teamMap.keys()).slice(0, 5);
-      console.log(`[logo-debug] Sample teamMap keys: ${sampleKeys.join(", ")}`);
     }
-    
-    console.log(`[/api/sports/hot] view=${view} effectiveView=${effectiveView} total=${rawGames.length} filtered=${games.length} returned=${limitedGames.length}`);
+
+    // Transform
+    const transform = (g: any): HotGame => {
+      const league = (g.league || "").toLowerCase();
+      const home = teamMap.get(`${league}:${(g.home_team || "").toLowerCase()}`);
+      const away = teamMap.get(`${league}:${(g.away_team || "").toLowerCase()}`);
+      const [o1, o2] = generateOdds();
+      const isLive = isGameLive(g.status);
+      return {
+        id: g.external_game_id || String(g.id),
+        title: `${g.away_team} vs ${g.home_team}`,
+        league: league.toUpperCase(),
+        team1: {
+          abbr: getAbbr(g.away_team),
+          name: g.away_team,
+          odds: o1,
+          color: "#6366f1",
+          logoUrl: getLogoUrl(away?.logo),
+        },
+        team2: {
+          abbr: getAbbr(g.home_team),
+          name: g.home_team,
+          odds: o2,
+          color: "#6366f1",
+          logoUrl: getLogoUrl(home?.logo),
+        },
+        startTime: g.starts_at,
+        starts_at: g.starts_at,
+        status: isLive ? "in_progress" : g.status || "scheduled",
+        isLive,
+        ...generateMockActivity(),
+      };
+    };
+
+    // Split into LIVE, UPCOMING, RECENT
+    const live: HotGame[] = [];
+    const upcoming: HotGame[] = [];
+    const recent: HotGame[] = [];
+
+    for (const g of realGames) {
+      const startsAt = g.starts_at;
+      if (!startsAt) continue;
+      const isLive = isGameLive(g.status);
+      const isFinal = isFinalOrCancelled(g.status);
+
+      if (isLive) {
+        live.push(transform(g));
+      } else if (!isFinal && startsAt >= nowIso) {
+        upcoming.push(transform(g));
+      } else {
+        recent.push(transform(g));
+      }
+    }
+
+    // Sort recent descending
+    recent.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+
+    // Build final list: live first, then upcoming, then recent as fallback
+    const seen = new Set<string>();
+    const dedupe = (list: HotGame[]): HotGame[] => {
+      const out: HotGame[] = [];
+      for (const g of list) {
+        if (seen.has(g.id)) continue;
+        seen.add(g.id);
+        out.push(g);
+      }
+      return out;
+    };
+
+    let games: HotGame[];
+    if (live.length > 0 || upcoming.length > 0) {
+      games = dedupe([...live, ...upcoming.slice(0, 50)]);
+    } else {
+      games = dedupe(recent.slice(0, 20));
+    }
+
+    console.log(
+      `[/api/sports/hot] window=${pastIso} -> ${futureIso} ` +
+      `total=${allRows.length} real=${realGames.length} ` +
+      `live=${live.length} upcoming=${upcoming.length} recent=${recent.length} ` +
+      `returned=${games.length}`
+    );
 
     return NextResponse.json({
-      games: limitedGames,
+      games,
       count: games.length,
-      view,
-      effectiveView,
+      meta: {
+        live: live.length,
+        upcoming: upcoming.length,
+        recent: recent.length,
+        totalInWindow: realGames.length,
+      },
       fetchedAt: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("Hot games API error:", error);
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    console.error("[/api/sports/hot] error:", msg);
     return NextResponse.json(
-      { error: "Failed to fetch hot games", games: [], count: 0 },
+      { error: msg, games: [], count: 0 },
       { status: 500 }
     );
   }
