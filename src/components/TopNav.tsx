@@ -491,32 +491,32 @@ export function TopNav() {
 
           {/* Center: Coin/Cash toggle + Portfolio/Leaderboard */}
           <div className="flex items-center gap-3">
-            {/* Coin/Cash toggle */}
-            <div className="flex items-center gap-2 rounded-full border border-white/20 bg-black/40 px-1.5 py-1 text-[11px] font-semibold tracking-wider">
+            {/* Coin/Cash toggle - Orange style to match Portfolio */}
+            <div className="flex items-center gap-2 rounded-full border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-1 text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => setMode("coin")}
                 aria-pressed={mode === "coin"}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1 transition duration-200 ${
+                className={`flex items-center gap-2 rounded-full px-4 py-1.5 transition ${
                   mode === "coin"
-                    ? "bg-white text-black"
-                    : "bg-transparent text-white/60 hover:text-white hover:bg-white/10"
+                    ? "bg-orange-500 text-white"
+                    : "bg-transparent text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
                 }`}
               >
-                <Coins className={`h-3 w-3 ${mode === "coin" ? "text-black" : "text-orange-400"}`} />
+                <Coins className="h-3.5 w-3.5" />
                 Coin
               </button>
               <button
                 type="button"
                 onClick={() => setMode("cash")}
                 aria-pressed={mode === "cash"}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1 transition duration-200 ${
+                className={`flex items-center gap-2 rounded-full px-4 py-1.5 transition ${
                   mode === "cash"
-                    ? "bg-white text-black"
-                    : "bg-transparent text-white/60 hover:text-white hover:bg-white/10"
+                    ? "bg-orange-500 text-white"
+                    : "bg-transparent text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
                 }`}
               >
-                <DollarSign className={`h-3 w-3 ${mode === "cash" ? "text-black" : "text-orange-400"}`} />
+                <DollarSign className="h-3.5 w-3.5" />
                 Cash
               </button>
             </div>

@@ -147,6 +147,27 @@ export default function PortfolioPage() {
       });
   }, [isLoggedIn, fetchPositions, fetchHistory, mode]);
 
+  const handleGetMoreCoins = useCallback(async () => {
+    if (mode !== "coin" || !isLoggedIn) return;
+    setIsRefreshing(true);
+    try {
+      // Call API to award 1,000 coins
+      const res = await fetch("/api/coins/award", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: 1000, reason: "daily_bonus" }),
+      });
+      if (res.ok) {
+        // Refresh balance
+        await refreshCoinBalance();
+      }
+    } catch (error) {
+      console.error("Failed to award coins:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [mode, isLoggedIn]);
+
   useEffect(() => {
     // Check auth status via /api/me
     const checkAuth = async () => {
@@ -347,10 +368,15 @@ export default function PortfolioPage() {
             <Button
               variant="outline"
               className="w-full mt-4 md:mt-6 border-[color:var(--border-soft)] gap-2 text-sm h-9 md:h-10"
-              disabled={mode === "cash"}
+              disabled={mode === "cash" || isRefreshing}
+              onClick={mode === "coin" ? handleGetMoreCoins : undefined}
             >
-              <ArrowUpRight className="h-4 w-4" />
-              {mode === "coin" ? "Get More Coins" : "Withdraw"}
+              {isRefreshing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowUpRight className="h-4 w-4" />
+              )}
+              {mode === "coin" ? (isRefreshing ? "Adding..." : "Get More Coins") : "Withdraw"}
             </Button>
           </div>
 
