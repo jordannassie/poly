@@ -216,6 +216,9 @@ export default function PublicProfilePage({ params }: Props) {
   
   // P/L chart range
   const [range, setRange] = useState<"1D" | "1W" | "1M" | "ALL">("ALL");
+  
+  // Share state
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     // Check if this is the current user's profile
@@ -324,6 +327,17 @@ export default function PublicProfilePage({ params }: Props) {
     };
     fetchUserPosts();
   }, [profileData?.id]);
+
+  // Handle share
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error("Copy error:", error);
+    }
+  };
 
   // Handle follow/unfollow
   const handleFollow = async () => {
@@ -478,11 +492,17 @@ export default function PublicProfilePage({ params }: Props) {
 
                 {/* Name + Meta */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h1 className="text-xl font-bold truncate">{profile.displayName || `@${profile.username}`}</h1>
-                    {/* Action icons */}
-                    <div className="flex items-center gap-1 ml-auto">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-[color:var(--text-muted)]">
+                  {/* Top row: name + action buttons */}
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <h1 className="text-xl font-bold">{profile.displayName || profile.username}</h1>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
+                        onClick={handleShare}
+                        title={copied ? "Copied!" : "Share profile"}
+                      >
                         <Share2 className="h-4 w-4" />
                       </Button>
                       {isOwnProfile ? (
@@ -504,15 +524,19 @@ export default function PublicProfilePage({ params }: Props) {
                       )}
                     </div>
                   </div>
-                  <p className="text-sm text-[color:var(--text-muted)]">
-                    @{profile.username} &bull; Joined {profile.joinedDate}
-                  </p>
+
+                  {/* Username on its own line */}
+                  <div className="text-base text-[color:var(--text-muted)] mb-2">
+                    @{profile.username}
+                  </div>
+
+                  {/* Bio */}
                   {profile.bio && (
-                    <p className="text-sm text-[color:var(--text-strong)] mt-2 line-clamp-2">{profile.bio}</p>
+                    <p className="text-sm text-[color:var(--text-strong)] mb-3 line-clamp-2">{profile.bio}</p>
                   )}
 
                   {/* Followers / Following */}
-                  <div className="flex items-center gap-4 mt-3">
+                  <div className="flex items-center gap-4 mb-2">
                     <span className="text-sm">
                       <span className="font-bold text-[color:var(--text-strong)]">{followersCount}</span>
                       <span className="text-[color:var(--text-muted)] ml-1">Followers</span>
@@ -521,6 +545,11 @@ export default function PublicProfilePage({ params }: Props) {
                       <span className="font-bold text-[color:var(--text-strong)]">{followingCount}</span>
                       <span className="text-[color:var(--text-muted)] ml-1">Following</span>
                     </span>
+                  </div>
+
+                  {/* Joined date */}
+                  <div className="text-xs text-[color:var(--text-muted)]">
+                    Joined {profile.joinedDate}
                   </div>
                 </div>
               </div>
