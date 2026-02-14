@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDemoBets, DemoBet } from "@/lib/demoAuth";
-import { Search, ArrowUpRight, ChevronDown, Wallet, Loader2, Coins, DollarSign, Eye } from "lucide-react";
+import { Search, ArrowUpRight, ChevronDown, Wallet, Loader2, Coins, DollarSign, Eye, RefreshCw } from "lucide-react";
 import { LightningLoader } from "@/components/ui/LightningLoader";
 import Link from "next/link";
 import { refreshCoinBalance } from "@/lib/coins/coinBalanceStore";
+import { useCoinBalance } from "@/lib/coins/useCoinBalance";
 
 interface CoinPosition {
   id: string;
@@ -54,20 +55,19 @@ export default function PortfolioPage() {
   const [activeTab, setActiveTab] = useState("positions");
   const [bets, setBets] = useState<DemoBet[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [coinPositions, setCoinPositions] = useState<CoinPosition[]>([]);
   const [coinHistory, setCoinHistory] = useState<CoinLedgerEntry[]>([]);
   const [positionsLoading, setPositionsLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [mode, setMode] = useState<"coin" | "cash">("coin");
+  const [mode, setMode] = useState<"coin" | "cash">(() => getStoredMode());
   const positionsController = useRef<AbortController | null>(null);
   const historyController = useRef<AbortController | null>(null);
 
-  // Load stored mode preference on mount
-  useEffect(() => {
-    setMode(getStoredMode());
-  }, []);
+  // Get coin balance
+  const { coinBalance, coinLoading } = useCoinBalance(userId);
 
   const fetchPositions = useCallback(async () => {
     if (!isLoggedIn || mode !== "coin") {
@@ -154,8 +154,10 @@ export default function PortfolioPage() {
         const res = await fetch("/api/me");
         const data = await res.json();
         setIsLoggedIn(data.authType !== "none" && data.user !== null);
+        setUserId(data.user?.id || null);
       } catch {
         setIsLoggedIn(false);
+        setUserId(null);
       } finally {
         setIsLoading(false);
       }
@@ -315,13 +317,29 @@ export default function PortfolioPage() {
                 )}
                 <Eye className="h-3.5 w-3.5" />
               </div>
-              <div className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1 rounded-full bg-green-500/20 text-green-500 text-xs md:text-sm">
-                <Wallet className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                {mode === "coin" ? "0 coins" : "$0.00"}
+              <div className="flex items-center gap-1.5 md:gap-2">
+                <div className="flex items-center gap-1.5 px-2 md:px-3 py-1 rounded-full bg-green-500/20 text-green-500 text-xs md:text-sm">
+                  <Wallet className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                  {mode === "coin" ? (
+                    coinLoading ? "..." : `${(coinBalance || 0).toLocaleString()} coins`
+                  ) : "$0.00"}
+                </div>
+                {mode === "coin" && (
+                  <button
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
+                    className="p-1 text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)] transition"
+                    title="Refresh"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+                  </button>
+                )}
               </div>
             </div>
             <div className="text-3xl md:text-4xl font-bold mb-1">
-              {mode === "coin" ? "0 coins" : "$0.00"}
+              {mode === "coin" ? (
+                coinLoading ? "—" : `${(coinBalance || 1000).toLocaleString()} coins`
+              ) : "$0.00"}
             </div>
             <div className="text-xs md:text-sm text-[color:var(--text-muted)]">
               {mode === "coin" ? "Paper Trading" : "Live Trading"}
