@@ -57,7 +57,7 @@ export function HowItWorksModal({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) setCurrentStep(0); }}>
-      <DialogContent className="bg-[#1a2332] border-none text-white max-w-md p-0 overflow-hidden">
+      <DialogContent className="bg-[#1a1a1a] border-none text-white max-w-md p-0 overflow-hidden">
         {/* Close button */}
         <button
           onClick={() => onOpenChange(false)}
@@ -150,8 +150,8 @@ export function HowItWorksModal({
           {currentStep === 2 && (
             <div className="bg-white rounded-2xl p-4 w-72 shadow-2xl relative">
               {/* Ticket edge effect */}
-              <div className="absolute left-0 top-1/2 w-4 h-8 bg-[#1a2332] rounded-r-full transform -translate-y-1/2 -translate-x-2" />
-              <div className="absolute right-0 top-1/2 w-4 h-8 bg-[#1a2332] rounded-l-full transform -translate-y-1/2 translate-x-2" />
+              <div className="absolute left-0 top-1/2 w-4 h-8 bg-[#1a1a1a] rounded-r-full transform -translate-y-1/2 -translate-x-2" />
+              <div className="absolute right-0 top-1/2 w-4 h-8 bg-[#1a1a1a] rounded-l-full transform -translate-y-1/2 translate-x-2" />
               
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center text-white font-bold">KC</div>
@@ -207,14 +207,14 @@ export function HowItWorksModal({
           
           {isLastStep ? (
             <Button
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white h-12 text-base font-semibold"
+              className="w-full bg-orange-500 hover:bg-orange-600 text-white h-12 text-base font-semibold"
               onClick={handleGetStarted}
             >
               Get Started
             </Button>
           ) : (
             <Button
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white h-12 text-base font-semibold"
+              className="w-full bg-orange-500 hover:bg-orange-600 text-white h-12 text-base font-semibold"
               onClick={handleNext}
             >
               Next

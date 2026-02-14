@@ -429,7 +429,7 @@ export function AuthModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-[#1a1a2e] border-[#2a2a4a] text-white max-w-sm">
+      <DialogContent className="bg-[#1a1a1a] border-white/10 text-white max-w-sm">
         <DialogHeader className="text-center pb-2">
           <DialogTitle className="text-2xl font-bold">Sign in</DialogTitle>
           <p className="text-gray-400 text-sm">Choose how you want to continue</p>
@@ -452,7 +452,7 @@ export function AuthModal({
 
           {/* === SECONDARY: TikTok === */}
           <Button
-            className="w-full h-12 bg-[#2a2a4a] hover:bg-[#3a3a5a] text-white font-medium rounded-xl border border-[#3a3a5a]"
+            className="w-full h-12 bg-[#242424] hover:bg-[#2e2e2e] text-white font-medium rounded-xl border border-white/10"
             onClick={handleTikTokLogin}
             disabled={tiktokLoading}
           >
@@ -466,9 +466,9 @@ export function AuthModal({
 
           {/* === DIVIDER === */}
           <div className="flex items-center gap-3 py-1">
-            <div className="flex-1 h-px bg-[#2a2a4a]" />
+            <div className="flex-1 h-px bg-[#242424]" />
             <span className="text-gray-500 text-xs">or use wallet</span>
-            <div className="flex-1 h-px bg-[#2a2a4a]" />
+            <div className="flex-1 h-px bg-[#242424]" />
           </div>
 
           {/* === WALLETS: Icon Row === */}
@@ -477,7 +477,7 @@ export function AuthModal({
             <button
               onClick={handlePhantomLogin}
               disabled={isWalletProcessing}
-              className="group flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#2a2a4a] transition-colors disabled:opacity-50"
+              className="group flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#242424] transition-colors disabled:opacity-50"
               title="Phantom (Solana)"
             >
               <div className="w-12 h-12 rounded-full bg-[#8B7FD3] flex items-center justify-center overflow-hidden">
@@ -494,7 +494,7 @@ export function AuthModal({
             <button
               onClick={handleMetaMaskLogin}
               disabled={isWalletProcessing}
-              className="group flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#2a2a4a] transition-colors disabled:opacity-50"
+              className="group flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#242424] transition-colors disabled:opacity-50"
               title="MetaMask (Ethereum)"
             >
               <div className="w-12 h-12 rounded-full bg-[#f6851b] flex items-center justify-center overflow-hidden">
@@ -511,7 +511,7 @@ export function AuthModal({
             <button
               onClick={handleCoinbaseLogin}
               disabled={isWalletProcessing}
-              className="group flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#2a2a4a] transition-colors disabled:opacity-50"
+              className="group flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#242424] transition-colors disabled:opacity-50"
               title="Coinbase Wallet (Ethereum)"
             >
               <div className="w-12 h-12 rounded-full bg-[#0052FF] flex items-center justify-center overflow-hidden">
@@ -539,7 +539,7 @@ export function AuthModal({
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="Email address"
-                className="flex-1 h-10 bg-[#2a2a4a] border-[#3a3a5a] text-white placeholder:text-gray-500 rounded-lg"
+                className="flex-1 h-10 bg-[#242424] border-white/10 text-white placeholder:text-gray-500 rounded-lg"
               />
               <Button
                 className="h-10 px-4 bg-[#3a3a5a] hover:bg-[#4a4a6a] text-white rounded-lg"

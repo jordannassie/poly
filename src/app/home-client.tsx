@@ -619,14 +619,14 @@ export default function HomeClient() {
 
                 {/* Dot indicators + arrows */}
                 {featuredCandidates.length > 1 && (
-                  <div className="flex items-center justify-center gap-3 mt-3">
+                  <div className="flex items-center justify-center gap-3 mt-3 rounded-full bg-black/60 dark:bg-white/10 px-4 py-2 mx-auto w-fit">
                     <button
                       type="button"
                       onClick={() => {
                         autoPlayRef.current = false;
                         setFeaturedIndex((prev) => (prev - 1 + featuredCandidates.length) % featuredCandidates.length);
                       }}
-                      className="h-7 w-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/60 hover:text-white transition"
+                      className="h-7 w-7 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white hover:text-white transition"
                       aria-label="Previous matchup"
                     >
                       <ChevronRight className="h-4 w-4 rotate-180" />
@@ -643,7 +643,7 @@ export default function HomeClient() {
                           className={`rounded-full transition-all duration-300 ${
                             i === featuredIndex
                               ? "w-6 h-2 bg-orange-500"
-                              : "w-2 h-2 bg-white/25 hover:bg-white/40"
+                              : "w-2 h-2 bg-white/40 hover:bg-white/60"
                           }`}
                           aria-label={`Go to matchup ${i + 1}`}
                         />
@@ -655,7 +655,7 @@ export default function HomeClient() {
                         autoPlayRef.current = false;
                         setFeaturedIndex((prev) => (prev + 1) % featuredCandidates.length);
                       }}
-                      className="h-7 w-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/60 hover:text-white transition"
+                      className="h-7 w-7 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white hover:text-white transition"
                       aria-label="Next matchup"
                     >
                       <ChevronRight className="h-4 w-4" />
