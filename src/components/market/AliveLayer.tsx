@@ -136,8 +136,8 @@ export default function AliveLayer({
       <div className="flex items-center justify-between mb-3 text-xs uppercase tracking-[0.3em]">
         <span className="flex items-center gap-2 text-white/50">
           <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-400" />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
           </span>
           Live
         </span>

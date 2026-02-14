@@ -998,7 +998,7 @@ export default function AdminLifecyclePage() {
         <div>
           <h2 className="text-lg font-semibold text-slate-100">Sync Teams & Logos</h2>
           <p className="text-sm text-slate-400">
-            Pull teams and logos from API-Sports for all leagues. Logos are uploaded to Supabase Storage.
+            Pull teams and logo URLs from API-Sports for all leagues.
           </p>
         </div>
 
