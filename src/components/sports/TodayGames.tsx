@@ -6,6 +6,7 @@ import { Calendar } from "lucide-react";
 import { LightningLoader } from "@/components/ui/LightningLoader";
 import { TeamOutcomeButtonPair } from "@/components/market/TeamOutcomeButton";
 import { getLogoUrl } from "@/lib/images/getLogoUrl";
+import { getUserTimeZone, formatDateLong, formatTimeShort, isToday } from "@/lib/time";
 
 interface Team {
   TeamID: number;
@@ -107,16 +108,7 @@ interface TodayGamesProps {
   date?: string; // YYYY-MM-DD format
 }
 
-const formatLocalDay = (value: any) => {
-  const ms = value ? Date.parse(String(value)) : NaN;
-  const d = Number.isFinite(ms) ? new Date(ms) : new Date();
-  return new Intl.DateTimeFormat(undefined, {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  }).format(d);
-};
+// Removed - using formatDateLong from @/lib/time instead
 
 export function TodayGames({ league = "nfl", date }: TodayGamesProps) {
   const [games, setGames] = useState<Game[]>([]);
@@ -155,8 +147,19 @@ export function TodayGames({ league = "nfl", date }: TodayGamesProps) {
     fetchGames();
   }, [league, date]);
 
-  // Format date for display
-  const formattedDate = formatLocalDay(games?.[0]?.Date ?? displayDate);
+  // Format date for display in user's timezone
+  const userTz = getUserTimeZone();
+  const formattedDate = formatDateLong(new Date(), userTz);
+  
+  // Filter to only games happening "today" in user's local timezone
+  const todaysGames = games.filter((game) => {
+    if (!game.Date) return false;
+    return isToday(game.Date, userTz);
+  });
+  
+  // If no games today, show upcoming instead
+  const showingUpcoming = todaysGames.length === 0 && games.length > 0;
+  const displayGames = showingUpcoming ? games : todaysGames;
 
   if (loading) {
     return (
@@ -174,11 +177,16 @@ export function TodayGames({ league = "nfl", date }: TodayGamesProps) {
       <div className="flex items-center gap-2 mb-4 text-[color:var(--text-muted)]">
         <Calendar className="h-4 w-4" />
         <span className="text-sm">{formattedDate}</span>
+        {showingUpcoming && (
+          <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400">
+            Showing upcoming
+          </span>
+        )}
       </div>
 
       {(() => {
         // Filter out games with invalid/placeholder teams
-        const validGames = games.filter(isValidGame);
+        const validGames = displayGames.filter(isValidGame);
         
         if (validGames.length === 0) {
           return (
@@ -232,13 +240,8 @@ function GameCard({ game, league }: { game: Game; league: string }) {
     if (game.HasStarted) {
       return { text: liveDetail || "Live", color: "text-green-500", live: true };
     }
-    // Game hasn't started - show time
-    const gameDate = new Date(game.Date);
-    const timeStr = gameDate.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+    // Game hasn't started - show time in user's timezone
+    const timeStr = formatTimeShort(game.Date, getUserTimeZone());
     return { text: timeStr, color: "text-[color:var(--text-muted)]" };
   };
 
