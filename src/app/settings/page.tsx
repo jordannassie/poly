@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { validateUsername } from "@/lib/profiles";
 import { Upload, Check, AlertCircle, Loader2, Wallet, X, User } from "lucide-react";
 import { LightningLoader } from "@/components/ui/LightningLoader";
+import { connectMetaMask, connectCoinbase, signMessage as signEVMMessage, isMetaMaskInstalled, isCoinbaseInstalled } from "@/lib/wallets/evm";
 
 const sidebarItems = [
   { id: "profile", label: "Profile" },
@@ -55,9 +56,12 @@ interface CurrentUser {
 // Wallet Section - shows 3 wallet providers
 function WalletSection() {
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [connectingProvider, setConnectingProvider] = useState<"phantom" | "metamask" | "coinbase" | null>(null);
   const [walletStatus, setWalletStatus] = useState<"idle" | "connecting" | "signing" | "verifying" | "success" | "error">("idle");
   const [walletError, setWalletError] = useState<string | null>(null);
   const [hasPhantom, setHasPhantom] = useState<boolean | null>(null);
+  const [hasMetaMask, setHasMetaMask] = useState<boolean | null>(null);
+  const [hasCoinbase, setHasCoinbase] = useState<boolean | null>(null);
   
   // Real user and wallet data
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -93,19 +97,20 @@ function WalletSection() {
     fetchMe();
   }, []);
 
-  // Check for Phantom on mount
+  // Check for installed wallets on mount
   useEffect(() => {
-    const checkPhantom = () => {
-      const isPhantom = window.solana?.isPhantom;
-      setHasPhantom(!!isPhantom);
+    const checkWallets = () => {
+      setHasPhantom(!!window.solana?.isPhantom);
+      setHasMetaMask(isMetaMaskInstalled());
+      setHasCoinbase(isCoinbaseInstalled());
     };
     
     // Wait for window to load
     if (document.readyState === "complete") {
-      checkPhantom();
+      checkWallets();
     } else {
-      window.addEventListener("load", checkPhantom);
-      return () => window.removeEventListener("load", checkPhantom);
+      window.addEventListener("load", checkWallets);
+      return () => window.removeEventListener("load", checkWallets);
     }
   }, []);
 
@@ -205,6 +210,83 @@ function WalletSection() {
     }
   };
 
+  const handleConnectEVM = async (provider: "metamask" | "coinbase") => {
+    setConnectingProvider(provider);
+    setWalletError(null);
+    setWalletStatus("connecting");
+    setShowWalletModal(true);
+
+    try {
+      // Connect to wallet
+      const wallet = provider === "metamask" 
+        ? await connectMetaMask()
+        : await connectCoinbase();
+
+      if (!wallet) {
+        throw new Error("Failed to connect wallet");
+      }
+
+      // Get nonce from server
+      setWalletStatus("signing");
+      const nonceRes = await fetch("/api/wallet/nonce", { method: "POST" });
+      const nonceData = await nonceRes.json();
+
+      if (!nonceRes.ok) {
+        if (nonceData.error === "AUTH_REQUIRED") {
+          setWalletError("Please sign in first to connect a wallet.");
+          setWalletStatus("error");
+          return;
+        }
+        throw new Error(nonceData.error || "Failed to get nonce");
+      }
+
+      // Sign message with EVM wallet
+      const signature = await signEVMMessage(nonceData.message);
+
+      // Verify signature with server
+      setWalletStatus("verifying");
+      const verifyRes = await fetch("/api/wallet/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          walletAddress: wallet.address,
+          signature,
+          message: nonceData.message,
+          provider,
+          chain: "ethereum",
+        }),
+      });
+
+      const verifyData = await verifyRes.json();
+
+      if (!verifyRes.ok) {
+        throw new Error(verifyData.error || "Failed to verify signature");
+      }
+
+      // Success!
+      setWalletStatus("success");
+      
+      // Refresh wallets list
+      const walletsRes = await fetch("/api/wallets/my");
+      const walletsData = await walletsRes.json();
+      if (walletsData.wallets) {
+        setWallets(walletsData.wallets);
+      }
+      
+      // Close modal after delay
+      setTimeout(() => {
+        setShowWalletModal(false);
+        setWalletStatus("idle");
+        setConnectingProvider(null);
+      }, 2000);
+
+    } catch (error) {
+      console.error(`${provider} connection error:`, error);
+      setWalletError(error instanceof Error ? error.message : "Connection failed");
+      setWalletStatus("error");
+    }
+  };
+
   const formatAddress = (address: string) => {
     return `${address.slice(0, 4)}...${address.slice(-4)}`;
   };
@@ -283,7 +365,10 @@ function WalletSection() {
               </div>
             </div>
             <Button
-              onClick={() => setShowWalletModal(true)}
+              onClick={() => {
+                setConnectingProvider("phantom");
+                setShowWalletModal(true);
+              }}
               size="sm"
               className={phantomWallet ? "border-[color:var(--border-soft)]" : "bg-purple-600 hover:bg-purple-700 text-white"}
               variant={phantomWallet ? "outline" : "default"}
@@ -293,8 +378,8 @@ function WalletSection() {
           </div>
         </div>
 
-        {/* MetaMask (EVM) - Coming Soon */}
-        <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-5 opacity-60">
+        {/* MetaMask (EVM) */}
+        <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-5">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3 flex-1">
               <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-orange-500 to-orange-400 flex items-center justify-center flex-shrink-0">
@@ -305,17 +390,34 @@ function WalletSection() {
                   <h3 className="font-semibold">MetaMask</h3>
                   <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400">EVM</span>
                 </div>
-                <div className="text-sm text-[color:var(--text-muted)]">Coming soon</div>
+                <div className="text-sm text-[color:var(--text-muted)]">
+                  {hasMetaMask === false ? "Not installed" : "Ready to connect"}
+                </div>
               </div>
             </div>
-            <Button size="sm" variant="outline" className="border-[color:var(--border-soft)]" disabled>
-              Coming Soon
-            </Button>
+            {hasMetaMask ? (
+              <Button
+                onClick={() => handleConnectEVM("metamask")}
+                size="sm"
+                className="bg-orange-500 hover:bg-orange-600 text-white"
+              >
+                Connect
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-[color:var(--border-soft)]"
+                onClick={() => window.open("https://metamask.io/download/", "_blank")}
+              >
+                Install
+              </Button>
+            )}
           </div>
         </div>
 
-        {/* Coinbase Wallet (EVM) - Coming Soon */}
-        <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-5 opacity-60">
+        {/* Coinbase Wallet (EVM) */}
+        <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface)] p-5">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3 flex-1">
               <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center flex-shrink-0">
@@ -326,27 +428,47 @@ function WalletSection() {
                   <h3 className="font-semibold">Coinbase Wallet</h3>
                   <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400">EVM</span>
                 </div>
-                <div className="text-sm text-[color:var(--text-muted)]">Coming soon</div>
+                <div className="text-sm text-[color:var(--text-muted)]">
+                  {hasCoinbase === false ? "Not installed" : "Ready to connect"}
+                </div>
               </div>
             </div>
-            <Button size="sm" variant="outline" className="border-[color:var(--border-soft)]" disabled>
-              Coming Soon
-            </Button>
+            {hasCoinbase ? (
+              <Button
+                onClick={() => handleConnectEVM("coinbase")}
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Connect
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-[color:var(--border-soft)]"
+                onClick={() => window.open("https://www.coinbase.com/wallet/downloads", "_blank")}
+              >
+                Install
+              </Button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Phantom Wallet Modal */}
+      {/* Wallet Connection Modal */}
       {showWalletModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-[color:var(--surface)] border border-[color:var(--border-soft)] rounded-2xl p-6 max-w-md w-full mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">Connect Phantom</h2>
+              <h2 className="text-xl font-bold">
+                Connect {connectingProvider === "metamask" ? "MetaMask" : connectingProvider === "coinbase" ? "Coinbase Wallet" : "Phantom"}
+              </h2>
               <button 
                 onClick={() => {
                   setShowWalletModal(false);
                   setWalletStatus("idle");
                   setWalletError(null);
+                  setConnectingProvider(null);
                 }}
                 className="text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
               >
@@ -355,12 +477,16 @@ function WalletSection() {
             </div>
             
             <div className="text-center py-6">
-              <div className="mx-auto h-20 w-20 rounded-2xl bg-gradient-to-br from-purple-600 to-blue-500 flex items-center justify-center mb-4">
+              <div className={`mx-auto h-20 w-20 rounded-2xl flex items-center justify-center mb-4 ${
+                connectingProvider === "metamask" ? "bg-gradient-to-br from-orange-500 to-orange-400" :
+                connectingProvider === "coinbase" ? "bg-gradient-to-br from-blue-600 to-blue-400" :
+                "bg-gradient-to-br from-purple-600 to-blue-500"
+              }`}>
                 <Wallet className="h-10 w-10 text-white" />
               </div>
               
-              {/* Phantom not installed */}
-              {hasPhantom === false && (
+              {/* Wallet not installed */}
+              {!connectingProvider && hasPhantom === false && (
                 <>
                   <h3 className="text-lg font-semibold mb-2">Phantom Not Detected</h3>
                   <p className="text-[color:var(--text-muted)] text-sm mb-4">
@@ -378,17 +504,17 @@ function WalletSection() {
               )}
 
               {/* Idle state - ready to connect */}
-              {hasPhantom !== false && walletStatus === "idle" && (
+              {!connectingProvider && hasPhantom !== false && walletStatus === "idle" && (
                 <>
                   <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
                   <p className="text-[color:var(--text-muted)] text-sm mb-4">
-                    Connect your Phantom wallet and sign a message to verify ownership.
+                    Connect your wallet and sign a message to verify ownership.
                   </p>
                   <Button 
                     onClick={handleConnectWallet}
                     className="w-full bg-purple-600 hover:bg-purple-700 text-white"
                   >
-                    Connect Phantom
+                    Connect
                   </Button>
                 </>
               )}
@@ -398,7 +524,7 @@ function WalletSection() {
                 <>
                   <h3 className="text-lg font-semibold mb-2">Connecting...</h3>
                   <p className="text-[color:var(--text-muted)] text-sm">
-                    Please approve the connection in Phantom.
+                    Please approve the connection in your wallet.
                   </p>
                   <div className="mt-4">
                     <div className="animate-spin h-8 w-8 border-4 border-purple-600 border-t-transparent rounded-full mx-auto"></div>
@@ -411,7 +537,7 @@ function WalletSection() {
                 <>
                   <h3 className="text-lg font-semibold mb-2">Sign Message</h3>
                   <p className="text-[color:var(--text-muted)] text-sm">
-                    Please sign the verification message in Phantom.
+                    Please sign the verification message in your wallet.
                   </p>
                   <div className="mt-4">
                     <div className="animate-spin h-8 w-8 border-4 border-purple-600 border-t-transparent rounded-full mx-auto"></div>

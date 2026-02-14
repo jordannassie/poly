@@ -15,6 +15,8 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@supabase/supabase-js": "^2.49.4",
+    "@walletconnect/ethereum-provider": "^2.23.5",
+    "@web3modal/wagmi": "^5.1.11",
     "bs58": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -24,7 +26,9 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tailwind-merge": "^3.4.0",
-    "tweetnacl": "^1.0.3"
+    "tweetnacl": "^1.0.3",
+    "viem": "^2.45.3",
+    "wagmi": "^3.4.3"
   },
   "devDependencies": {
     "@netlify/functions": "^5.1.2",
