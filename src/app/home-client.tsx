@@ -348,7 +348,7 @@ export default function HomeClient() {
     }
 
     fetchHotGames();
-  }, [view]);
+  }, []);
 
   useEffect(() => {
     let isCancelled = false;
