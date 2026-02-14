@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
-import { ChevronDown, Moon, Sun, Bell, Coins, DollarSign, Menu, X, Home, Trophy, Settings, Wallet, Radio, BarChart3, Briefcase } from "lucide-react";
+import { ChevronDown, Moon, Sun, Bell, Coins, DollarSign, Menu, X, Home, Trophy, Settings, Wallet, Radio, BarChart3, Briefcase, User } from "lucide-react";
 import { ProvePicksLogo } from "./ui/ProvePicksLogo";
 import { SearchBar } from "./SearchBar";
 import { Button } from "./ui/button";
@@ -117,8 +117,8 @@ export function TopNav() {
   const proveItAmount =
     mode === "coin"
       ? coinLoading || coinBalance === null
-        ? "— Coins"
-        : `${coinBalance.toLocaleString()} Coins`
+        ? "—"
+        : coinBalance.toLocaleString()
       : "$0.00";
 
   useEffect(() => {
@@ -482,60 +482,82 @@ export function TopNav() {
         </div>
       </div>
       <div className="border-b border-white/10 bg-[#1a1a1a]">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-center gap-3 px-4 py-2.5 text-white flex-wrap">
-          {/* Prove It label */}
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-2.5 text-white">
+          {/* Left: Prove It label */}
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/70">
             <span>Prove it:</span>
             <span className="text-sm font-bold text-white">{proveItAmount}</span>
           </div>
 
-          {/* Coin/Cash toggle */}
-          <div className="flex items-center gap-2 rounded-full border border-white/20 bg-black/40 px-1.5 py-1 text-[11px] font-semibold tracking-wider">
-            <button
-              type="button"
-              onClick={() => setMode("coin")}
-              aria-pressed={mode === "coin"}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1 transition duration-200 ${
-                mode === "coin"
-                  ? "bg-white text-black"
-                  : "bg-transparent text-white/60 hover:text-white hover:bg-white/10"
-              }`}
-            >
-              <Coins className={`h-3 w-3 ${mode === "coin" ? "text-black" : "text-orange-400"}`} />
-              Coin
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("cash")}
-              aria-pressed={mode === "cash"}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1 transition duration-200 ${
-                mode === "cash"
-                  ? "bg-white text-black"
-                  : "bg-transparent text-white/60 hover:text-white hover:bg-white/10"
-              }`}
-            >
-              <DollarSign className={`h-3 w-3 ${mode === "cash" ? "text-black" : "text-orange-400"}`} />
-              Cash
-            </button>
+          {/* Center: Coin/Cash toggle + Portfolio/Leaderboard */}
+          <div className="flex items-center gap-3">
+            {/* Coin/Cash toggle */}
+            <div className="flex items-center gap-2 rounded-full border border-white/20 bg-black/40 px-1.5 py-1 text-[11px] font-semibold tracking-wider">
+              <button
+                type="button"
+                onClick={() => setMode("coin")}
+                aria-pressed={mode === "coin"}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1 transition duration-200 ${
+                  mode === "coin"
+                    ? "bg-white text-black"
+                    : "bg-transparent text-white/60 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                <Coins className={`h-3 w-3 ${mode === "coin" ? "text-black" : "text-orange-400"}`} />
+                Coin
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("cash")}
+                aria-pressed={mode === "cash"}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1 transition duration-200 ${
+                  mode === "cash"
+                    ? "bg-white text-black"
+                    : "bg-transparent text-white/60 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                <DollarSign className={`h-3 w-3 ${mode === "cash" ? "text-black" : "text-orange-400"}`} />
+                Cash
+              </button>
+            </div>
+
+            {/* Portfolio + Leaderboard icons */}
+            <div className="hidden md:flex items-center gap-0.5">
+              <Link
+                href="/portfolio"
+                className="flex items-center justify-center h-7 w-7 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition"
+                title="Portfolio"
+              >
+                <Briefcase className="h-3.5 w-3.5" />
+              </Link>
+              <Link
+                href="/leaderboard"
+                className="flex items-center justify-center h-7 w-7 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition"
+                title="Leaderboard"
+              >
+                <Trophy className="h-3.5 w-3.5" />
+              </Link>
+            </div>
           </div>
 
-          {/* Portfolio + Leaderboard icons */}
-          <div className="flex items-center gap-0.5">
+          {/* Right: User Profile Icon */}
+          {isLoggedIn && realUser?.username ? (
             <Link
-              href="/portfolio"
-              className="flex items-center justify-center h-7 w-7 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition"
-              title="Portfolio"
+              href={`/u/${realUser.username}`}
+              className="flex items-center justify-center h-8 w-8 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition"
+              title="View Profile"
             >
-              <Briefcase className="h-3.5 w-3.5" />
+              <User className="h-4 w-4" />
             </Link>
-            <Link
-              href="/leaderboard"
-              className="flex items-center justify-center h-7 w-7 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition"
-              title="Leaderboard"
+          ) : (
+            <button
+              onClick={() => setAuthOpen(true)}
+              className="flex items-center justify-center h-8 w-8 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition"
+              title="Sign Up"
             >
-              <Trophy className="h-3.5 w-3.5" />
-            </Link>
-          </div>
+              <User className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
       <AuthModal
