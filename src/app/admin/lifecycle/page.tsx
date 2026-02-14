@@ -548,7 +548,7 @@ export default function AdminLifecyclePage() {
     setShowClearLockConfirm(false);
   };
 
-  // Sync a single league and return the result
+  // Sync a single league using the fast endpoint (stores logo URLs, no image downloads)
   const syncOneLeague = async (league: string): Promise<{
     league: string;
     success: boolean;
@@ -559,7 +559,7 @@ export default function AdminLifecyclePage() {
     logosFailed: number;
     error?: string;
   }> => {
-    const { data, error } = await safeFetchJson<any>(`/api/admin/api-sports/${league}/teams/sync`, {
+    const { data, error } = await safeFetchJson<any>(`/api/admin/api-sports/sync/teams?sport=${league}`, {
       method: "POST",
     });
 
@@ -570,12 +570,12 @@ export default function AdminLifecyclePage() {
     return {
       league: data?.league || league.toUpperCase(),
       success: data?.ok ?? false,
-      totalTeams: data?.totalTeams || 0,
+      totalTeams: data?.total || data?.totalTeams || 0,
       inserted: data?.inserted || 0,
       updated: data?.updated || 0,
-      logosUploaded: data?.logosUploaded || 0,
-      logosFailed: data?.logosFailed || 0,
-      error: data?.error,
+      logosUploaded: data?.total || 0, // all teams get logo URLs stored
+      logosFailed: 0,
+      error: data?.error || (data?.errors?.length ? data.errors.join("; ") : undefined),
     };
   };
 
