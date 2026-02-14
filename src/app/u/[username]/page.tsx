@@ -600,6 +600,42 @@ export default function PublicProfilePage({ params }: Props) {
           </Card>
         </div>
 
+        {/* Followed Teams */}
+        {followedTeams.length > 0 && (
+          <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] mb-6">
+            <CardContent className="p-4">
+              <h3 className="text-sm font-semibold mb-3 text-[color:var(--text-muted)]">Following Teams</h3>
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {followedTeams.map((team) => (
+                  <Link
+                    key={team.team_id}
+                    href={`/teams/${team.league}/${team.slug}`}
+                    className="flex flex-col items-center gap-1.5 min-w-[72px] group"
+                  >
+                    {team.logo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={team.logo}
+                        alt={team.team_name}
+                        className="w-14 h-14 object-contain rounded-lg bg-[color:var(--surface-2)] p-2 group-hover:bg-[color:var(--surface-3)] transition"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-lg bg-[color:var(--surface-2)] flex items-center justify-center group-hover:bg-[color:var(--surface-3)] transition">
+                        <span className="text-lg font-bold text-[color:var(--text-muted)]">
+                          {team.team_name.slice(0, 2).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                    <span className="text-[10px] text-[color:var(--text-muted)] text-center leading-tight max-w-[72px] truncate">
+                      {team.team_name}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Tabs: Positions + Activity */}
         <div className="flex gap-1 mb-4 border-b border-[color:var(--border-soft)]">
           <button
