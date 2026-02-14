@@ -396,7 +396,7 @@ export default function PublicProfilePage({ params }: Props) {
         <CategoryTabs activeLabel="Trending" />
         <main className="mx-auto w-full max-w-4xl px-4 py-6">
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            <Loader2 className="h-8 w-8 animate-spin text-white/60" />
           </div>
         </main>
         <MainFooter />
@@ -420,7 +420,7 @@ export default function PublicProfilePage({ params }: Props) {
               The user @{username} doesn&apos;t exist.
             </p>
             <Link href="/">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Button className="bg-orange-500 hover:bg-orange-600 text-white">
                 Go Home
               </Button>
             </Link>
@@ -447,7 +447,7 @@ export default function PublicProfilePage({ params }: Props) {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400" />
+              <div className="w-full h-full bg-gradient-to-r from-neutral-700 via-neutral-600 to-neutral-500" />
             )}
             <div className="absolute inset-0 bg-black/20" />
             {/* Rank Badge */}
@@ -497,7 +497,7 @@ export default function PublicProfilePage({ params }: Props) {
                       <Share2 className="h-4 w-4" />
                     </Button>
                     {isOwnProfile ? (
-                      <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+                      <Button asChild size="sm" className="bg-orange-500 hover:bg-orange-600 text-white">
                         <Link href="/settings">Edit Profile</Link>
                       </Button>
                     ) : (
@@ -505,7 +505,7 @@ export default function PublicProfilePage({ params }: Props) {
                         size="sm" 
                         className={isFollowing 
                           ? "bg-[color:var(--surface-2)] hover:bg-red-500/20 text-[color:var(--text-strong)] hover:text-red-500 border border-[color:var(--border-soft)]" 
-                          : "bg-blue-600 hover:bg-blue-700 text-white"
+                          : "bg-orange-500 hover:bg-orange-600 text-white"
                         }
                         onClick={handleFollow}
                         disabled={followLoading}
@@ -530,7 +530,7 @@ export default function PublicProfilePage({ params }: Props) {
                   href={`https://${profile.website}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-blue-500 hover:underline"
+                  className="flex items-center gap-1 text-white/60 hover:underline"
                 >
                   <Globe className="h-4 w-4" />
                   {profile.website}
@@ -562,11 +562,11 @@ export default function PublicProfilePage({ params }: Props) {
 
         {/* Quick Stats Row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] hover:border-blue-500/50 transition">
+          <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] hover:border-white/20 transition">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                  <Target className="h-5 w-5 text-blue-500" />
+                <div className="h-10 w-10 rounded-lg bg-white/10 flex items-center justify-center">
+                  <Target className="h-5 w-5 text-white/60" />
                 </div>
                 <div>
                   <div className="text-2xl font-bold">{profile.stats.totalPicks}</div>
@@ -590,11 +590,11 @@ export default function PublicProfilePage({ params }: Props) {
             </CardContent>
           </Card>
           
-          <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] hover:border-purple-500/50 transition">
+          <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] hover:border-white/20 transition">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                  <BarChart3 className="h-5 w-5 text-purple-500" />
+                <div className="h-10 w-10 rounded-lg bg-white/10 flex items-center justify-center">
+                  <BarChart3 className="h-5 w-5 text-white/60" />
                 </div>
                 <div>
                   <div className="text-2xl font-bold">{profile.stats.totalVolume}</div>
@@ -625,7 +625,7 @@ export default function PublicProfilePage({ params }: Props) {
             onClick={() => setActiveTab("picks")}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition -mb-px whitespace-nowrap ${
               activeTab === "picks"
-                ? "border-blue-500 text-blue-500"
+                ? "border-orange-500 text-orange-500"
                 : "border-transparent text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
             }`}
           >
@@ -635,13 +635,13 @@ export default function PublicProfilePage({ params }: Props) {
             onClick={() => setActiveTab("activity")}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition -mb-px whitespace-nowrap ${
               activeTab === "activity"
-                ? "border-blue-500 text-blue-500"
+                ? "border-orange-500 text-orange-500"
                 : "border-transparent text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
             }`}
           >
             Activity
             {userPosts.length > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 bg-blue-500/20 text-blue-500 text-xs rounded-full">
+              <span className="ml-1 px-1.5 py-0.5 bg-orange-500/20 text-orange-500 text-xs rounded-full">
                 {userPosts.length}
               </span>
             )}
@@ -650,13 +650,13 @@ export default function PublicProfilePage({ params }: Props) {
             onClick={() => setActiveTab("teams")}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition -mb-px whitespace-nowrap ${
               activeTab === "teams"
-                ? "border-blue-500 text-blue-500"
+                ? "border-orange-500 text-orange-500"
                 : "border-transparent text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
             }`}
           >
             Teams
             {followedTeams.length > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 bg-blue-500/20 text-blue-500 text-xs rounded-full">
+              <span className="ml-1 px-1.5 py-0.5 bg-orange-500/20 text-orange-500 text-xs rounded-full">
                 {followedTeams.length}
               </span>
             )}
@@ -665,7 +665,7 @@ export default function PublicProfilePage({ params }: Props) {
             onClick={() => setActiveTab("stats")}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition -mb-px whitespace-nowrap ${
               activeTab === "stats"
-                ? "border-blue-500 text-blue-500"
+                ? "border-orange-500 text-orange-500"
                 : "border-transparent text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
             }`}
           >
@@ -675,7 +675,7 @@ export default function PublicProfilePage({ params }: Props) {
             onClick={() => setActiveTab("achievements")}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition -mb-px whitespace-nowrap ${
               activeTab === "achievements"
-                ? "border-blue-500 text-blue-500"
+                ? "border-orange-500 text-orange-500"
                 : "border-transparent text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
             }`}
           >
@@ -701,7 +701,7 @@ export default function PublicProfilePage({ params }: Props) {
                       {/* League Badge */}
                       <div className="flex items-center gap-2 mb-2">
                         <span className={`px-2 py-0.5 text-xs font-semibold rounded ${
-                          pick.league === "NFL" ? "bg-blue-500/20 text-blue-400" : "bg-orange-500/20 text-orange-400"
+                          pick.league === "NFL" ? "bg-white/10 text-white/70" : "bg-orange-500/20 text-orange-400"
                         }`}>
                           {pick.league}
                         </span>
@@ -775,7 +775,7 @@ export default function PublicProfilePage({ params }: Props) {
           <div className="space-y-3">
             {postsLoading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                <Loader2 className="h-8 w-8 animate-spin text-white/60" />
               </div>
             ) : userPosts.length > 0 ? (
               <>
@@ -860,7 +860,7 @@ export default function PublicProfilePage({ params }: Props) {
                   </p>
                   {isOwnProfile && (
                     <Link href="/sports?league=nfl">
-                      <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                      <Button className="bg-orange-500 hover:bg-orange-600 text-white">
                         Browse Teams & Markets
                       </Button>
                     </Link>
@@ -875,7 +875,7 @@ export default function PublicProfilePage({ params }: Props) {
           <div>
             {teamsLoading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                <Loader2 className="h-8 w-8 animate-spin text-white/60" />
               </div>
             ) : followedTeams.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -885,7 +885,7 @@ export default function PublicProfilePage({ params }: Props) {
                     href={`/teams/${team.league}/${team.slug}`}
                     className="block"
                   >
-                    <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] hover:border-blue-500/50 transition">
+                    <Card className="bg-[color:var(--surface)] border-[color:var(--border-soft)] hover:border-white/20 transition">
                       <CardContent className="p-4 flex flex-col items-center text-center">
                         {team.logo ? (
                           <img 
@@ -922,7 +922,7 @@ export default function PublicProfilePage({ params }: Props) {
                   </p>
                   {isOwnProfile && (
                     <Link href="/sports?league=nfl">
-                      <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                      <Button className="bg-orange-500 hover:bg-orange-600 text-white">
                         Browse Teams
                       </Button>
                     </Link>
@@ -970,7 +970,7 @@ export default function PublicProfilePage({ params }: Props) {
                 <h3 className="text-lg font-semibold mb-4">Favorite Leagues</h3>
                 <div className="space-y-3">
                   {[
-                    { name: "NFL", percentage: 55, color: "bg-blue-500", icon: "🏈" },
+                    { name: "NFL", percentage: 55, color: "bg-neutral-500", icon: "🏈" },
                     { name: "NBA", percentage: 45, color: "bg-orange-500", icon: "🏀" },
                   ].map((league) => (
                     <div key={league.name}>

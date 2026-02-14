@@ -216,7 +216,7 @@ export default function PortfolioPage() {
             Track your positions, orders, and profit/loss
           </p>
           <Button 
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            className="bg-orange-500 hover:bg-orange-600 text-white"
             onClick={() => window.location.href = "/"}
           >
             Sign In
@@ -271,7 +271,7 @@ export default function PortfolioPage() {
                     onClick={() => setActiveRange(range)}
                     className={`px-1.5 md:px-2 py-0.5 md:py-1 text-xs rounded ${
                       activeRange === range
-                        ? "bg-blue-600 text-white"
+                        ? "bg-orange-500 text-white"
                         : "text-[color:var(--text-muted)] hover:text-[color:var(--text-strong)]"
                     }`}
                   >
@@ -286,7 +286,7 @@ export default function PortfolioPage() {
             </div>
             <div className="text-xs md:text-sm text-[color:var(--text-muted)]">Past Month</div>
             {/* Mini chart placeholder */}
-            <div className="mt-3 md:mt-4 h-12 md:h-16 rounded-lg bg-gradient-to-r from-blue-500/20 to-blue-600/20" />
+            <div className="mt-3 md:mt-4 h-12 md:h-16 rounded-lg bg-gradient-to-r from-white/5 to-white/10" />
           </div>
         </div>
 

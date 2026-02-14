@@ -270,33 +270,36 @@ export function TopNav() {
                       <ChevronDown className="h-3 w-3 md:h-4 md:w-4 text-white/70" />
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="bg-[color:var(--surface)] border-[color:var(--border-soft)] text-[color:var(--text-strong)] w-48">
+                  <DropdownMenuContent className="bg-[#1a1a1a] border-white/10 text-white w-48">
                   <DropdownMenuItem asChild>
-                    <Link href={profileLink}>Profile</Link>
+                    <Link href={profileLink} className="text-white/80 hover:text-white focus:text-white">Profile</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/settings">Settings</Link>
+                    <Link href="/portfolio" className="text-white/80 hover:text-white focus:text-white">Portfolio</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings" className="text-white/80 hover:text-white focus:text-white">Settings</Link>
                   </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/leaderboard">Leaderboard</Link>
+                      <Link href="/leaderboard" className="text-white/80 hover:text-white focus:text-white">Leaderboard</Link>
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator className="bg-[color:var(--border-soft)]" />
+                    <DropdownMenuSeparator className="bg-white/10" />
                     <DropdownMenuItem
-                      className="flex items-center justify-between"
+                      className="flex items-center justify-between text-white/80 hover:text-white focus:text-white"
                       onSelect={() => setTheme(toggleTheme())}
                     >
                       {theme === "dark" ? "Dark mode" : "Light mode"}
                       {theme === "dark" ? (
-                        <Moon className="h-4 w-4 text-[color:var(--text-subtle)]" />
+                        <Moon className="h-4 w-4 text-white/40" />
                       ) : (
-                        <Sun className="h-4 w-4 text-[color:var(--text-subtle)]" />
+                        <Sun className="h-4 w-4 text-white/40" />
                       )}
                     </DropdownMenuItem>
-                    <DropdownMenuItem>Support</DropdownMenuItem>
-                    <DropdownMenuItem>Terms of Use</DropdownMenuItem>
-                    <DropdownMenuSeparator className="bg-[color:var(--border-soft)]" />
+                    <DropdownMenuItem className="text-white/80 hover:text-white focus:text-white">Support</DropdownMenuItem>
+                    <DropdownMenuItem className="text-white/80 hover:text-white focus:text-white">Terms of Use</DropdownMenuItem>
+                    <DropdownMenuSeparator className="bg-white/10" />
                     <DropdownMenuItem
-                      className="text-red-500 focus:text-red-400"
+                      className="text-red-400 focus:text-red-300"
                       onSelect={handleLogout}
                     >
                       Logout
@@ -371,7 +374,7 @@ export function TopNav() {
                       onClick={() => setMobileMenuOpen(false)}
                       className="flex items-center gap-3 px-3 py-3 rounded-lg text-[color:var(--text-muted)] hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-strong)] transition"
                     >
-                      <Trophy className="h-5 w-5 text-yellow-500" />
+                      <Trophy className="h-5 w-5 text-white/60" />
                       <span className="font-medium">Leaderboard</span>
                     </Link>
                     {demoUser && (
@@ -381,7 +384,7 @@ export function TopNav() {
                           onClick={() => setMobileMenuOpen(false)}
                           className="flex items-center gap-3 px-3 py-3 rounded-lg text-[color:var(--text-muted)] hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-strong)] transition"
                         >
-                          <div className="h-5 w-5 rounded-full bg-gradient-to-br from-purple-500 to-pink-500" />
+                          <div className="h-5 w-5 rounded-full bg-gradient-to-br from-neutral-500 to-neutral-700" />
                           <span className="font-medium">Profile</span>
                         </Link>
                         <Link
