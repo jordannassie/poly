@@ -582,12 +582,12 @@ export default function HomeClient() {
           <div className="max-w-5xl mx-auto">
             {/* Featured Matchups Carousel */}
             {featuredCandidates.length > 0 ? (
-              <div className="mb-6 md:mb-8">
+              <div className="mb-6 md:mb-8 overflow-hidden">
                 {/* Scrollable row */}
                 <div
                   ref={scrollRef}
-                  className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-3 scrollbar-thin"
-                  style={{ scrollbarColor: "rgba(255,255,255,0.2) transparent" }}
+                  className="flex gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-3 -mx-1 px-1"
+                  style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" }}
                   onTouchStart={() => { autoPlayRef.current = false; }}
                   onMouseDown={() => { autoPlayRef.current = false; }}
                 >
@@ -598,8 +598,8 @@ export default function HomeClient() {
                       <div
                         key={g.id}
                         className={`flex-shrink-0 snap-center transition-all duration-300 ${
-                          featuredCandidates.length === 1 ? "w-full" : "w-[85%] md:w-[70%]"
-                        } ${idx === featuredIndex ? "opacity-100 scale-100" : "opacity-60 scale-[0.97]"}`}
+                          featuredCandidates.length === 1 ? "w-full" : "w-[92%] md:w-[80%]"
+                        } ${idx === featuredIndex ? "opacity-100 scale-100" : "opacity-50 scale-[0.95]"}`}
                       >
                         <FeaturedMatchupHero
                           league={(g.league ?? ga?.sport ?? null) as any}
