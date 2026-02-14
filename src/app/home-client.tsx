@@ -578,7 +578,7 @@ export default function HomeClient() {
         <SportsSidebar />
 
         {/* Main Content */}
-        <main className="flex-1 p-4 md:p-6">
+        <main className="flex-1 min-w-0 overflow-hidden p-4 md:p-6">
           <div className="max-w-5xl mx-auto">
             {/* Featured Matchups Carousel */}
             {featuredCandidates.length > 0 ? (
