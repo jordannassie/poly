@@ -245,9 +245,13 @@ export default function PortfolioPage() {
             <button
               type="button"
               onClick={() => {
-                setMode("coin");
-                localStorage.setItem("provepicks:mode", "coin");
-                window.dispatchEvent(new Event("provepicks:mode-change"));
+                const newMode = "coin";
+                setMode(newMode);
+                localStorage.setItem("provepicks:mode", newMode);
+                if (typeof window !== "undefined") {
+                  (window as any).__provepicksMode = newMode;
+                }
+                window.dispatchEvent(new CustomEvent("provepicks:mode-change", { detail: { mode: newMode } }));
               }}
               className={`flex items-center gap-2 rounded-full px-4 py-1.5 transition ${
                 mode === "coin"
@@ -261,9 +265,13 @@ export default function PortfolioPage() {
             <button
               type="button"
               onClick={() => {
-                setMode("cash");
-                localStorage.setItem("provepicks:mode", "cash");
-                window.dispatchEvent(new Event("provepicks:mode-change"));
+                const newMode = "cash";
+                setMode(newMode);
+                localStorage.setItem("provepicks:mode", newMode);
+                if (typeof window !== "undefined") {
+                  (window as any).__provepicksMode = newMode;
+                }
+                window.dispatchEvent(new CustomEvent("provepicks:mode-change", { detail: { mode: newMode } }));
               }}
               className={`flex items-center gap-2 rounded-full px-4 py-1.5 transition ${
                 mode === "cash"
