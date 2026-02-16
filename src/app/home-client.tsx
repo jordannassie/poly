@@ -701,7 +701,7 @@ export default function HomeClient() {
                       </span>
                     </div>
                     <h2 className="text-2xl md:text-4xl font-bold text-white">
-                      Predict. Win coins. Climb the leaderboard.
+                      Predicts. Win coins. Climb the leaderboard.
                     </h2>
                     <p className="mt-2 text-sm md:text-base text-white/80">
                       Make your prediction and follow the sharpest picks in real time.
